@@ -1,7 +1,7 @@
 # 📋 시각장애인용 오디오북 MVP 개발 체크리스트
 
 ## 진행 상황 개요
-- [ ] **1. 개발 환경 구축** (0/8)
+- [x] **1. 개발 환경 구축** (8/8)
 - [ ] **2. 인프라 구성** (0/12) 
 - [ ] **3. 백엔드 개발** (0/15)
 - [ ] **4. 프론트엔드 개발** (0/10)
@@ -10,9 +10,9 @@
 
 ---
 
-## 1. 개발 환경 구축
+## 1. 개발 환경 구축 ✅
 
-### 1.1 로컬 개발 환경 설정
+### 1.1 로컬 개발 환경 설정 ✅
 - [x] **1.1.1** Node.js 18+ 설치 확인 (v24.7.0 설치됨)
 - [x] **1.1.2** Python 3.9+ 설치 확인 (v3.13.7 설치됨)
 - [x] **1.1.3** FFmpeg 설치 (Homebrew) (v8.0 설치됨, ffprobe 포함)
@@ -20,14 +20,14 @@
 - [x] **1.1.5** 프로젝트 클론 및 초기 설정
   - [x] **1.1.5.1** Git 저장소 초기화 및 GitHub 생성 (https://github.com/maniac00/voj)
   - [x] **1.1.5.2** `env.local.example` 파일 생성 (환경 변수 템플릿 + .gitignore 추가)
-  - [x] **1.1.5.3** `requirements.txt` 파일 생성 (FastAPI, AWS SDK, DynamoDB, 테스트 도구 포함)
+  - [x] **1.1.5.3** `pyproject.toml` 파일 생성 (Poetry 기반, FastAPI, AWS SDK, DynamoDB, 테스트 도구 포함)
   - [x] **1.1.5.4** `package.json` 파일 생성 (Next.js 15, React 19, Shadcn UI, AWS SDK 포함)
 
-### 1.2 스크립트 및 설정 파일 생성
-- [ ] **1.2.1** `scripts/setup-local.sh` 스크립트 작성
-- [ ] **1.2.2** `docker-compose.yml` 파일 작성 (DynamoDB Local)
-- [ ] **1.2.3** `scripts/create-local-tables.py` 스크립트 작성
-- [ ] **1.2.4** 로컬 환경 변수 설정 (`.env.local`)
+### 1.2 스크립트 및 설정 파일 생성 ✅
+- [x] **1.2.1** `scripts/setup-local.sh` 스크립트 작성 (Poetry 기반, 의존성 확인, 환경 설정, DynamoDB Local 자동화)
+- [x] **1.2.2** `docker-compose.yml` 파일 작성 (DynamoDB Local + Admin UI, 헬스체크 포함)
+- [x] **1.2.3** `scripts/create-local-tables.py` 스크립트 작성 (Books/AudioChapters 테이블, GSI, 샘플 데이터 포함)
+- [x] **1.2.4** 로컬 환경 변수 설정 (`.env.local`) (FFmpeg 경로 확인 완료)
 
 ---
 

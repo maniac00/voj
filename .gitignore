@@ -96,6 +96,7 @@ Thumbs.db
 
 # Docker
 .dockerignore
+docker/dynamodb/
 
 # Python virtual environment
 .venv/
@@ -103,6 +104,9 @@ venv/
 ENV/
 env/
 .env/
+
+# Poetry
+poetry.lock
 
 # Jupyter Notebook
 .ipynb_checkpoints

@@ -1,0 +1,121 @@
+[tool.poetry]
+name = "voj-audiobook-backend"
+version = "0.1.0"
+description = "시각장애인용 오디오북 스트리밍 MVP - 백엔드 API"
+authors = ["maniac00 <your-email@example.com>"]
+readme = "README.md"
+packages = [{include = "backend"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+# FastAPI 및 웹 프레임워크
+fastapi = "^0.104.1"
+uvicorn = {extras = ["standard"], version = "^0.24.0"}
+python-multipart = "^0.0.6"
+
+# AWS SDK 및 클라우드 서비스
+boto3 = "^1.34.0"
+botocore = "^1.34.0"
+
+# 데이터베이스 (DynamoDB)
+pynamodb = "^5.5.0"
+
+# 인증 및 보안
+python-jose = {extras = ["cryptography"], version = "^3.3.0"}
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+
+# 환경 변수 관리
+python-dotenv = "^1.0.0"
+
+# HTTP 클라이언트
+httpx = "^0.25.2"
+requests = "^2.31.0"
+
+# 데이터 검증 및 직렬화
+pydantic = "^2.5.0"
+pydantic-settings = "^2.1.0"
+
+# 날짜/시간 처리
+python-dateutil = "^2.8.2"
+
+# 로깅
+structlog = "^23.2.0"
+
+# FFmpeg Python 바인딩 (메타데이터 추출용)
+ffmpeg-python = "^0.2.0"
+
+# CORS 처리
+fastapi-cors = "^0.0.6"
+
+# 파일 처리
+aiofiles = "^23.2.1"
+
+# JSON 처리
+orjson = "^3.9.10"
+
+[tool.poetry.group.dev.dependencies]
+# 개발 및 테스트 도구
+pytest = "^7.4.3"
+pytest-asyncio = "^0.21.1"
+pytest-cov = "^4.1.0"
+black = "^23.11.0"
+isort = "^5.12.0"
+flake8 = "^6.1.0"
+mypy = "^1.7.1"
+
+# 로컬 개발용 (DynamoDB Local)
+moto = {extras = ["dynamodb"], version = "^4.2.14"}
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+target-version = ['py39']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["backend"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = [
+    "tests",
+]
+python_files = [
+    "test_*.py",
+    "*_test.py",
+]

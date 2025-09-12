@@ -104,8 +104,8 @@
   - [x] 6.3 마이그레이션/백필 전략(필요 시) 수립
 
 - [ ] 7.0 프론트엔드 어드민 기본 UI 프레임(로그인/책/오디오 관리)
-  - [ ] 7.1 Next.js 15 App Router 스캐폴딩(TypeScript, Tailwind, Shadcn)
-  - [ ] 7.2 로그인 화면 + Cognito 연동(Amplify/SDK)
+  - [x] 7.1 Next.js 15 App Router 스캐폴딩(TypeScript, Tailwind, Shadcn)
+  - [x] 7.2 로그인 화면 + Cognito 연동(Amplify/SDK)
   - [ ] 7.3 책 목록/등록/편집/삭제 페이지
   - [ ] 7.4 오디오 업로드(DnD) + 진행률/정렬 UI
   - [ ] 7.5 접근성 기본(키보드/ARIA/포커스)

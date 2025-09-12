@@ -96,7 +96,7 @@
   - [x] 5.2 ffmpeg 변환 스크립트 설계(AAC/Opus 중 택1, 메타 수집)
   - [x] 5.3 결과 파일 키 정책(media/) 및 메타 업데이트
   - [x] 5.4 실패 재시도/에러 로깅/DLQ 설계
-  - [ ] 5.5 Lambda 권한/Layer/IaC 초안
+  - [x] 5.5 Lambda 권한/Layer/IaC 초안
 
 - [ ] 6.0 데이터 모델/테이블 스키마 정합성 확립(로컬/프로덕션)
   - [ ] 6.1 로컬 테이블 생성 방식을 PynamoDB `create_table`로 일원화 또는 boto3 스크립트 수정

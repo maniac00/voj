@@ -303,6 +303,26 @@ ffmpeg -i input.wav -ac 1 -ar 44100 -c:a aac -b:a 56k -movflags +faststart outpu
   - DLQ(SQS) 접근 최소 권한, 메시지 보존기간 14일 설정
   - 로그에 개인 식별정보(PII) 미포함, 키/ID만 기록
 
+#### 5.5 Lambda 권한/Layer/IaC 초안
+
+- IAM 권한(최소):
+  - S3: `GetObject`(uploads/*), `PutObject`(media/*)
+  - DynamoDB: `UpdateItem`, `PutItem`, `GetItem` on `AudioChapters`
+  - SQS(DLQ): `SendMessage`
+  - Logs: `CreateLogGroup`, `CreateLogStream`, `PutLogEvents`
+- Layer 구성:
+  - `ffmpeg-layer`: 정적 빌드 바이너리 포함(`/opt/ffmpeg`, `/opt/ffprobe`)
+  - 버전 고정 및 아키텍처 `arm64` 권장(비용/성능)
+- 환경 변수:
+  - `BUCKET_NAME`, `AUDIO_TABLE`, `FFMPEG_PATH=/opt/ffmpeg`, `FFPROBE_PATH=/opt/ffprobe`
+- 배포(IaC 개요):
+  - 스택: `StorageStack(S3+OAC)`, `DataStack(DynamoDB)`, `EncodingStack(Lambda+Layer+S3 Event+DLQ)`, `ApiStack`
+  - S3 Notification → Lambda Permission(InvokeFunction) 자동 연결
+  - 파라미터화: stage(dev/stage/prod)별 네이밍 접미사
+- 운영 고려:
+  - 동시성 제한(Reserved Concurrency)으로 비용/스로틀 관리
+  - 대용량 파일 시 배치 인코딩 전환(차기), Step Functions 고려
+
 ---
 
 ## 6. API 설계(요약)

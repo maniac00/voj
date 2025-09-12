@@ -228,6 +228,43 @@ ffmpeg -i input.wav -ac 1 -ar 44100 -c:a aac -b:a 56k -movflags +faststart outpu
   - 예외 시 `status=error`, `error_reason` 저장, DLQ로 이벤트 전송
   - 재시도 시 멱등성 체크로 중복 인코딩 회피
 
+#### 5.2 FFmpeg 변환 스크립트 설계
+
+- 입력/출력 규격:
+  - 입력: WAV(`audio/wav`), 단일 트랙 가정
+  - 출력: M4A(AAC-LC), 56kbps, 모노 44.1kHz, faststart
+- 파일명/경로 규칙:
+  - 입력 키: `book/<book_id>/uploads/<name>.wav`
+  - 출력 키: `book/<book_id>/media/<name>.m4a` (동일 베이스네임 사용)
+  - 임시 파일: `/tmp/<uuid>.wav`, `/tmp/<uuid>.m4a`
+- 명령 프리셋:
+  - `ffmpeg -y -i in.wav -ac 1 -ar 44100 -c:a aac -b:a 56k -movflags +faststart out.m4a`
+- 메타 수집(ffprobe):
+  - `duration`, `bit_rate`, `sample_rate`, `channels` 추출
+  - 추출 실패 시 기본값 없이 오류로 간주하여 DLQ
+- 리소스/제한:
+  - Lambda 메모리 1024MB 권장, 타임아웃 파일 길이에 따라 60~120초
+  - `/tmp` 용량 512MB 제한 고려 → 대용량 파일은 분할 업로드 권장(차기)
+- 멱등성/중복 방지:
+  - DynamoDB 레코드 `encoding_status` 전이: `pending → in_progress → ready|error`
+  - 동일 키 재처리 시 `ready`면 skip, `in_progress`면 재시도 대기
+- 오류 처리 정책:
+  - ffmpeg/ffprobe non-zero 종료 → `status=error`, `error_reason` 저장, DLQ
+  - S3 I/O 오류 → 재시도 허용(지수 백오프), 한계 초과 시 DLQ
+- 로깅/관측:
+  - 처리 ms, 출력 파일 크기, 추출 duration 비교(입력 vs 출력) 지표 기록
+  - CloudWatch 지표: `encode_success`, `encode_fail`, `encode_duration_ms`
+- 코드 구조(의사 코드):
+  - `handler(event) → records → for each: process(record)`
+  - `process`:
+    1) 키 파싱, 락(in_progress)
+    2) S3 get to `/tmp/in.wav`
+    3) run_ffmpeg(`/tmp/in.wav`, `/tmp/out.m4a`)
+    4) meta = run_ffprobe(`/tmp/out.m4a`)
+    5) put S3 to `media/…`
+    6) DynamoDB update(meta, status=ready)
+    7) cleanup(`/tmp/*`)
+
 ---
 
 ## 6. API 설계(요약)

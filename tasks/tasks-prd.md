@@ -93,7 +93,7 @@
 
 - [ ] 5.0 인코딩 파이프라인 설계 및 MVP 구현(S3 이벤트 → Lambda ffmpeg)
   - [x] 5.1 S3 Event → Lambda 트리거 스펙 초안
-  - [ ] 5.2 ffmpeg 변환 스크립트 설계(AAC/Opus 중 택1, 메타 수집)
+  - [x] 5.2 ffmpeg 변환 스크립트 설계(AAC/Opus 중 택1, 메타 수집)
   - [ ] 5.3 결과 파일 키 정책(media/) 및 메타 업데이트
   - [ ] 5.4 실패 재시도/에러 로깅/DLQ 설계
   - [ ] 5.5 Lambda 권한/Layer/IaC 초안

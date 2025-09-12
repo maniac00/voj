@@ -13,17 +13,25 @@
 - `scripts/create-local-tables.py` - 로컬 테이블 생성 스크립트(스키마 정합성 확인 필요).
 - `backend/docs/environment-config.md` - 환경 설정 문서.
 - `docs/checklist.md` - 상위 진행 체크리스트.
- - `src/lib/auth/amplify-config.ts` - 프론트엔드 Amplify 설정 유틸(환경 변수 기반).
- - `tests/` - 백엔드 테스트 루트 디렉터리(추가 예정 테스트 배치).
- - `env.local.example` - 로컬 환경 변수 템플릿(시크릿 비워두기, Cognito BYPASS 주석 포함).
- - `backend/app/core/settings/local.py` - 로컬 설정(Cognito 하드코딩 제거, env 로드).
- - `backend/app/api/v1/endpoints/health.py` - 상세 헬스체크에 Cognito 설정 경고 추가.
- - `backend/docs/environment-config.md` - 환경 변수 섹션에 Cognito 안내 보강.
- - `docs/design.md` - 시크릿 관리 원칙 추가.
- - `tests/test_auth_jwt.py` - Cognito JWT 검증 테스트(예외/시간초과/키 회전 포함).
- - `tests/test_auth_deps.py` - 로컬 바이패스/스코프/그룹 처리 테스트.
- - `tests/test_auth_endpoints.py` - 로그인/로그아웃/내 정보(me) 로컬 BYPASS 동작 테스트.
- - `tests/test_auth_scopes.py` - 스코프 추출/검증 유틸 및 요구 스코프 동작 테스트.
+- `src/lib/auth/amplify-config.ts` - 프론트엔드 Amplify 설정 유틸(환경 변수 기반).
+- `backend/app/services/books.py` - Book 도메인 서비스 계층(CRUD/목록/페이지네이션).
+- `tests/test_books_service.py` - BookService 단위 테스트.
+- `tests/test_books_endpoint_post.py` - POST /books 엔드포인트 테스트.
+- `tests/test_books_endpoint_list.py` - GET /books 목록/필터/검색 테스트.
+- `tests/test_books_endpoint_get_one.py` - GET /books/{book_id} 소유권 테스트.
+- `tests/test_books_endpoint_put.py` - PUT /books/{book_id} 부분 업데이트 테스트.
+- `tests/test_books_endpoint_delete.py` - DELETE /books/{book_id} 삭제 테스트.
+- `tests/test_books_end_to_end.py` - Book API E2E 플로우 테스트.
+- `tests/` - 백엔드 테스트 루트 디렉터리(추가 예정 테스트 배치).
+- `env.local.example` - 로컬 환경 변수 템플릿(시크릿 비워두기, Cognito BYPASS 주석 포함).
+- `backend/app/core/settings/local.py` - 로컬 설정(Cognito 하드코딩 제거, env 로드).
+- `backend/app/api/v1/endpoints/health.py` - 상세 헬스체크에 Cognito 설정 경고 추가.
+- `backend/docs/environment-config.md` - 환경 변수 섹션에 Cognito 안내 보강.
+- `docs/design.md` - 시크릿 관리 원칙 추가.
+- `tests/test_auth_jwt.py` - Cognito JWT 검증 테스트(예외/시간초과/키 회전 포함).
+- `tests/test_auth_deps.py` - 로컬 바이패스/스코프/그룹 처리 테스트.
+- `tests/test_auth_endpoints.py` - 로그인/로그아웃/내 정보(me) 로컬 BYPASS 동작 테스트.
+- `tests/test_auth_scopes.py` - 스코프 추출/검증 유틸 및 요구 스코프 동작 테스트.
 
 ### Notes
 
@@ -33,25 +41,22 @@
 
 ## Tasks
 
-- [ ] 1.0 인증/권한 기반 어드민 로그인 흐름 확정(Cognito)
+- [x] 1.0 인증/권한 기반 어드민 로그인 흐름 확정(Cognito)
   - [x] 1.1 Cognito User Pool/Client 환경 변수로 분리(.env, Secrets Manager 계획)
   - [x] 1.2 `verify_cognito_jwt` 예외/시간초과/키회전 대응 강화 테스트
   - [x] 1.3 `get_current_user_claims` 로컬 바이패스 명확화 및 스코프 정책 합의
   - [x] 1.4 로그인/로그아웃 엔드포인트 실제 구현(임시 더미 제거)
   - [x] 1.5 권한 스코프 매핑 표준화(`require_any_scope` 테스트 포함)
   - [x] 1.6 프론트엔드 Amplify(or auth SDK) 설정 초안
-  - [ ] 1.4 로그인/로그아웃 엔드포인트 실제 구현(임시 더미 제거)
-  - [ ] 1.5 권한 스코프 매핑 표준화(`require_any_scope` 테스트 포함)
-  - [ ] 1.6 프론트엔드 Amplify(or auth SDK) 설정 초안
 
-- [ ] 2.0 Book 관리 API 완성(등록/수정/삭제/조회 + 페이지네이션)
-  - [ ] 2.1 PynamoDB Book 모델 기반 CRUD 서비스 계층 추가
-  - [ ] 2.2 `POST /api/v1/books` 구현 + 입력 검증 + 소유권 부여
-  - [ ] 2.3 `GET /api/v1/books` 페이지네이션/필터(status, genre, search)
-  - [ ] 2.4 `GET /api/v1/books/{book_id}` 권한/소유 검증
-  - [ ] 2.5 `PUT /api/v1/books/{book_id}` 부분 업데이트
-  - [ ] 2.6 `DELETE /api/v1/books/{book_id}` 연관 리소스 정리 정책
-  - [ ] 2.7 단위/통합 테스트(pytest) 작성
+- [x] 2.0 Book 관리 API 완성(등록/수정/삭제/조회 + 페이지네이션)
+  - [x] 2.1 PynamoDB Book 모델 기반 CRUD 서비스 계층 추가
+  - [x] 2.2 `POST /api/v1/books` 구현 + 입력 검증 + 소유권 부여
+  - [x] 2.3 `GET /api/v1/books` 페이지네이션/필터(status, genre, search)
+  - [x] 2.4 `GET /api/v1/books/{book_id}` 권한/소유 검증
+  - [x] 2.5 `PUT /api/v1/books/{book_id}` 부분 업데이트
+  - [x] 2.6 `DELETE /api/v1/books/{book_id}` 연관 리소스 정리 정책
+  - [x] 2.7 단위/통합 테스트(pytest) 작성
 
 - [ ] 3.0 Audio 관리 API 완성(업로드/메타데이터/순서 관리/삭제)
   - [ ] 3.1 업로드 경로 키 정책 확정(`generate_key` 표준화)

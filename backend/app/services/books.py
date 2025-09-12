@@ -80,6 +80,16 @@ class BookService:
         return PageResult(items=items, last_evaluated_key=lek)
 
     @staticmethod
+    def list_all_books(*, user_id: str) -> List[Book]:
+        """Return all books for the user by consuming the full iterator.
+
+        Note: Intended for small-to-medium datasets (tests/admin views). For large datasets,
+        prefer cursor-based pagination.
+        """
+        result = Book.query(user_id)
+        return list(result)
+
+    @staticmethod
     def list_books_by_status(
         *, user_id: str, status: str, limit: int
     ) -> List[Book]:

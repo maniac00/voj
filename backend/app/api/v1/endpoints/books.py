@@ -146,9 +146,8 @@ async def get_books(
             items = BookService.list_books_by_genre(user_id=user_id, genre=genre, limit=size)
             total = len(items)
         else:
-            # naive pagination using query + page offset via repeated queries (improvement: use cursors)
-            page_result = BookService.list_books(user_id=user_id, limit=100)
-            items = page_result.items
+            # Load all for deterministic test expectation; future: cursor pagination
+            items = BookService.list_all_books(user_id=user_id)
             total = len(items)
 
         # simple in-memory search filter (title/author)

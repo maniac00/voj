@@ -737,4 +737,50 @@ const adaptiveStreaming = {
 
 ### 최종 한 줄 요약
 
-\*\*S3 비공개 + CloudFront(OAC, Signed URL) + FFmpeg 단일 프리셋(AAC-LC 56kbps 모노)\*\*로 시작하면, 50 동시접속 규모에서 **보안·성능·비용** 모두 안정적으로 MVP를 빠르게 띄울 수 있습니다.
+**S3 비공개 + CloudFront(OAC, Signed URL) + FFmpeg 단일 프리셋(AAC-LC 56kbps 모노)**로 시작하면, 50 동시접속 규모에서 **보안·성능·비용** 모두 안정적으로 MVP를 빠르게 띄울 수 있습니다.
+
+---
+
+## 16. DynamoDB 스키마 정합성 (모델 vs 프로덕션)
+
+### 16.1 Books 테이블
+
+| 항목 | 현재 모델(Book) | 프로덕션(문서상) |
+|------|------------------|------------------|
+| 테이블명 | `settings.BOOKS_TABLE_NAME` (예: `voj-books-local/prod`) | `voj-books-prod` |
+| 파티션키 | `user_id` | `book_id` |
+| 정렬키 | `book_id` | 없음 |
+| 인덱스 | LSI: `status-index(user_id, status)`, `genre-index(user_id, genre)` | 미정 |
+
+정합성 이슈: 프로덕션은 단일 PK(`book_id`)로 설계되어 다계정(사용자별) 분리가 어렵고 쿼리 패턴(사용자별 목록/필터) 구현 비용이 큼.
+
+권고안: 모델 우선(Model-first) 정합화. 프로덕션 테이블을 `PK=user_id, SK=book_id`로 정의하고, LSI(`status-index`, `genre-index`)를 생성.
+
+해소 계획:
+- IaC에서 Books 테이블 스키마를 모델과 동일하게 정의
+- 운영 데이터 없음 가정 시 재생성, 데이터 존재 시 신규 테이블 생성 후 cutover
+
+### 16.2 AudioChapters 테이블
+
+| 항목 | 현재 모델(AudioChapter) | 프로덕션(문서상) |
+|------|--------------------------|------------------|
+| 테이블명 | `settings.AUDIO_CHAPTERS_TABLE_NAME` | `voj-audio-chapters-prod` |
+| 파티션키 | `chapter_id` | `pk = book#<book_id>` |
+| 정렬키 | 없음 | `sk = order#0001` |
+| GSI | `book-chapters-index(book_id, chapter_number)`, `status-index(status, created_at)` | `GSI1(audio_id, created_at)` |
+
+정합성 이슈: 키 전략과 GSI 구성이 상이. 모델은 단건 조회를 `chapter_id`로, 목록은 `book_id/chapter_number` GSI로 해결. 프로덕션은 책별 파티셔닝과 순서 기반 접근을 PK/SK로 해결.
+
+권고안(두 가지 중 택1):
+- A. 모델 유지: 프로덕션을 모델 스키마로 통일(GSI 2개). 장점: 코드 변경 최소. 단점: 파티션 설계가 `chapter_id` 기준.
+- B. 프로덕션안 채택: 모델을 `PK=book#<book_id>, SK=order#0001`로 리팩토링 + `GSI(audio_id, created_at)` 추가. 장점: 책 단위 파티셔닝, 순서 스캔 최적. 단점: 코드/테스트 리팩토링 필요.
+
+해소 계획(권장: B안):
+1) 신규 모델 정의 초안 작성(브랜치)
+2) 마이그레이션 전략 수립(6.3): 신규 테이블 생성 → 백필 → 트래픽 스위치 → 구테이블 정리
+3) 테스트 리팩토링: `list_by_book`를 PK/SK 스캔 기반으로 교체, E2E 검증
+
+### 16.3 공통 원칙
+- 모델이 소스 오브 트루스가 되도록 IaC를 모델 스키마에 맞춘다(초기). 단, 프로덕션 요구에 따라 파티션 전략이 바뀌면 모델을 선반영 후 IaC/마이그레이션을 따른다.
+- 모든 인덱스는 쿼리 패턴으로부터 도출한다: 사용자별 책 목록/필터, 책별 챕터 순회, 상태 모니터링.
+- 테이블 이름 접미사로 stage를 구분(`-local`, `-dev`, `-prod`).

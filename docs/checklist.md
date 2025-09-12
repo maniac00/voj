@@ -285,6 +285,7 @@
 - 인코딩 파이프라인 5.4 실패 재시도/에러 로깅/DLQ 설계 문서화
 - 인코딩 파이프라인 5.5 Lambda 권한/Layer/IaC 초안 문서화
 - 6.1 로컬 테이블 생성 스크립트 PynamoDB 기반 일원화(`scripts/create-local-tables.py`)
+- 6.2 프로덕션 테이블↔모델 필드 비교표 및 해소 계획 문서화(`docs/design.md#16`)
 
 ### 2024-XX-XX
 - 초기 체크리스트 생성

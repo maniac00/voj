@@ -16,6 +16,14 @@
 - `src/lib/auth/amplify-config.ts` - 프론트엔드 Amplify 설정 유틸(환경 변수 기반).
 - `backend/app/services/books.py` - Book 도메인 서비스 계층(CRUD/목록/페이지네이션).
 - `tests/test_books_service.py` - BookService 단위 테스트.
+ - `backend/app/utils/ffprobe.py` - ffprobe 기반 오디오 메타데이터 추출 유틸.
+ - `tests/test_ffprobe_utils.py` - ffprobe 유틸 테스트(ffmpeg/ffprobe 존재 시 실행).
+ - `tests/test_storage_key_policy.py` - 스토리지 키 정책 표준화 테스트.
+ - `tests/test_files_upload.py` - 파일 업로드 검증(권한/사이즈/타입/키 형식) 테스트.
+ - `tests/test_audio_list_chapters.py` - 실제 데이터 기반 챕터 목록 테스트.
+ - `tests/test_audio_reorder_chapter.py` - 챕터 순서 변경 API 테스트.
+ - `tests/test_audio_delete_chapter.py` - 챕터 삭제 API 테스트(스토리지 정리 포함).
+ - `tests/test_audio_end_to_end_flow.py` - Audio 업로드→목록→정렬→삭제 E2E 테스트.
 - `tests/test_books_endpoint_post.py` - POST /books 엔드포인트 테스트.
 - `tests/test_books_endpoint_list.py` - GET /books 목록/필터/검색 테스트.
 - `tests/test_books_endpoint_get_one.py` - GET /books/{book_id} 소유권 테스트.
@@ -59,13 +67,13 @@
   - [x] 2.7 단위/통합 테스트(pytest) 작성
 
 - [ ] 3.0 Audio 관리 API 완성(업로드/메타데이터/순서 관리/삭제)
-  - [ ] 3.1 업로드 경로 키 정책 확정(`generate_key` 표준화)
-  - [ ] 3.2 `POST /api/v1/files/upload` 권한/사이즈/타입 검증 강화
-  - [ ] 3.3 `GET /api/v1/audio/{book_id}/chapters` 실제 데이터 반환
-  - [ ] 3.4 순서 변경 API 설계(`PUT /api/v1/audio/{book_id}/chapters/{id}`)
-  - [ ] 3.5 삭제 API 정합성(`DELETE ...`) + 스토리지 삭제
-  - [ ] 3.6 ffprobe 메타데이터 추출 로직(Lambda 전 단계) 유틸 추가
-  - [ ] 3.7 테스트(업로드→목록→정렬→삭제 흐름)
+  - [x] 3.1 업로드 경로 키 정책 확정(`generate_key` 표준화)
+  - [x] 3.2 `POST /api/v1/files/upload` 권한/사이즈/타입 검증 강화
+  - [x] 3.3 `GET /api/v1/audio/{book_id}/chapters` 실제 데이터 반환
+  - [x] 3.4 순서 변경 API 설계(`PUT /api/v1/audio/{book_id}/chapters/{id}`)
+  - [x] 3.5 삭제 API 정합성(`DELETE ...`) + 스토리지 삭제
+  - [x] 3.6 ffprobe 메타데이터 추출 로직(Lambda 전 단계) 유틸 추가
+  - [x] 3.7 테스트(업로드→목록→정렬→삭제 흐름)
 
 - [ ] 4.0 스트리밍 제공 방식 확정 및 구현(CloudFront Signed URL, Range)
   - [ ] 4.1 로컬: Files 경유 스트리밍 일원화(`/api/v1/files/{file_key}`)

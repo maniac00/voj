@@ -13,7 +13,8 @@
 - `scripts/create-local-tables.py` - 로컬 테이블 생성 스크립트(스키마 정합성 확인 필요).
 - `backend/docs/environment-config.md` - 환경 설정 문서.
 - `docs/checklist.md` - 상위 진행 체크리스트.
-- `src/lib/auth/amplify-config.ts` - 프론트엔드 Amplify 설정 유틸(환경 변수 기반).
+- `frontend/src/lib/auth/amplify-config.ts` - 프론트엔드 Amplify 설정 유틸(환경 변수 기반).
+ - `frontend/` - Next.js 15 App Router 소스(`frontend/src/app`), Tailwind/TS 설정(`frontend/*`).
 - `backend/app/services/books.py` - Book 도메인 서비스 계층(CRUD/목록/페이지네이션).
 - `tests/test_books_service.py` - BookService 단위 테스트.
  - `backend/app/utils/ffprobe.py` - ffprobe 기반 오디오 메타데이터 추출 유틸.
@@ -106,7 +107,7 @@
 - [ ] 7.0 프론트엔드 어드민 기본 UI 프레임(로그인/책/오디오 관리)
   - [x] 7.1 Next.js 15 App Router 스캐폴딩(TypeScript, Tailwind, Shadcn)
   - [x] 7.2 로그인 화면 + Cognito 연동(Amplify/SDK)
-  - [ ] 7.3 책 목록/등록/편집/삭제 페이지
+  - [x] 7.3 책 목록/등록/편집/삭제 페이지
   - [ ] 7.4 오디오 업로드(DnD) + 진행률/정렬 UI
   - [ ] 7.5 접근성 기본(키보드/ARIA/포커스)
 

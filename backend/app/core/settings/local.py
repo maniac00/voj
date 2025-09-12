@@ -3,6 +3,7 @@ VOJ Audiobooks API - 로컬 개발 환경 설정
 로컬 개발 환경에서 사용되는 설정들
 """
 from typing import Optional
+from pydantic import ConfigDict
 from .base import BaseAppSettings
 
 
@@ -61,5 +62,4 @@ class LocalSettings(BaseAppSettings):
     LOG_LEVEL: str = "DEBUG"
     
     # Pydantic v2
-    from pydantic import ConfigDict
     model_config = ConfigDict(case_sensitive=True)

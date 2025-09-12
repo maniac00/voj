@@ -4,6 +4,7 @@ AWS 프로덕션 환경에서 사용되는 설정들
 """
 import os
 from typing import Optional
+from pydantic import ConfigDict
 from .base import BaseAppSettings
 
 
@@ -63,6 +64,5 @@ class ProductionSettings(BaseAppSettings):
     LOG_LEVEL: str = "INFO"
     
     # Pydantic v2
-    from pydantic import ConfigDict
     model_config = ConfigDict(case_sensitive=True)
 

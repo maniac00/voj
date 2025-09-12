@@ -1,0 +1,96 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "CloudWatchLogsAccess",
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            "Resource": [
+                "arn:aws:logs:ap-northeast-2:*:log-group:/aws/lambda/voj-api-*",
+                "arn:aws:logs:ap-northeast-2:*:log-group:/aws/lambda/voj-api-*:*"
+            ]
+        },
+        {
+            "Sid": "DynamoDBAccess",
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:Query",
+                "dynamodb:Scan"
+            ],
+            "Resource": [
+                "arn:aws:dynamodb:ap-northeast-2:*:table/voj-books-*",
+                "arn:aws:dynamodb:ap-northeast-2:*:table/voj-audio-chapters-*",
+                "arn:aws:dynamodb:ap-northeast-2:*:table/voj-books-*/index/*",
+                "arn:aws:dynamodb:ap-northeast-2:*:table/voj-audio-chapters-*/index/*"
+            ]
+        },
+        {
+            "Sid": "S3Access",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:GetObjectAcl",
+                "s3:PutObjectAcl"
+            ],
+            "Resource": [
+                "arn:aws:s3:::voj-*/*"
+            ]
+        },
+        {
+            "Sid": "S3BucketAccess",
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket",
+                "s3:GetBucketLocation"
+            ],
+            "Resource": [
+                "arn:aws:s3:::voj-*"
+            ]
+        },
+        {
+            "Sid": "S3PresignedUrlAccess",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::voj-*/*"
+            ]
+        },
+        {
+            "Sid": "CloudFrontAccess",
+            "Effect": "Allow",
+            "Action": [
+                "cloudfront:CreateInvalidation",
+                "cloudfront:GetDistribution",
+                "cloudfront:ListDistributions"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "CognitoAccess",
+            "Effect": "Allow",
+            "Action": [
+                "cognito-idp:AdminGetUser",
+                "cognito-idp:AdminCreateUser",
+                "cognito-idp:AdminSetUserPassword",
+                "cognito-idp:AdminDeleteUser",
+                "cognito-idp:ListUsers"
+            ],
+            "Resource": [
+                "arn:aws:cognito-idp:ap-northeast-2:*:userpool/ap-northeast-2_*"
+            ]
+        }
+    ]
+}

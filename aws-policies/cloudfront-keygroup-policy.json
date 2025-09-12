@@ -1,0 +1,16 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:CreateKeyGroup",
+        "cloudfront:GetKeyGroup",
+        "cloudfront:UpdateKeyGroup",
+        "cloudfront:DeleteKeyGroup",
+        "cloudfront:ListKeyGroups"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

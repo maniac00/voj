@@ -1,0 +1,16 @@
+{
+    "Sid": "AdditionalAdminPermissions",
+    "Effect": "Allow",
+    "Action": [
+        "iam:CreatePolicyVersion",
+        "iam:SetDefaultPolicyVersion",
+        "iam:DeletePolicyVersion",
+        "iam:GetPolicyVersion",
+        "dynamodb:TagResource",
+        "dynamodb:UntagResource",
+        "dynamodb:ListTagsOfResource"
+    ],
+    "Resource": "*"
+}
+
+

@@ -1,0 +1,171 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "DynamoDBTableAccess",
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:CreateTable",
+                "dynamodb:DeleteTable",
+                "dynamodb:DescribeTable",
+                "dynamodb:UpdateTable",
+                "dynamodb:PutItem",
+                "dynamodb:GetItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:Query",
+                "dynamodb:Scan",
+                "dynamodb:DescribeTimeToLive",
+                "dynamodb:UpdateTimeToLive",
+                "dynamodb:TagResource",
+                "dynamodb:UntagResource",
+                "dynamodb:ListTagsOfResource"
+            ],
+            "Resource": [
+                "arn:aws:dynamodb:ap-northeast-2:*:table/voj-*",
+                "arn:aws:dynamodb:ap-northeast-2:*:table/voj-*/index/*"
+            ]
+        },
+        {
+            "Sid": "DynamoDBListAccess",
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:ListTables"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "CognitoAccess",
+            "Effect": "Allow",
+            "Action": [
+                "cognito-idp:CreateUserPool",
+                "cognito-idp:DeleteUserPool",
+                "cognito-idp:DescribeUserPool",
+                "cognito-idp:ListUserPools",
+                "cognito-idp:UpdateUserPool",
+                "cognito-idp:CreateUserPoolClient",
+                "cognito-idp:DeleteUserPoolClient",
+                "cognito-idp:DescribeUserPoolClient",
+                "cognito-idp:UpdateUserPoolClient",
+                "cognito-idp:CreateUserPoolDomain",
+                "cognito-idp:DeleteUserPoolDomain",
+                "cognito-idp:DescribeUserPoolDomain"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "S3Access",
+            "Effect": "Allow",
+            "Action": [
+                "s3:CreateBucket",
+                "s3:DeleteBucket",
+                "s3:ListBucket",
+                "s3:GetBucketLocation",
+                "s3:GetBucketCors",
+                "s3:PutBucketCors",
+                "s3:GetBucketPolicy",
+                "s3:PutBucketPolicy",
+                "s3:DeleteBucketPolicy",
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:GetObjectAcl",
+                "s3:PutObjectAcl"
+            ],
+            "Resource": [
+                "arn:aws:s3:::voj-*",
+                "arn:aws:s3:::voj-*/*"
+            ]
+        },
+        {
+            "Sid": "CloudFrontAccess",
+            "Effect": "Allow",
+            "Action": [
+                "cloudfront:CreateDistribution",
+                "cloudfront:GetDistribution",
+                "cloudfront:UpdateDistribution",
+                "cloudfront:DeleteDistribution",
+                "cloudfront:ListDistributions",
+                "cloudfront:CreateOriginAccessControl",
+                "cloudfront:GetOriginAccessControl",
+                "cloudfront:UpdateOriginAccessControl",
+                "cloudfront:DeleteOriginAccessControl",
+                "cloudfront:ListOriginAccessControls",
+                "cloudfront:CreatePublicKey",
+                "cloudfront:GetPublicKey",
+                "cloudfront:UpdatePublicKey",
+                "cloudfront:DeletePublicKey",
+                "cloudfront:ListPublicKeys",
+                "cloudfront:CreateKeyGroup",
+                "cloudfront:GetKeyGroup",
+                "cloudfront:UpdateKeyGroup",
+                "cloudfront:DeleteKeyGroup",
+                "cloudfront:ListKeyGroups"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "LambdaAccess",
+            "Effect": "Allow",
+            "Action": [
+                "lambda:CreateFunction",
+                "lambda:DeleteFunction",
+                "lambda:GetFunction",
+                "lambda:ListFunctions",
+                "lambda:UpdateFunctionCode",
+                "lambda:UpdateFunctionConfiguration",
+                "lambda:InvokeFunction",
+                "lambda:CreateEventSourceMapping",
+                "lambda:DeleteEventSourceMapping",
+                "lambda:GetEventSourceMapping",
+                "lambda:ListEventSourceMappings",
+                "lambda:UpdateEventSourceMapping",
+                "lambda:PublishVersion",
+                "lambda:CreateAlias",
+                "lambda:UpdateAlias",
+                "lambda:DeleteAlias",
+                "lambda:GetPolicy",
+                "lambda:AddPermission",
+                "lambda:RemovePermission"
+            ],
+            "Resource": [
+                "arn:aws:lambda:ap-northeast-2:*:function:voj-*"
+            ]
+        },
+        {
+            "Sid": "APIGatewayAccess",
+            "Effect": "Allow",
+            "Action": [
+                "apigateway:GET",
+                "apigateway:POST",
+                "apigateway:PUT",
+                "apigateway:DELETE",
+                "apigateway:PATCH"
+            ],
+            "Resource": [
+                "arn:aws:apigateway:ap-northeast-2::/restapis",
+                "arn:aws:apigateway:ap-northeast-2::/restapis/*"
+            ]
+        },
+        {
+            "Sid": "IAMReadAccess",
+            "Effect": "Allow",
+            "Action": [
+                "iam:GetRole",
+                "iam:GetPolicy",
+                "iam:ListRoles",
+                "iam:ListPolicies",
+                "iam:PassRole",
+                "iam:CreateRole",
+                "iam:AttachRolePolicy",
+                "iam:DetachRolePolicy",
+                "iam:DeleteRole"
+            ],
+            "Resource": [
+                "arn:aws:iam::*:role/voj-*",
+                "arn:aws:iam::*:policy/*"
+            ]
+        }
+    ]
+}
+

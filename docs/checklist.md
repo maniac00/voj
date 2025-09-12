@@ -33,49 +33,81 @@
 
 ## 2. 인프라 구성 (AWS)
 
-### 2.1 기본 AWS 설정
-- [ ] **2.1.1** AWS 계정 생성 및 CLI 설정
-- [ ] **2.1.2** IAM 사용자 생성 (개발용)
-- [ ] **2.1.3** AWS 리전 설정 (ap-northeast-2)
+### 2.1 기본 AWS 설정 ✅
+- [x] **2.1.1** AWS 계정 생성 및 CLI 설정 (계정: 529088277581, 사용자: voj-dev, 리전: ap-northeast-2)
+- [x] **2.1.2** IAM 사용자 확인 (voj-dev 사용자 존재, S3 권한 확인됨)
+  - [x] **2.1.2.1** 추가 권한 설정 완료 (DynamoDB, Cognito, CloudFront, Lambda)
+  - [x] **2.1.2.2** 정책 할당량 문제 해결 (통합 정책 생성 완료)
+- [x] **2.1.3** AWS 리전 설정 (ap-northeast-2) (설정 파일 확인, 서울 리전 접근 가능)
 
-### 2.2 인증 및 권한 관리
-- [ ] **2.2.1** Cognito User Pool 생성 (어드민용)
-  - [ ] **2.2.1.1** 사용자 풀 기본 설정
-  - [ ] **2.2.1.2** 앱 클라이언트 생성
-  - [ ] **2.2.1.3** 도메인 설정
-- [ ] **2.2.2** IAM 역할 및 정책 생성
-  - [ ] **2.2.2.1** Lambda 실행 역할 (API용)
-  - [ ] **2.2.2.2** Lambda 실행 역할 (인코딩용)
-  - [ ] **2.2.2.3** S3 접근 정책
-  - [ ] **2.2.2.4** DynamoDB 접근 정책
+### 2.2 인증 및 권한 관리 ✅
+- [x] **2.2.1** Cognito User Pool 생성 (어드민용)
+  - [x] **2.2.1.1** 사용자 풀 기본 설정 (ID: ap-northeast-2_7L8xLv4Ex, 이메일 인증, 관리자 전용)
+  - [x] **2.2.1.2** 앱 클라이언트 생성 (Client ID: 5q2cjl9jrma7868bhsg4vvminr, OAuth 코드 플로우)
+  - [x] **2.2.1.3** 도메인 설정 (도메인: voj-admin-auth, CloudFront: d2gcbvkpcschxy.cloudfront.net)
+- [x] **2.2.2** IAM 역할 및 정책 생성
+  - [x] **2.2.2.1** Lambda 실행 역할 (API용) (역할: voj-lambda-api-role, 정책 연결 완료)
+  - [x] **2.2.2.2** Lambda 실행 역할 (인코딩용) (역할: voj-lambda-encoding-role, 정책 연결 완료)
+  - [x] **2.2.2.3** S3 접근 정책 (Lambda 역할에 포함됨)
+  - [x] **2.2.2.4** DynamoDB 접근 정책 (Lambda 역할에 포함됨)
 
 ### 2.3 데이터베이스 설정
-- [ ] **2.3.1** DynamoDB 테이블 생성
-  - [ ] **2.3.1.1** Books 테이블 (PK: book_id)
-  - [ ] **2.3.1.2** AudioChapters 테이블 (PK: book#{book_id}, SK: order#{0001})
-  - [ ] **2.3.1.3** GSI 설정 (audio_id 기반 조회용)
+- [x] **2.3.1** DynamoDB 테이블 생성
+  - [x] **2.3.1.1** Books 테이블 (PK: book_id) (테이블명: voj-books-prod, 상태: ACTIVE, 태그 포함)
+  - [x] **2.3.1.2** AudioChapters 테이블 (PK: book#{book_id}, SK: order#{0001}) (테이블명: voj-audio-chapters-prod, 상태: ACTIVE)
+  - [x] **2.3.1.3** GSI 설정 (audio_id 기반 조회용) (GSI1: audio_id + created_at, 상태: ACTIVE)
 
 ### 2.4 스토리지 및 CDN 설정
-- [ ] **2.4.1** S3 버킷 생성 및 설정
-  - [ ] **2.4.1.1** 비공개 버킷 생성
-  - [ ] **2.4.1.2** Block Public Access 설정
-  - [ ] **2.4.1.3** 암호화 설정 (SSE-S3)
-  - [ ] **2.4.1.4** CORS 정책 설정
-- [ ] **2.4.2** CloudFront 배포 설정
-  - [ ] **2.4.2.1** Origin Access Control (OAC) 생성
-  - [ ] **2.4.2.2** 배포 생성 및 Origin 연결
-  - [ ] **2.4.2.3** Cache Policy 설정 (Range 헤더 허용)
-  - [ ] **2.4.2.4** Signed URL용 키 페어 생성
+- [x] **2.4.1** S3 버킷 생성 및 설정
+  - [x] **2.4.1.1** 비공개 버킷 생성 (버킷명: voj-audiobooks-prod, 리전: ap-northeast-2)
+  - [x] **2.4.1.2** Block Public Access 설정 (모든 공개 액세스 차단 완료)
+  - [x] **2.4.1.3** 암호화 설정 (SSE-S3) (AES256 + BucketKey 활성화)
+  - [x] **2.4.1.4** CORS 정책 설정 (로컬/Vercel 도메인 허용)
+- [x] **2.4.2** CloudFront 배포 설정
+  - [x] **2.4.2.1** Origin Access Control (OAC) 생성 (OAC ID: E2L8IJM40TUC0U)
+  - [x] **2.4.2.2** 배포 생성 및 Origin 연결 (배포 ID: ESZTOMYA7BE5, 도메인: d3o89byostp1xs.cloudfront.net)
+  - [x] **2.4.2.3** Cache Policy 설정 (Range 헤더 허용) (기본 설정에 Range 헤더 포함됨)
+  - [x] **2.4.2.4** Signed URL용 키 페어 생성 (공개키 ID: K1MOHSPPL0L417, 키 파일: keys/ 디렉토리에 저장)
+    - [x] **키 그룹 생성**: voj-key-group (키 그룹 ID: da9e785e-e204-4932-b474-95e16ba3a350)
 
 ---
 
 ## 3. 백엔드 개발
 
 ### 3.1 API 기본 구조 설정
-- [ ] **3.1.1** FastAPI 프로젝트 구조 생성
-- [ ] **3.1.2** 환경별 설정 관리 (local/production)
-- [ ] **3.1.3** DynamoDB 연결 설정
-- [ ] **3.1.4** S3 클라이언트 설정
+- [x] **3.1.1** FastAPI 프로젝트 구조 생성
+  - [x] **3.1.1.1** 디렉토리 구조 생성 (backend/app/{api,core,models,services,utils})
+  - [x] **3.1.1.2** FastAPI 메인 애플리케이션 설정 (main.py)
+  - [x] **3.1.1.3** 환경별 설정 관리 (core/config.py)
+  - [x] **3.1.1.4** API 라우터 구조 설정 (api/v1/)
+  - [x] **3.1.1.5** 기본 엔드포인트 구현 (health, auth, books, audio)
+  - [x] **3.1.1.6** Poetry 의존성 관리 (pyproject.toml, email-validator 추가)
+  - [x] **3.1.1.7** 로컬 개발 서버 실행 확인 (http://localhost:8000)
+- [x] **3.1.2** 환경별 설정 관리 (local/production)
+  - [x] **3.1.2.1** 기본 설정 클래스 구조 설계 (BaseAppSettings)
+  - [x] **3.1.2.2** 로컬 개발 환경 설정 (LocalSettings)
+  - [x] **3.1.2.3** 프로덕션 환경 설정 (ProductionSettings)
+  - [x] **3.1.2.4** 설정 팩토리 패턴 구현 (SettingsFactory)
+  - [x] **3.1.2.5** 환경별 실행 스크립트 생성 (run-local.sh, run-production.sh)
+  - [x] **3.1.2.6** 환경별 설정 문서 작성 (backend/docs/environment-config.md)
+  - [x] **3.1.2.7** 설정 검증 및 테스트 (로컬 환경 정상 작동 확인)
+- [x] **3.1.3** DynamoDB 연결 설정
+  - [x] **3.1.3.1** PynamoDB 기반 기본 모델 클래스 생성 (BaseModel)
+  - [x] **3.1.3.2** Book 모델 구현 (사용자별 책 정보, 상태/장르 인덱스)
+  - [x] **3.1.3.3** AudioChapter 모델 구현 (챕터 정보, 파일 메타데이터)
+  - [x] **3.1.3.4** 데이터베이스 서비스 클래스 구현 (DatabaseService)
+  - [x] **3.1.3.5** 헬스 체크 엔드포인트 업데이트 (DynamoDB 상태 확인)
+  - [x] **3.1.3.6** 데이터베이스 초기화 엔드포인트 구현 (테이블 생성)
+  - [x] **3.1.3.7** 로컬 DynamoDB 연결 및 테이블 생성 테스트 완료
+- [x] **3.1.4** S3 클라이언트 설정
+  - [x] **3.1.4.1** 스토리지 기본 인터페이스 설계 (BaseStorageService)
+  - [x] **3.1.4.2** 로컬 파일 시스템 스토리지 구현 (LocalStorageService)
+  - [x] **3.1.4.3** AWS S3 스토리지 구현 (S3StorageService)
+  - [x] **3.1.4.4** 스토리지 팩토리 패턴 구현 (환경별 자동 선택)
+  - [x] **3.1.4.5** 파일 관리 API 엔드포인트 구현 (업로드, 다운로드, 삭제)
+  - [x] **3.1.4.6** Pre-signed URL 지원 (프로덕션 환경)
+  - [x] **3.1.4.7** 헬스 체크에 스토리지 상태 확인 추가
+  - [x] **3.1.4.8** 로컬 파일 업로드 테스트 완료
 - [ ] **3.1.5** Cognito 인증 미들웨어 구현
 
 ### 3.2 Books API 구현
@@ -188,6 +220,36 @@
 - [ ] **6.4.3** 재해 복구 계획 수립
 
 ---
+
+## 7. 개선 사항 백로그
+
+- [ ] **보안/시크릿 관리 개선**
+  - [ ] LocalSettings의 Cognito 등 민감정보를 코드에서 제거하고 `.env.local`로 이전
+  - [ ] 프로덕션 시크릿(Cognito Client Secret, CloudFront Private Key) 보관소 이전(Secrets Manager/SSM)
+  - [ ] 노출 가능성 있는 키 전량 롤테이션 계획 수립 및 실행
+
+- [ ] **DynamoDB 스키마 정합성 확보**
+  - [ ] PynamoDB 모델(Book: `user_id`+`book_id`, AudioChapter 스키마) ↔ DynamoDB(Local/Prod) 테이블 스키마 일치화
+  - [ ] `scripts/create-local-tables.py`를 모델 스키마 기준으로 수정 또는 PynamoDB로 테이블 생성 일원화
+  - [ ] 프로덕션 테이블 영향 분석 및 마이그레이션 계획 수립
+
+- [ ] **파일 URL/스트리밍 경로 일관성**
+  - [ ] 로컬 URL 생성(`LocalStorageService._get_url`, `audio.get_streaming_url`)을 Files 라우트(`/api/v1/files/...`)와 일치시키기
+  - [ ] 미구현 경로(`/storage`, `/local-files`) 제거 또는 `StaticFiles` 마운트로 구현 정합성 확보
+  - [ ] 프로덕션 기본을 CloudFront Signed URL로 표준화하고 Range 헤더 처리 확인
+
+- [ ] **개발 스크립트/문서 정합성**
+  - [ ] `scripts/setup-local.sh` 실행 안내의 uvicorn 대상 수정(`app.main:app`)
+  - [ ] README/환경 문서의 실행/테스트 플로우 최신화
+
+- [ ] **의존성 정리**
+  - [ ] `python-jose` 사용 여부 확인 후 미사용 시 제거(`pyjwt` 중심으로 통일)
+  - [ ] 불필요/중복 패키지 점검 및 제거
+
+- [ ] **테스트 보강**
+  - [ ] 인증 디펜던시(`get_current_user_claims`, `require_any_scope`) 단위 테스트 추가
+  - [ ] Files API 업로드/다운로드/권한/에러 경로 테스트 추가
+  - [ ] 상세 헬스체크(`GET /api/v1/health/detailed`) 테스트 추가
 
 ## 📊 진행률 추적
 

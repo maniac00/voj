@@ -254,6 +254,13 @@ ffmpeg -i input.wav -ac 1 -ar 44100 -c:a aac -b:a 56k -movflags +faststart outpu
 * **동시 스트림 제한(선택)**: 계정별 동시 재생 수 카운트(레디스/디나모 토큰)로 억제
 * **워터마킹(차기)**: HLS 도입 시 세그먼트 워터마크 옵션 검토
 
+### 8.1 시크릿 관리 원칙
+
+- 코드 내 시크릿(예: `LocalSettings`의 Cognito Client Secret) 하드코딩 금지
+- 로컬: `.env.local` 사용(값 비워두면 인증 BYPASS로 개발 편의 유지)
+- 프로덕션: AWS Secrets Manager 또는 Parameter Store 사용, 주기적 롤테이션
+- 헬스체크에 Cognito 환경 변수 누락 경고 추가(로컬=warning, 프로덕션=unhealthy)
+
 ---
 
 ## 9. 관측/운영

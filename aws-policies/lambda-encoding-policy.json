@@ -1,0 +1,75 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "CloudWatchLogsAccess",
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            "Resource": [
+                "arn:aws:logs:ap-northeast-2:*:log-group:/aws/lambda/voj-encoding-*",
+                "arn:aws:logs:ap-northeast-2:*:log-group:/aws/lambda/voj-encoding-*:*"
+            ]
+        },
+        {
+            "Sid": "S3SourceAccess",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::voj-*/book/*/uploads/*"
+            ]
+        },
+        {
+            "Sid": "S3DestinationAccess",
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:PutObjectAcl"
+            ],
+            "Resource": [
+                "arn:aws:s3:::voj-*/book/*/media/*"
+            ]
+        },
+        {
+            "Sid": "S3BucketAccess",
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket",
+                "s3:GetBucketLocation"
+            ],
+            "Resource": [
+                "arn:aws:s3:::voj-*"
+            ]
+        },
+        {
+            "Sid": "DynamoDBUpdateAccess",
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:UpdateItem",
+                "dynamodb:GetItem"
+            ],
+            "Resource": [
+                "arn:aws:dynamodb:ap-northeast-2:*:table/voj-audio-chapters-*"
+            ]
+        },
+        {
+            "Sid": "SQSAccess",
+            "Effect": "Allow",
+            "Action": [
+                "sqs:ReceiveMessage",
+                "sqs:DeleteMessage",
+                "sqs:GetQueueAttributes"
+            ],
+            "Resource": [
+                "arn:aws:sqs:ap-northeast-2:*:voj-encoding-dlq"
+            ]
+        }
+    ]
+}
+
+

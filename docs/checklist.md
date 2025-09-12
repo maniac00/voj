@@ -234,9 +234,9 @@
   - [ ] 프로덕션 테이블 영향 분석 및 마이그레이션 계획 수립
 
 - [ ] **파일 URL/스트리밍 경로 일관성**
-  - [ ] 로컬 URL 생성(`LocalStorageService._get_url`, `audio.get_streaming_url`)을 Files 라우트(`/api/v1/files/...`)와 일치시키기
+  - [x] 로컬 URL 생성(`LocalStorageService._get_url`, `audio.get_streaming_url`)을 Files 라우트(`/api/v1/files/...`)와 일치시키기
   - [ ] 미구현 경로(`/storage`, `/local-files`) 제거 또는 `StaticFiles` 마운트로 구현 정합성 확보
-  - [ ] 프로덕션 기본을 CloudFront Signed URL로 표준화하고 Range 헤더 처리 확인
+  - [x] 프로덕션 기본을 CloudFront Signed URL로 표준화하고 Range 헤더 처리 확인
 
 - [ ] **개발 스크립트/문서 정합성**
   - [ ] `scripts/setup-local.sh` 실행 안내의 uvicorn 대상 수정(`app.main:app`)

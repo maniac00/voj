@@ -169,7 +169,12 @@ s3://<bucket>/
 
 ### 트리거
 
-* S3 PUT(`book/<id>/uploads/*.wav`) → EventBridge or S3 Event → **Encode Lambda**
+* S3 PUT(`book/<id>/uploads/*.wav`) → S3 Event(Notification) → **Encode Lambda**
+  - 이벤트 소스: S3:ObjectCreated:Put
+  - 필터 프리픽스: `book/` / 서픽스: `.wav`
+  - 메시지 내용: 버킷, 오브젝트 키, ETag, 사이즈, 이벤트 시각
+  - 멱등성 키: `ETag` 또는 `object key`
+  - 재진입 방지: DynamoDB 아이템에 `encoding_status=in_progress` 선기록
 
 ### FFmpeg 프리셋(MVP 단일)
 
@@ -200,6 +205,28 @@ ffmpeg -i input.wav -ac 1 -ar 44100 -c:a aac -b:a 56k -movflags +faststart outpu
   * S3\:GetObject(`uploads/*`), S3\:PutObject(`media/*`), DynamoDB\:UpdateItem
 * **타임아웃**: 파일 길이에 따라 30\~120초(장편은 분할 업로드 권장)
 * **리트라이**: DLQ(SQS) 연결, 장애 시 재처리
+
+#### 5.1 S3 → Lambda 트리거 스펙
+
+- 이벤트 규칙:
+  - Bucket: `voj-audiobooks-<env>`
+  - Prefix: `book/` / Suffix: `.wav`
+  - Event: `s3:ObjectCreated:Put`
+- 입력 검증:
+  - `content-type`이 `audio/wav`인지 확인, 아니면 무시 또는 DLQ
+  - 키 구조가 표준(`book/<book_id>/uploads/<filename>.wav`)과 일치하는지 확인
+- 처리 흐름:
+  1) 키 파싱 → `book_id`, `source_key` 추출
+  2) 중복 처리 차단을 위해 DynamoDB에서 레코드 조회/잠금(`in_progress`)
+  3) S3에서 WAV 임시 다운로드(`/tmp`)
+  4) FFmpeg 변환(m4a) → `/tmp` 저장
+  5) 메타 추출(ffprobe)
+  6) 결과 업로드 → `book/<book_id>/media/<derived_name>.m4a`
+  7) DynamoDB 업데이트(`file_key`, `duration_sec`, `bitrate_kbps`, `status=ready`)
+  8) 임시파일 정리
+- 실패 처리:
+  - 예외 시 `status=error`, `error_reason` 저장, DLQ로 이벤트 전송
+  - 재시도 시 멱등성 체크로 중복 인코딩 회피
 
 ---
 

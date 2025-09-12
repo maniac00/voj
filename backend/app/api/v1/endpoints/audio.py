@@ -5,7 +5,7 @@ VOJ Audiobooks API - 오디오 관리 엔드포인트
 from fastapi import APIRouter, HTTPException, UploadFile, File, Path, Query, Depends, status
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 from app.core.config import settings
@@ -234,7 +234,7 @@ async def get_audio_chapter(
     
     if settings.ENVIRONMENT == "local":
         # 로컬 개발용 더미 응답
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         return AudioChapter(
             chapter_id=chapter_id,
             book_id=book_id,
@@ -288,7 +288,7 @@ async def get_streaming_url(
         # 최후의 수단: 챕터 ID 기반 기본 파일명
         key = f"book/{book_id}/media/{chapter.chapter_id}.m4a"
 
-    expires = datetime.utcnow().replace(hour=23, minute=59, second=59)
+    expires = datetime.now(timezone.utc).replace(hour=23, minute=59, second=59, microsecond=0)
 
     if settings.ENVIRONMENT == "production":
         # CloudFront Signed URL 우선, 실패 시 S3 Presigned URL

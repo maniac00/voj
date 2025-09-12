@@ -4,7 +4,7 @@ PynamoDB를 사용한 DynamoDB 모델 기본 클래스
 """
 from pynamodb.models import Model
 from pynamodb.attributes import UnicodeAttribute, UTCDateTimeAttribute
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from app.core.config import settings
@@ -24,12 +24,12 @@ class BaseModel(Model):
             aws_secret_access_key = "dummy"
     
     # 공통 속성
-    created_at = UTCDateTimeAttribute(default=datetime.utcnow)
-    updated_at = UTCDateTimeAttribute(default=datetime.utcnow)
+    created_at = UTCDateTimeAttribute(default=lambda: datetime.now(timezone.utc))
+    updated_at = UTCDateTimeAttribute(default=lambda: datetime.now(timezone.utc))
     
     def save(self, **kwargs):
         """저장 시 updated_at 자동 업데이트"""
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
         return super().save(**kwargs)
     
     def update(self, actions, **kwargs):
@@ -38,7 +38,7 @@ class BaseModel(Model):
         
         # updated_at 업데이트 액션 추가
         if not any(isinstance(action, Set) and action.path[0] == 'updated_at' for action in actions):
-            actions.append(Set(self.updated_at, datetime.utcnow()))
+            actions.append(Set(self.updated_at, datetime.now(timezone.utc)))
         
         return super().update(actions, **kwargs)
     

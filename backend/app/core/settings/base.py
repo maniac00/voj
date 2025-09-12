@@ -4,7 +4,7 @@ VOJ Audiobooks API - 기본 설정
 """
 import os
 from typing import List, Optional
-from pydantic import validator
+from pydantic import field_validator, ConfigDict
 from pydantic_settings import BaseSettings
 
 
@@ -23,7 +23,7 @@ class BaseAppSettings(BaseSettings):
     # CORS 설정
     ALLOWED_HOSTS: List[str] = ["*"]
     
-    @validator("ALLOWED_HOSTS", pre=True)
+    @field_validator("ALLOWED_HOSTS", mode="before")
     def assemble_cors_origins(cls, v) -> List[str]:
         if isinstance(v, str):
             return [host.strip() for host in v.split(",")]
@@ -64,8 +64,7 @@ class BaseAppSettings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     
-    class Config:
-        case_sensitive = True
+    model_config = ConfigDict(case_sensitive=True)
         
     def get_table_name(self, base_name: str) -> str:
         """환경에 따른 테이블 이름 생성"""

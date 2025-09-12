@@ -62,6 +62,7 @@ class ProductionSettings(BaseAppSettings):
     # 로깅 설정 (프로덕션용)
     LOG_LEVEL: str = "INFO"
     
-    class Config:
-        case_sensitive = True
+    # Pydantic v2
+    from pydantic import ConfigDict
+    model_config = ConfigDict(case_sensitive=True)
 

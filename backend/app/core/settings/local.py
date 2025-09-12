@@ -60,5 +60,6 @@ class LocalSettings(BaseAppSettings):
     # 로깅 설정 (개발용 - 더 상세한 로그)
     LOG_LEVEL: str = "DEBUG"
     
-    class Config:
-        case_sensitive = True
+    # Pydantic v2
+    from pydantic import ConfigDict
+    model_config = ConfigDict(case_sensitive=True)

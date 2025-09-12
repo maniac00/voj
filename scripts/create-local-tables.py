@@ -3,12 +3,24 @@
 DynamoDB Local 테이블 생성 스크립트
 
 설계 문서의 데이터 모델을 기반으로 로컬 개발용 DynamoDB 테이블을 생성합니다.
+PynamoDB 모델 정의(Book, AudioChapter)를 직접 사용하여 테이블을 생성합니다.
 """
 
 import boto3
 import sys
 import time
+from pathlib import Path
 from botocore.exceptions import ClientError, EndpointConnectionError
+
+# backend 경로를 PYTHONPATH에 추가하여 app.* 모듈 임포트 가능하게 처리
+REPO_ROOT = Path(__file__).resolve().parents[1]
+BACKEND_ROOT = REPO_ROOT / "backend"
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
+
+from app.core.config import settings  # type: ignore
+from app.models.book import Book  # type: ignore
+from app.models.audio_chapter import AudioChapter, FileInfo  # type: ignore
 
 
 def create_dynamodb_client():
@@ -44,164 +56,76 @@ def wait_for_dynamodb():
             sys.exit(1)
 
 
-def create_books_table(client):
-    """Books 테이블 생성"""
-    table_name = 'voj-books-local'
-    
-    try:
-        response = client.create_table(
-            TableName=table_name,
-            KeySchema=[
-                {
-                    'AttributeName': 'book_id',
-                    'KeyType': 'HASH'  # Partition key
-                }
-            ],
-            AttributeDefinitions=[
-                {
-                    'AttributeName': 'book_id',
-                    'AttributeType': 'S'
-                }
-            ],
-            BillingMode='PAY_PER_REQUEST'  # On-demand 모드
-        )
-        
-        print(f"✅ {table_name} 테이블 생성 요청 완료")
-        
-        # 테이블이 활성화될 때까지 대기
-        waiter = client.get_waiter('table_exists')
-        waiter.wait(TableName=table_name)
-        
-        print(f"🎉 {table_name} 테이블 생성 완료")
-        return True
-        
-    except ClientError as e:
-        if e.response['Error']['Code'] == 'ResourceInUseException':
-            print(f"ℹ️  {table_name} 테이블이 이미 존재합니다")
-            return True
-        else:
-            print(f"❌ {table_name} 테이블 생성 실패: {e}")
+def create_tables_with_pynamodb():
+    """PynamoDB 모델을 사용하여 테이블 생성"""
+    created = 0
+    exists = 0
+    models = [Book, AudioChapter]
+
+    for model in models:
+        try:
+            table_name = model.Meta.table_name
+            if not model.exists():
+                print(f"🛠️  PynamoDB로 테이블 생성: {table_name}")
+                model.create_table(read_capacity_units=5, write_capacity_units=5, wait=True)
+                print(f"🎉 {table_name} 생성 완료")
+                created += 1
+            else:
+                print(f"ℹ️  {table_name} 이미 존재")
+                exists += 1
+        except Exception as e:
+            print(f"❌ {model.__name__} 테이블 생성 실패: {e}")
             return False
 
+    # 모든 모델이 생성되었거나 이미 존재하면 성공으로 간주
+    return (created + exists) == len(models)
 
-def create_audio_chapters_table(client):
-    """AudioChapters 테이블 생성"""
-    table_name = 'voj-audio-chapters-local'
-    
+
+def create_sample_data_with_models():
+    """샘플 데이터 생성 (PynamoDB 모델 사용)"""
+    print("📝 샘플 데이터 생성 중(PynamoDB 모델 기반)...")
+
+    # 샘플 Book
     try:
-        response = client.create_table(
-            TableName=table_name,
-            KeySchema=[
-                {
-                    'AttributeName': 'pk',
-                    'KeyType': 'HASH'  # Partition key
-                },
-                {
-                    'AttributeName': 'sk',
-                    'KeyType': 'RANGE'  # Sort key
-                }
-            ],
-            AttributeDefinitions=[
-                {
-                    'AttributeName': 'pk',
-                    'AttributeType': 'S'
-                },
-                {
-                    'AttributeName': 'sk',
-                    'AttributeType': 'S'
-                },
-                {
-                    'AttributeName': 'audio_id',
-                    'AttributeType': 'S'
-                },
-                {
-                    'AttributeName': 'created_at',
-                    'AttributeType': 'S'
-                }
-            ],
-            GlobalSecondaryIndexes=[
-                {
-                    'IndexName': 'GSI1',
-                    'KeySchema': [
-                        {
-                            'AttributeName': 'audio_id',
-                            'KeyType': 'HASH'
-                        },
-                        {
-                            'AttributeName': 'created_at',
-                            'KeyType': 'RANGE'
-                        }
-                    ],
-                    'Projection': {
-                        'ProjectionType': 'ALL'
-                    }
-                }
-            ],
-            BillingMode='PAY_PER_REQUEST'  # On-demand 모드
+        book = Book(
+            user_id="test_user",
+            book_id="sample-book-001",
+            title="샘플 오디오북",
+            author="테스트 작가",
+            publisher="테스트 출판사",
         )
-        
-        print(f"✅ {table_name} 테이블 생성 요청 완료")
-        
-        # 테이블이 활성화될 때까지 대기
-        waiter = client.get_waiter('table_exists')
-        waiter.wait(TableName=table_name)
-        
-        print(f"🎉 {table_name} 테이블 생성 완료 (GSI 포함)")
-        return True
-        
-    except ClientError as e:
-        if e.response['Error']['Code'] == 'ResourceInUseException':
-            print(f"ℹ️  {table_name} 테이블이 이미 존재합니다")
-            return True
-        else:
-            print(f"❌ {table_name} 테이블 생성 실패: {e}")
-            return False
+        book.save()
 
+        # 샘플 AudioChapter
+        chapter = AudioChapter(
+            chapter_id="sample-audio-001",
+            book_id=book.book_id,
+            chapter_number=1,
+            title="챕터 1",
+            file_info=FileInfo(
+                original_name="0001.wav",
+                file_size=32000,
+                mime_type="audio/wav",
+                local_path=f"storage/audio/book/{book.book_id}/media/0001.m4a",
+            ),
+            status="ready",
+        )
+        chapter.save()
 
-def create_sample_data(client):
-    """샘플 데이터 생성 (개발용)"""
-    print("📝 샘플 데이터 생성 중...")
-    
-    # Books 테이블에 샘플 책 데이터 추가
-    try:
-        client.put_item(
-            TableName='voj-books-local',
-            Item={
-                'book_id': {'S': 'sample-book-001'},
-                'title': {'S': '샘플 오디오북'},
-                'author': {'S': '테스트 작가'},
-                'publisher': {'S': '테스트 출판사'},
-                'cover_key': {'S': 'book/sample-book-001/cover.jpg'},
-                'created_at': {'S': '2024-01-01T00:00:00Z'},
-                'updated_at': {'S': '2024-01-01T00:00:00Z'}
-            }
-        )
-        
-        # AudioChapters 테이블에 샘플 챕터 데이터 추가
-        client.put_item(
-            TableName='voj-audio-chapters-local',
-            Item={
-                'pk': {'S': 'book#sample-book-001'},
-                'sk': {'S': 'order#0001'},
-                'audio_id': {'S': 'sample-audio-001'},
-                'file_key': {'S': 'book/sample-book-001/media/0001.m4a'},
-                'source_key': {'S': 'book/sample-book-001/uploads/0001.wav'},
-                'order': {'N': '1'},
-                'duration_sec': {'N': '320'},
-                'format': {'S': 'm4a'},
-                'bitrate_kbps': {'N': '56'},
-                'sample_rate': {'N': '44100'},
-                'channels': {'N': '1'},
-                'created_at': {'S': '2024-01-01T00:00:00Z'}
-            }
-        )
-        
         print("✅ 샘플 데이터 생성 완료")
         return True
-        
-    except ClientError as e:
+    except Exception as e:
         print(f"⚠️  샘플 데이터 생성 실패: {e}")
         return False
+
+
+def create_sample_data_legacy(client):
+    """(레거시) boto3로 샘플 데이터 생성 - 유지용"""
+    try:
+        client.list_tables()
+    except Exception:
+        return False
+    return True
 
 
 def list_tables(client):
@@ -229,29 +153,23 @@ def main():
     # DynamoDB Local 연결 대기
     client = wait_for_dynamodb()
     
-    # 테이블 생성
-    success_count = 0
+    # 테이블 생성(PynamoDB)
+    created_ok = create_tables_with_pynamodb()
     
-    if create_books_table(client):
-        success_count += 1
-        
-    if create_audio_chapters_table(client):
-        success_count += 1
-    
-    # 샘플 데이터 생성
-    create_sample_data(client)
+    # 샘플 데이터 생성(PynamoDB)
+    create_sample_data_with_models()
     
     # 결과 출력
     print("\n" + "=" * 50)
-    if success_count == 2:
-        print("🎉 모든 테이블 생성 완료!")
+    if created_ok:
+        print("🎉 모든 테이블 생성 완료!(PynamoDB)")
         list_tables(client)
         
         print("\n🔗 DynamoDB Admin UI: http://localhost:8002")
         print("💡 Admin UI에서 생성된 테이블과 샘플 데이터를 확인할 수 있습니다.")
         
     else:
-        print(f"⚠️  일부 테이블 생성 실패 ({success_count}/2)")
+        print("⚠️  일부 테이블 생성 실패")
         sys.exit(1)
 
 

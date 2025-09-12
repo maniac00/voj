@@ -265,6 +265,26 @@ ffmpeg -i input.wav -ac 1 -ar 44100 -c:a aac -b:a 56k -movflags +faststart outpu
     6) DynamoDB update(meta, status=ready)
     7) cleanup(`/tmp/*`)
 
+#### 5.3 결과 파일 키 정책 및 메타 업데이트
+
+- 키 정책:
+  - 입력과 동일 베이스네임 사용: `uploads/<name>.wav` → `media/<name>.m4a`
+  - 챕터 정렬과의 정합성: `<name>`은 `0001`, `0002` 등 zero-padding 규칙 권장
+  - 커버/기타와 구분되는 prefix 고정: `uploads/`, `media/`, `covers/`
+- DynamoDB 업데이트 필드:
+  - `file_key`: `book/<book_id>/media/<name>.m4a`
+  - `source_key`: 원본 `uploads` 키
+  - `duration_sec`, `bitrate_kbps`, `sample_rate`, `channels`
+  - `format`: `m4a`
+  - `encoding_status`: `ready|error`
+  - `updated_at`: ISO8601(UTC)
+- 원자성/경합 방지:
+  - 조건부 업데이트(ConditionExpression)로 상태 전이 보장
+  - `in_progress` → `ready|error` 외 상태 전이는 거부
+- 실패/롤백 정책:
+  - S3 업로드 성공 후 DB 실패 시 재시도로 보정(멱등성 기반)
+  - DB 업데이트 성공 후 S3 업로드 실패는 발생하지 않도록 업로드를 먼저 수행
+
 ---
 
 ## 6. API 설계(요약)

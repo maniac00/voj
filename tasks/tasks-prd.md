@@ -45,7 +45,7 @@
 - `backend/app/core/settings/local.py` - 로컬 설정(Cognito 하드코딩 제거, env 로드).
 - `backend/app/api/v1/endpoints/health.py` - 상세 헬스체크에 Cognito 설정 경고 추가.
 - `backend/docs/environment-config.md` - 환경 변수 섹션에 Cognito 안내 보강.
-- `docs/design.md` - 시크릿 관리 원칙 추가.
+- `docs/design.md` - 시크릿 관리 원칙 및 URL 설계 가이드 추가.
 - `tests/test_auth_jwt.py` - Cognito JWT 검증 테스트(예외/시간초과/키 회전 포함).
 - `tests/test_auth_deps.py` - 로컬 바이패스/스코프/그룹 처리 테스트.
 - `tests/test_auth_endpoints.py` - 로그인/로그아웃/내 정보(me) 로컬 BYPASS 동작 테스트.
@@ -85,11 +85,11 @@
   - [x] 3.6 ffprobe 메타데이터 추출 로직(Lambda 전 단계) 유틸 추가
   - [x] 3.7 테스트(업로드→목록→정렬→삭제 흐름)
 
-- [ ] 4.0 스트리밍 제공 방식 확정 및 구현(CloudFront Signed URL, Range)
+- [x] 4.0 스트리밍 제공 방식 확정 및 구현(CloudFront Signed URL, Range)
   - [x] 4.1 로컬: Files 경유 스트리밍 일원화(`/api/v1/files/{file_key}`)
   - [x] 4.2 프로덕션: CloudFront Signed URL 표준화 및 만료정책 문서화
   - [x] 4.3 Range 헤더 처리 확인 및 E2E 테스트(진행바 탐색)
-  - [ ] 4.4 URL 설계 가이드 문서화(로컬/프로덕션 동작 차이)
+  - [x] 4.4 URL 설계 가이드 문서화(로컬/프로덕션 동작 차이)
 
 - [ ] 5.0 인코딩 파이프라인 설계 및 MVP 구현(S3 이벤트 → Lambda ffmpeg)
   - [ ] 5.1 S3 Event → Lambda 트리거 스펙 초안

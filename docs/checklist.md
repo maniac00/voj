@@ -286,6 +286,7 @@
 - 인코딩 파이프라인 5.5 Lambda 권한/Layer/IaC 초안 문서화
 - 6.1 로컬 테이블 생성 스크립트 PynamoDB 기반 일원화(`scripts/create-local-tables.py`)
 - 6.2 프로덕션 테이블↔모델 필드 비교표 및 해소 계획 문서화(`docs/design.md#16`)
+- 6.3 마이그레이션/백필 전략(무중단 지향) 문서화(`docs/design.md#16.4`)
 
 ### 2024-XX-XX
 - 초기 체크리스트 생성

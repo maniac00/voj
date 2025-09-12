@@ -258,38 +258,56 @@ async def get_audio_chapter(
 @router.get("/{book_id}/chapters/{chapter_id}/stream", response_model=StreamingUrlResponse)
 async def get_streaming_url(
     book_id: str = Path(..., description="책 ID"),
-    chapter_id: str = Path(..., description="챕터 ID")
+    chapter_id: str = Path(..., description="챕터 ID"),
+    claims = Depends(get_current_user_claims)
 ):
     """
     오디오 챕터 스트리밍 URL 생성
     - 프로덕션: CloudFront Signed URL
     - 로컬: 직접 파일 URL
     """
-    # TODO: 사용자 인증 확인
-    # TODO: 책 소유권 확인
-    # TODO: 챕터 존재 및 상태 확인
-    # TODO: CloudFront Signed URL 생성 (프로덕션)
-    # TODO: 로컬 파일 URL 생성 (로컬)
-    
-    if settings.ENVIRONMENT == "local":
-        # 로컬 개발용 더미 응답
-        return StreamingUrlResponse(
-            streaming_url=f"http://localhost:8000/local-files/books/{book_id}/chapters/{chapter_id}.mp3",
-            expires_at=datetime.utcnow().replace(hour=23, minute=59, second=59),
-            duration=1800
-        )
-    elif settings.ENVIRONMENT == "production":
-        # TODO: CloudFront Signed URL 생성
-        return StreamingUrlResponse(
-            streaming_url=f"https://{settings.CLOUDFRONT_DOMAIN}/media/books/{book_id}/chapters/{chapter_id}.mp3",
-            expires_at=datetime.utcnow().replace(hour=23, minute=59, second=59),
-            duration=1800
-        )
-    
-    raise HTTPException(
-        status_code=501,
-        detail="Streaming URL generation not implemented yet"
-    )
+    # 사용자 인증 및 소유권 확인
+    user_id = str(claims.get("sub") or claims.get("cognito:username") or "")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
+    if not BookService.get_book(user_id=user_id, book_id=book_id):
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    # 챕터 조회 및 상태 확인
+    chapter = AudioChapterModel.get_by_id(chapter_id)
+    if not chapter or chapter.book_id != book_id:
+        raise HTTPException(status_code=404, detail="Audio chapter not found")
+
+    # 키 결정: s3_key 우선, 없으면 표준 경로 추정(book/<book_id>/media/<filename>)
+    key = None
+    if getattr(chapter, "file_info", None) and getattr(chapter.file_info, "s3_key", None):
+        key = chapter.file_info.s3_key
+    elif getattr(chapter, "file_info", None) and getattr(chapter.file_info, "original_name", None):
+        key = f"book/{book_id}/media/{chapter.file_info.original_name.replace(' ', '_')}"
+    else:
+        # 최후의 수단: 챕터 ID 기반 기본 파일명
+        key = f"book/{book_id}/media/{chapter.chapter_id}.m4a"
+
+    expires = datetime.utcnow().replace(hour=23, minute=59, second=59)
+
+    if settings.ENVIRONMENT == "production":
+        # CloudFront Signed URL 우선, 실패 시 S3 Presigned URL
+        url = None
+        if hasattr(storage_service, "get_cloudfront_signed_url"):
+            try:
+                url = await storage_service.get_cloudfront_signed_url(key, expires_in=3600)
+            except Exception:
+                url = None
+        if not url:
+            url = await storage_service.get_download_url(key, expires_in=3600)
+        if not url:
+            raise HTTPException(status_code=500, detail="Failed to generate streaming URL")
+        return StreamingUrlResponse(streaming_url=url, expires_at=expires, duration=chapter.audio_metadata.duration if getattr(chapter, "audio_metadata", None) else 0)
+
+    # 로컬: Files 다운로드 엔드포인트를 통한 스트리밍 일원화
+    local_url = f"http://localhost:{settings.PORT}{settings.API_V1_STR}/files/{key}"
+    duration = chapter.audio_metadata.duration if getattr(chapter, "audio_metadata", None) else 0
+    return StreamingUrlResponse(streaming_url=local_url, expires_at=expires, duration=duration)
 
 
 @router.delete("/{book_id}/chapters/{chapter_id}")

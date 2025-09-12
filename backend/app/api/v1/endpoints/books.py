@@ -147,7 +147,7 @@ async def get_books(
             total = len(items)
         else:
             # naive pagination using query + page offset via repeated queries (improvement: use cursors)
-            page_result = BookService.list_books(user_id=user_id, limit=size)
+            page_result = BookService.list_books(user_id=user_id, limit=100)
             items = page_result.items
             total = len(items)
 

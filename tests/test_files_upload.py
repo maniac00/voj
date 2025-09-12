@@ -18,6 +18,7 @@ from app.core.config import settings  # noqa: E402
 def _local_setup(tmp_path):
     settings.ENVIRONMENT = "local"
     settings.LOCAL_BYPASS_ENABLED = True
+    settings.LOCAL_BYPASS_GROUPS = []
     # Ensure local storage directories exist
     settings.LOCAL_STORAGE_PATH = str(tmp_path)
     settings.LOCAL_UPLOADS_PATH = os.path.join(str(tmp_path), "uploads")

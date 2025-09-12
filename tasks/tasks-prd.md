@@ -24,6 +24,16 @@
  - `tests/test_audio_reorder_chapter.py` - 챕터 순서 변경 API 테스트.
  - `tests/test_audio_delete_chapter.py` - 챕터 삭제 API 테스트(스토리지 정리 포함).
  - `tests/test_audio_end_to_end_flow.py` - Audio 업로드→목록→정렬→삭제 E2E 테스트.
+ - `tests/test_audio_streaming_signed_url.py` - CloudFront Signed URL 스트리밍 테스트.
+ - `tests/test_files_range_requests.py` - 로컬 파일 Range 요청(부분 스트리밍) 테스트.
+ - `backend/app/utils/ffprobe.py` - ffprobe 기반 오디오 메타데이터 추출 유틸.
+ - `tests/test_ffprobe_utils.py` - ffprobe 유틸 테스트(ffmpeg/ffprobe 존재 시 실행).
+ - `tests/test_storage_key_policy.py` - 스토리지 키 정책 표준화 테스트.
+ - `tests/test_files_upload.py` - 파일 업로드 검증(권한/사이즈/타입/키 형식) 테스트.
+ - `tests/test_audio_list_chapters.py` - 실제 데이터 기반 챕터 목록 테스트.
+ - `tests/test_audio_reorder_chapter.py` - 챕터 순서 변경 API 테스트.
+ - `tests/test_audio_delete_chapter.py` - 챕터 삭제 API 테스트(스토리지 정리 포함).
+ - `tests/test_audio_end_to_end_flow.py` - Audio 업로드→목록→정렬→삭제 E2E 테스트.
 - `tests/test_books_endpoint_post.py` - POST /books 엔드포인트 테스트.
 - `tests/test_books_endpoint_list.py` - GET /books 목록/필터/검색 테스트.
 - `tests/test_books_endpoint_get_one.py` - GET /books/{book_id} 소유권 테스트.
@@ -76,9 +86,9 @@
   - [x] 3.7 테스트(업로드→목록→정렬→삭제 흐름)
 
 - [ ] 4.0 스트리밍 제공 방식 확정 및 구현(CloudFront Signed URL, Range)
-  - [ ] 4.1 로컬: Files 경유 스트리밍 일원화(`/api/v1/files/{file_key}`)
-  - [ ] 4.2 프로덕션: CloudFront Signed URL 표준화 및 만료정책 문서화
-  - [ ] 4.3 Range 헤더 처리 확인 및 E2E 테스트(진행바 탐색)
+  - [x] 4.1 로컬: Files 경유 스트리밍 일원화(`/api/v1/files/{file_key}`)
+  - [x] 4.2 프로덕션: CloudFront Signed URL 표준화 및 만료정책 문서화
+  - [x] 4.3 Range 헤더 처리 확인 및 E2E 테스트(진행바 탐색)
   - [ ] 4.4 URL 설계 가이드 문서화(로컬/프로덕션 동작 차이)
 
 - [ ] 5.0 인코딩 파이프라인 설계 및 MVP 구현(S3 이벤트 → Lambda ffmpeg)

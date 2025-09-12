@@ -2,7 +2,7 @@
 VOJ Audiobooks API - 파일 관리 엔드포인트
 파일 업로드, 다운로드, 관리 기능
 """
-from fastapi import APIRouter, HTTPException, UploadFile, File, Path, Query, Depends
+from fastapi import APIRouter, HTTPException, UploadFile, File, Path, Query, Depends, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Optional
@@ -194,6 +194,7 @@ async def get_file_info(
 @router.get("/{file_key:path}", response_class=StreamingResponse)
 async def download_file(
     file_key: str = Path(..., description="파일 키"),
+    request: Request = None,
     claims = Depends(get_current_user_claims)
 ):
     """
@@ -215,22 +216,56 @@ async def download_file(
             else:
                 raise HTTPException(status_code=500, detail="Failed to generate download URL")
         
-        # 로컬 환경에서는 직접 스트리밍
+        # 로컬 환경에서는 직접 스트리밍 (Range 지원)
         file_data = await storage_service.download_file(file_key)
         if file_data is None:
             raise HTTPException(status_code=404, detail="File not found")
-        
+
+        file_size = len(file_data)
         # 파일 정보 조회
         file_info = await storage_service.get_file_info(file_key)
         content_type = file_info.content_type if file_info else "application/octet-stream"
-        
+
+        range_header = request.headers.get("range") if request else None
+        if range_header and range_header.lower().startswith("bytes="):
+            # Parse Range: bytes=start-end
+            try:
+                range_spec = range_header.split("=", 1)[1]
+                start_str, end_str = (range_spec.split("-", 1) + [""])[:2]
+                start = int(start_str) if start_str else 0
+                end = int(end_str) if end_str else file_size - 1
+                start = max(0, start)
+                end = min(file_size - 1, end)
+                if start > end or start >= file_size:
+                    # Invalid range
+                    return StreamingResponse(
+                        io.BytesIO(b""),
+                        status_code=416,
+                        media_type=content_type,
+                        headers={
+                            "Content-Range": f"bytes */{file_size}",
+                            "Accept-Ranges": "bytes",
+                        },
+                    )
+                chunk = file_data[start : end + 1]
+                headers = {
+                    "Content-Range": f"bytes {start}-{end}/{file_size}",
+                    "Content-Length": str(len(chunk)),
+                    "Accept-Ranges": "bytes",
+                }
+                return StreamingResponse(io.BytesIO(chunk), status_code=206, media_type=content_type, headers=headers)
+            except Exception:
+                # Fallback to full content on parse error
+                pass
+
+        # Full content
         return StreamingResponse(
             io.BytesIO(file_data),
             media_type=content_type,
             headers={
-                "Content-Length": str(len(file_data)),
-                "Accept-Ranges": "bytes"
-            }
+                "Content-Length": str(file_size),
+                "Accept-Ranges": "bytes",
+            },
         )
         
     except HTTPException:

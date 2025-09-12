@@ -576,6 +576,43 @@ const adaptiveStreaming = {
 
 ---
 
+## 15. URL 설계 가이드 (로컬/프로덕션)
+
+### 15.1 스토리지 키 표준
+
+- 기본 규칙: `book/<book_id>/<prefix>/<filename>`
+  - `<prefix>`: `uploads` | `media` | `covers`
+  - 예시:
+    - 원본 업로드: `book/123/uploads/0001.wav`
+    - 인코딩 결과: `book/123/media/0001.m4a`
+    - 표지 이미지: `book/123/covers/cover.jpg`
+
+### 15.2 로컬 스트리밍/다운로드 URL
+
+- 단일 경로: `GET /api/v1/files/{file_key}`
+  - 예: `GET /api/v1/files/book/123/media/0001.m4a`
+  - Range 지원: `Range: bytes=START-END` → 206 Partial Content, `Content-Range` 헤더 반환
+  - 전체 전송 시: 200 OK, `Accept-Ranges: bytes`
+
+### 15.3 프로덕션 스트리밍 URL
+
+- 챕터 스트리밍 요청: `GET /api/v1/audio/{book_id}/chapters/{chapter_id}/stream`
+  - 내부 키 결정 우선순위: `file_info.s3_key` → `book/<book_id>/media/<original_name>` → fallback(`chapter_id.m4a`)
+  - URL 생성 우선순위: CloudFront Signed URL(60~120초) → S3 Pre-signed GET(폴백)
+  - 응답 예: `{ "streaming_url": "https://<cf_domain>/book/123/media/0001.m4a?Signature=...", "expires_at": "...", "duration": 1800 }`
+
+### 15.4 업로드 URL (프로덕션)
+
+- Pre-signed PUT: `GET /api/v1/files/presigned-upload-url?user_id=...&book_id=...&filename=...&content_type=...&file_type=uploads|media|cover`
+  - 응답: `{ upload_url, key, file_id, expires_in }`
+  - 업로드 완료 후 클라이언트는 `key`를 보존하여 후속 처리(메타 저장/인코딩 트리거)에 사용
+
+### 15.5 권한/보안
+
+- 모든 다운로드/스트리밍/목록/정보는 인증 필요
+- 업로드 권한: `admin|editor` 스코프 필요
+- 삭제 권한: 파일 삭제는 `admin` 스코프 필요, 도메인 오브젝트 삭제는 소유권 검증
+
 ### 최종 한 줄 요약
 
 \*\*S3 비공개 + CloudFront(OAC, Signed URL) + FFmpeg 단일 프리셋(AAC-LC 56kbps 모노)\*\*로 시작하면, 50 동시접속 규모에서 **보안·성능·비용** 모두 안정적으로 MVP를 빠르게 띄울 수 있습니다.

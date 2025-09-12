@@ -285,6 +285,24 @@ ffmpeg -i input.wav -ac 1 -ar 44100 -c:a aac -b:a 56k -movflags +faststart outpu
   - S3 업로드 성공 후 DB 실패 시 재시도로 보정(멱등성 기반)
   - DB 업데이트 성공 후 S3 업로드 실패는 발생하지 않도록 업로드를 먼저 수행
 
+#### 5.4 실패 재시도/에러 로깅/DLQ 설계
+
+- 재시도 정책:
+  - Lambda 기본 재시도 사용(최대 2회), 실패 시 DLQ(SQS) 전달
+  - 네트워크/일시 오류는 지수 백오프 재시도, ffmpeg 불가 파일은 즉시 실패
+- DLQ 처리 흐름:
+  1) DLQ 컨슈머(Lambda 또는 Batch)가 메시지 수신
+  2) `error_reason` 기반으로 재처리 가능/불가 분기
+  3) 재처리 가능 시: 멱등성 체크 후 다시 `process`
+  4) 불가 시: `status=error` 유지, 운영 알림 전송(SNS)
+- 로깅/관측:
+  - 구조화 로그(JSON): `book_id`, `object_key`, `duration_ms`, `result`, `error_reason`
+  - CloudWatch 메트릭: `encode_success`, `encode_fail`, `retry_count`
+  - 경보: 실패율 상승, DLQ 적체량 임계치 초과 시 알람
+- 보안/권한:
+  - DLQ(SQS) 접근 최소 권한, 메시지 보존기간 14일 설정
+  - 로그에 개인 식별정보(PII) 미포함, 키/ID만 기록
+
 ---
 
 ## 6. API 설계(요약)

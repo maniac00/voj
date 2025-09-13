@@ -24,28 +24,31 @@ export function AdminHeader() {
   }
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
+    <header className="bg-white shadow-sm border-b border-gray-200" role="banner">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* 로고 및 네비게이션 */}
           <div className="flex items-center space-x-8">
             <Link 
               href="/books" 
-              className="text-xl font-semibold text-gray-900 hover:text-gray-700"
+              className="text-xl font-semibold text-gray-900 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+              aria-label="VOJ Admin 홈페이지로 이동"
             >
               VOJ Admin
             </Link>
             
-            <nav className="hidden md:flex space-x-6">
+            <nav id="navigation" className="hidden md:flex space-x-6" role="navigation" aria-label="주 내비게이션">
               <Link 
                 href="/books" 
-                className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium"
+                className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+                aria-label="책 관리 페이지로 이동"
               >
                 책 관리
               </Link>
               <Link 
                 href="/dashboard" 
-                className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium"
+                className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+                aria-label="대시보드 페이지로 이동"
               >
                 대시보드
               </Link>
@@ -63,6 +66,7 @@ export function AdminHeader() {
             <button
               onClick={handleLogout}
               className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+              aria-label="로그아웃하고 로그인 페이지로 이동"
             >
               로그아웃
             </button>

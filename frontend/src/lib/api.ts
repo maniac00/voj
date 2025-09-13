@@ -8,7 +8,14 @@ export type BookDto = {
   title: string
   author: string
   publisher?: string | null
+  description?: string | null
+  genre?: string | null
+  language?: string
   status?: string
+  created_at?: string
+  updated_at?: string
+  total_chapters?: number
+  total_duration?: number
 }
 
 export async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
@@ -42,14 +49,25 @@ export async function getBook(bookId: string): Promise<BookDto> {
   return fetchJson<BookDto>(`${API_BASE}/books/${bookId}`)
 }
 
-export async function createBook(payload: { title: string; author: string; publisher?: string }): Promise<BookDto> {
+export interface CreateBookPayload {
+  title: string
+  author: string
+  publisher?: string
+  description?: string
+  genre?: string
+  language?: string
+}
+
+export async function createBook(payload: CreateBookPayload): Promise<BookDto> {
   return fetchJson<BookDto>(`${API_BASE}/books`, {
     method: 'POST',
     body: JSON.stringify(payload)
   })
 }
 
-export async function updateBook(bookId: string, payload: Partial<{ title: string; author: string; publisher: string }>): Promise<BookDto> {
+export type UpdateBookPayload = Partial<CreateBookPayload>
+
+export async function updateBook(bookId: string, payload: UpdateBookPayload): Promise<BookDto> {
   return fetchJson<BookDto>(`${API_BASE}/books/${bookId}`, {
     method: 'PUT',
     body: JSON.stringify(payload)

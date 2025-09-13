@@ -41,22 +41,25 @@ export default function BookAudiosPage() {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop })
 
   return (
-    <main className="p-6">
+    <main id="main" className="p-6">
       <h1 className="text-xl font-semibold mb-4">오디오 업로드</h1>
       <div
         {...getRootProps()}
         className={`border-2 border-dashed rounded p-8 text-center ${isDragActive ? 'bg-slate-50' : 'bg-white'}`}
+        role="button"
+        tabIndex={0}
+        aria-label="파일 업로드 드롭존"
       >
         <input {...getInputProps()} />
         <p>여기로 파일을 드래그하거나 클릭하여 선택하세요 (WAV/MP3/M4A)</p>
       </div>
 
-      <ul className="mt-6 space-y-2">
+      <ul className="mt-6 space-y-2" aria-live="polite">
         {items.map((i) => (
           <li key={i.name} className="border rounded p-3">
             <div className="flex items-center justify-between">
               <span>{i.name}</span>
-              <span className="text-sm text-slate-600">{i.status}</span>
+              <span className="text-sm text-slate-600" aria-label={`상태 ${i.status}`}>{i.status}</span>
             </div>
             <div className="mt-2 h-2 w-full rounded bg-slate-200">
               <div className="h-2 rounded bg-black" style={{ width: `${i.progress}%` }} />
@@ -68,7 +71,7 @@ export default function BookAudiosPage() {
       <h2 className="text-lg font-semibold mt-8 mb-2">챕터 정렬</h2>
       <ul className="space-y-2">
         {chapters.map((c, idx) => (
-          <li key={c.chapter_id} className="border rounded p-3 flex items-center justify-between">
+          <li key={c.chapter_id} className="border rounded p-3 flex items-center justify-between" aria-label={`챕터 ${c.title} 순서 ${c.chapter_number}`}>
             <div className="flex items-center gap-3">
               <span className="w-10 text-right">{c.chapter_number}</span>
               <span>{c.title}</span>
@@ -77,6 +80,7 @@ export default function BookAudiosPage() {
               <button
                 className="rounded border px-2 py-1"
                 disabled={idx === 0}
+                aria-label="챕터 위로 이동"
                 onClick={async () => {
                   const newNum = Math.max(1, c.chapter_number - 1)
                   const updated = await reorderChapter(bookId, c.chapter_id, newNum)
@@ -92,6 +96,7 @@ export default function BookAudiosPage() {
               <button
                 className="rounded border px-2 py-1"
                 disabled={idx === chapters.length - 1}
+                aria-label="챕터 아래로 이동"
                 onClick={async () => {
                   const newNum = c.chapter_number + 1
                   const updated = await reorderChapter(bookId, c.chapter_id, newNum)

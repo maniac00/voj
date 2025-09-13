@@ -278,15 +278,46 @@ async def get_streaming_url(
     if not chapter or chapter.book_id != book_id:
         raise HTTPException(status_code=404, detail="Audio chapter not found")
 
-    # 키 결정: s3_key 우선, 없으면 표준 경로 추정(book/<book_id>/media/<filename>)
-    key = None
-    if getattr(chapter, "file_info", None) and getattr(chapter.file_info, "s3_key", None):
-        key = chapter.file_info.s3_key
-    elif getattr(chapter, "file_info", None) and getattr(chapter.file_info, "original_name", None):
-        key = f"book/{book_id}/media/{chapter.file_info.original_name.replace(' ', '_')}"
+    # 파일 경로 결정 (로컬 환경에서는 실제 파일 경로 사용)
+    file_path = None
+    
+    if settings.ENVIRONMENT == "local":
+        # 로컬 환경: 실제 파일 경로 사용
+        if chapter.file_info and chapter.file_info.local_path:
+            file_path = chapter.file_info.local_path
+            
+            # 파일 존재 확인
+            if not os.path.exists(file_path):
+                # 원본 파일이 없으면 uploads 디렉토리에서 찾기
+                print(f"File not found at {file_path}, searching in uploads...")
+                
+                # uploads 디렉토리에서 원본 파일 찾기
+                if chapter.file_info.original_name:
+                    # 절대 경로로 변환
+                    abs_file_path = os.path.abspath(file_path)
+                    abs_base_path = abs_file_path.replace("/media/", "/uploads/")
+                    
+                    if os.path.exists(abs_file_path):
+                        file_path = abs_file_path
+                        print(f"Found file at: {file_path}")
+                    elif os.path.exists(abs_base_path):
+                        file_path = abs_base_path
+                        print(f"Found original file at: {file_path}")
+                    else:
+                        raise HTTPException(status_code=404, detail=f"Audio file not found: {abs_file_path} or {abs_base_path}")
+                else:
+                    raise HTTPException(status_code=404, detail="Audio file not found on disk")
+        else:
+            raise HTTPException(status_code=404, detail="No file path found for chapter")
+    
     else:
-        # 최후의 수단: 챕터 ID 기반 기본 파일명
-        key = f"book/{book_id}/media/{chapter.chapter_id}.m4a"
+        # 프로덕션 환경: S3 키 사용
+        if chapter.file_info and chapter.file_info.s3_key:
+            file_path = chapter.file_info.s3_key
+        elif chapter.file_info and chapter.file_info.original_name:
+            file_path = f"book/{book_id}/media/{chapter.file_info.original_name.replace(' ', '_')}"
+        else:
+            file_path = f"book/{book_id}/media/{chapter.chapter_id}.m4a"
 
     expires = datetime.now(timezone.utc).replace(hour=23, minute=59, second=59, microsecond=0)
 
@@ -295,17 +326,29 @@ async def get_streaming_url(
         url = None
         if hasattr(storage_service, "get_cloudfront_signed_url"):
             try:
-                url = await storage_service.get_cloudfront_signed_url(key, expires_in=3600)
+                url = await storage_service.get_cloudfront_signed_url(file_path, expires_in=3600)
             except Exception:
                 url = None
         if not url:
-            url = await storage_service.get_download_url(key, expires_in=3600)
+            url = await storage_service.get_download_url(file_path, expires_in=3600)
         if not url:
             raise HTTPException(status_code=500, detail="Failed to generate streaming URL")
-        return StreamingUrlResponse(streaming_url=url, expires_at=expires, duration=chapter.audio_metadata.duration if getattr(chapter, "audio_metadata", None) else 0)
+        
+        duration = chapter.audio_metadata.duration if getattr(chapter, "audio_metadata", None) else 0
+        return StreamingUrlResponse(streaming_url=url, expires_at=expires, duration=duration)
 
-    # 로컬: Files 다운로드 엔드포인트를 통한 스트리밍 일원화
-    local_url = f"http://localhost:{settings.PORT}{settings.API_V1_STR}/files/{key}"
+    # 로컬: Files 다운로드 엔드포인트를 통한 스트리밍
+    # 실제 파일 경로를 파일 키로 변환
+    if file_path.startswith("./storage/"):
+        file_key = file_path.replace("./storage/", "")
+    elif file_path.startswith("/"):
+        file_key = file_path[1:]  # 절대 경로에서 첫 번째 슬래시 제거
+    else:
+        file_key = file_path
+    
+    local_url = f"http://localhost:{settings.PORT}{settings.API_V1_STR}/files/{file_key}"
+    print(f"Generated streaming URL: {local_url}")
+    
     duration = chapter.audio_metadata.duration if getattr(chapter, "audio_metadata", None) else 0
     return StreamingUrlResponse(streaming_url=local_url, expires_at=expires, duration=duration)
 

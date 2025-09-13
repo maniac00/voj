@@ -10,6 +10,9 @@ import { ChapterList, ChapterStats, ChapterSearch } from '@/components/audio/cha
 import { RealTimeLogs } from '@/components/logs/real-time-logs'
 import { RealTimeStatus } from '@/components/status/real-time-status'
 import { LogManager } from '@/components/logs/log-manager'
+import { AudioPlayer } from '@/components/audio/audio-player'
+import { ContinuousPlayer } from '@/components/audio/playlist-manager'
+import { PlaybackStateManager, PlaybackStats } from '@/components/audio/playback-state-manager'
 import { useNotification } from '@/contexts/notification-context'
 import { ErrorState, LoadingState } from '@/components/ui/error-state'
 
@@ -106,10 +109,57 @@ export default function BookAudiosPage() {
     }
   }
 
-  const handleChapterPlay = (chapterId: string) => {
-    // TODO: 오디오 재생 기능 (다음 태스크에서 구현)
-    console.log(`Playing chapter: ${chapterId}`)
-    showError('오디오 재생 기능은 다음 단계에서 구현됩니다.')
+  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null)
+  const [audioUrl, setAudioUrl] = useState<string | null>(null)
+  const [showPlaylist, setShowPlaylist] = useState(false)
+
+  const handleChapterPlay = async (chapterId: string) => {
+    try {
+      // 스트리밍 URL 요청
+      const response = await fetch(`/api/v1/audio/${bookId}/chapters/${chapterId}/stream`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('voj_access_token')}`
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Streaming URL generation failed' }))
+        throw new Error(errorData.detail)
+      }
+
+      const streamData = await response.json()
+      
+      // 재생 시작
+      setCurrentlyPlaying(chapterId)
+      setAudioUrl(streamData.streaming_url)
+      
+      success('오디오 재생을 시작합니다.')
+      
+    } catch (error) {
+      showError(`재생 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`)
+    }
+  }
+
+  const handleAudioStop = () => {
+    setCurrentlyPlaying(null)
+    setAudioUrl(null)
+  }
+
+  // 스트리밍 URL 생성 (플레이리스트용)
+  const getStreamingUrl = async (chapterId: string): Promise<string> => {
+    const response = await fetch(`/api/v1/audio/${bookId}/chapters/${chapterId}/stream`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('voj_access_token')}`
+      }
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Streaming URL generation failed' }))
+      throw new Error(errorData.detail)
+    }
+
+    const streamData = await response.json()
+    return streamData.streaming_url
   }
 
   const handleChapterEdit = (chapterId: string) => {
@@ -182,7 +232,10 @@ export default function BookAudiosPage() {
 
           {/* 챕터 통계 */}
           {chapters.length > 0 && (
-            <ChapterStats chapters={chapters} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <ChapterStats chapters={chapters} />
+              <PlaybackStats bookId={bookId} />
+            </div>
           )}
 
           {/* 챕터 검색 및 필터 */}
@@ -216,6 +269,7 @@ export default function BookAudiosPage() {
                 onEdit={handleChapterEdit}
                 onSelect={setSelectedChapterId}
                 selectedChapterId={selectedChapterId || undefined}
+                currentlyPlayingId={currentlyPlaying || undefined}
               />
             </div>
           </div>
@@ -228,6 +282,17 @@ export default function BookAudiosPage() {
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-medium text-gray-900">모니터링</h3>
               <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setShowPlaylist(!showPlaylist)}
+                  className={`px-3 py-1 text-sm rounded-md ${
+                    showPlaylist 
+                      ? 'bg-green-100 text-green-700' 
+                      : 'bg-gray-100 text-gray-700'
+                  } hover:opacity-80`}
+                >
+                  {showPlaylist ? '플레이리스트 숨기기' : '연속 재생'}
+                </button>
+                
                 <button
                   onClick={() => setShowLogManager(!showLogManager)}
                   className={`px-3 py-1 text-sm rounded-md ${
@@ -253,10 +318,62 @@ export default function BookAudiosPage() {
             </div>
           </div>
 
+          {/* 오디오 플레이어 */}
+          {currentlyPlaying && audioUrl && (
+            <div className="bg-white rounded-lg border border-gray-200">
+              <div className="px-4 py-3 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-medium text-gray-900">오디오 플레이어</h3>
+                  <button
+                    onClick={handleAudioStop}
+                    className="text-sm text-gray-600 hover:text-gray-800 px-2 py-1 rounded"
+                  >
+                    닫기
+                  </button>
+                </div>
+              </div>
+              <div className="p-4">
+                <AudioPlayer
+                  src={audioUrl}
+                  title={chapters.find(c => c.chapter_id === currentlyPlaying)?.title || '오디오'}
+                  onPlay={() => console.log('Audio started playing')}
+                  onPause={() => console.log('Audio paused')}
+                  onEnded={() => {
+                    console.log('Audio ended')
+                    // 다음 챕터 자동 재생 (향후 구현)
+                  }}
+                  onError={(error) => {
+                    showError(`재생 오류: ${error}`)
+                    handleAudioStop()
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
           {/* 선택된 챕터 실시간 상태 */}
           {selectedChapterId && (
             <RealTimeStatus 
               chapterId={selectedChapterId}
+            />
+          )}
+
+          {/* 재생 기록 및 상태 */}
+          <PlaybackStateManager
+            bookId={bookId}
+            chapterId={selectedChapterId || undefined}
+            onResumePlayback={async (chapterId, position) => {
+              await handleChapterPlay(chapterId)
+              // TODO: 재생 위치 설정 (AudioPlayer에서 지원 필요)
+            }}
+          />
+
+          {/* 연속 재생 플레이리스트 */}
+          {showPlaylist && (
+            <ContinuousPlayer
+              chapters={chapters}
+              bookId={bookId}
+              onGetStreamingUrl={getStreamingUrl}
             />
           )}
 

@@ -14,6 +14,7 @@ interface ChapterListProps {
   onEdit?: (chapterId: string) => void
   onSelect?: (chapterId: string) => void
   selectedChapterId?: string
+  currentlyPlayingId?: string
   className?: string
 }
 
@@ -25,6 +26,7 @@ export function ChapterList({
   onEdit,
   onSelect,
   selectedChapterId,
+  currentlyPlayingId,
   className = ''
 }: ChapterListProps) {
   const [chapterToDelete, setChapterToDelete] = useState<ChapterDto | null>(null)
@@ -125,10 +127,12 @@ export function ChapterList({
         {chapters.map((chapter, index) => (
           <div 
             key={chapter.chapter_id} 
-            className={`bg-white border rounded-lg p-4 hover:shadow-sm transition-all cursor-pointer ${
-              selectedChapterId === chapter.chapter_id 
+            className={`border rounded-lg p-4 hover:shadow-sm transition-all cursor-pointer ${
+              currentlyPlayingId === chapter.chapter_id
+                ? 'border-green-500 bg-green-50'
+                : selectedChapterId === chapter.chapter_id 
                 ? 'border-blue-500 bg-blue-50' 
-                : 'border-gray-200'
+                : 'bg-white border-gray-200'
             }`}
             onClick={() => onSelect?.(chapter.chapter_id)}
           >
@@ -189,14 +193,33 @@ export function ChapterList({
                 {/* 재생 버튼 */}
                 {chapter.status === 'ready' && onPlay && (
                   <button
-                    onClick={() => onPlay(chapter.chapter_id)}
-                    className="p-2 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500"
-                    aria-label={`${chapter.title} 재생`}
-                    title="재생"
+                    onClick={(e) => {
+                      e.stopPropagation() // 챕터 선택 이벤트 방지
+                      onPlay(chapter.chapter_id)
+                    }}
+                    className={`p-2 rounded-full focus:outline-none focus:ring-2 ${
+                      currentlyPlayingId === chapter.chapter_id
+                        ? 'text-green-800 bg-green-100 hover:bg-green-200 focus:ring-green-500'
+                        : 'text-green-600 hover:text-green-800 hover:bg-green-50 focus:ring-green-500'
+                    }`}
+                    aria-label={`${chapter.title} ${currentlyPlayingId === chapter.chapter_id ? '재생 중' : '재생'}`}
+                    title={currentlyPlayingId === chapter.chapter_id ? '재생 중' : '재생'}
                   >
-                    <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                    </svg>
+                    {currentlyPlayingId === chapter.chapter_id ? (
+                      <div className="flex items-center">
+                        <div className="animate-pulse h-5 w-5 flex items-center justify-center">
+                          <div className="grid grid-cols-3 gap-0.5">
+                            <div className="w-1 bg-green-600 animate-bounce" style={{ height: '8px', animationDelay: '0ms' }}></div>
+                            <div className="w-1 bg-green-600 animate-bounce" style={{ height: '12px', animationDelay: '150ms' }}></div>
+                            <div className="w-1 bg-green-600 animate-bounce" style={{ height: '8px', animationDelay: '300ms' }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                      </svg>
+                    )}
                   </button>
                 )}
                 

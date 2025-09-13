@@ -15,7 +15,7 @@ from app.core.config import settings  # noqa: E402
 from app.services.books import BookService  # noqa: E402
 from app.models.audio_chapter import AudioChapter, FileInfo, AudioMetadata  # noqa: E402
 from app.services.storage import factory as storage_factory  # noqa: E402
-from app.core.auth import deps as auth_deps  # noqa: E402
+from app.core.auth import simple as auth_simple  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -40,7 +40,7 @@ def test_streaming_uses_cloudfront_signed_url(monkeypatch):
     def _claims_override():
         return {"sub": "user-x"}
 
-    app.dependency_overrides[auth_deps.get_current_user_claims] = lambda: _claims_override()
+    app.dependency_overrides[auth_simple.get_current_user_claims] = lambda: _claims_override()
 
     book = BookService.create_book(user_id="user-x", title="B", author="A")
     ch = AudioChapter(
@@ -73,6 +73,6 @@ def test_streaming_uses_cloudfront_signed_url(monkeypatch):
     assert data["duration"] == 123
 
     # cleanup override
-    app.dependency_overrides.pop(auth_deps.get_current_user_claims, None)
+    app.dependency_overrides.pop(auth_simple.get_current_user_claims, None)
 
 

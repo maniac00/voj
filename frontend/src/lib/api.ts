@@ -1,3 +1,5 @@
+import { getAuthHeaders } from '@/lib/auth/simple-auth'
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1`
 
 export type BookDto = {
@@ -14,6 +16,7 @@ export async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit)
     ...init,
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeaders(),
       ...(init?.headers || {})
     },
     cache: 'no-store'
@@ -26,7 +29,13 @@ export async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit)
 }
 
 export async function getBooks(): Promise<BookDto[]> {
-  return fetchJson<BookDto[]>(`${API_BASE}/books`)
+  const data = await fetchJson<any>(`${API_BASE}/books`)
+  if (Array.isArray(data)) return data as BookDto[]
+  if (Array.isArray(data?.books)) return data.books as BookDto[]
+  if (Array.isArray(data?.items)) return data.items as BookDto[]
+  if (Array.isArray(data?.data?.books)) return data.data.books as BookDto[]
+  if (Array.isArray(data?.data?.items)) return data.data.items as BookDto[]
+  return []
 }
 
 export async function getBook(bookId: string): Promise<BookDto> {

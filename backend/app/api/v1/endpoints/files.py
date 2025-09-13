@@ -11,7 +11,7 @@ import io
 
 from app.core.config import settings
 from app.services.storage.factory import storage_service
-from app.core.auth.deps import get_current_user_claims, require_any_scope
+from app.core.auth.simple import get_current_user_claims, require_any_scope
 
 router = APIRouter()
 

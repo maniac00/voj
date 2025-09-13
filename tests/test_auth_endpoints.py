@@ -21,13 +21,13 @@ def _local_mode():
     yield
 
 
-def test_login_local_bypass():
+def test_login_simple_auth():
     client = TestClient(app)
-    resp = client.post("/api/v1/auth/login", json={"email": "a@b.com", "password": "pw"})
+    resp = client.post("/api/v1/auth/login", json={"username": "admin", "password": "admin123"})
     assert resp.status_code == 200, resp.text
     data = resp.json()
     assert data["access_token"]
-    assert data["email"] == "a@b.com"
+    assert data["username"] == "admin"
 
 
 def test_me_endpoint_works_with_bypass():
@@ -36,12 +36,12 @@ def test_me_endpoint_works_with_bypass():
     assert resp.status_code == 200, resp.text
     data = resp.json()
     assert data["sub"]
-    assert data["token_use"] == "access"
+    assert data["username"] == settings.LOCAL_BYPASS_USERNAME
+    assert data["scope"] == settings.LOCAL_BYPASS_SCOPE
 
 
-def test_logout_local_bypass():
+def test_logout_simple_auth():
     client = TestClient(app)
-    # Missing header triggers LOCAL_DEV_BYPASS in local mode without Cognito
     resp = client.post("/api/v1/auth/logout")
     assert resp.status_code == 200, resp.text
     assert "Logged out" in resp.json().get("message", "")

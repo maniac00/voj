@@ -9,7 +9,7 @@ from datetime import datetime
 import uuid
 
 from app.core.config import settings
-from app.core.auth.deps import get_current_user_claims
+from app.core.auth.simple import get_current_user_claims
 from app.services.books import BookService
 
 router = APIRouter()
@@ -77,7 +77,7 @@ async def create_book(book_data: BookCreate, claims = Depends(get_current_user_c
     - 사용자 인증 필요
     - DynamoDB에 책 정보 저장
     """
-    user_id = str(claims.get("sub") or claims.get("cognito:username") or "")
+    user_id = str(claims.get("sub") or claims.get("username") or "")
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
 
@@ -131,7 +131,7 @@ async def get_books(
     - 상태, 장르, 검색어로 필터링
     - 사용자별 책만 조회
     """
-    user_id = str(claims.get("sub") or claims.get("cognito:username") or "")
+    user_id = str(claims.get("sub") or claims.get("username") or "")
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
 
@@ -197,7 +197,7 @@ async def get_book(
     - 사용자 인증 필요
     - 본인의 책만 조회 가능
     """
-    user_id = str(claims.get("sub") or claims.get("cognito:username") or "")
+    user_id = str(claims.get("sub") or claims.get("username") or "")
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
 
@@ -241,7 +241,7 @@ async def update_book(
     - 사용자 인증 필요
     - 본인의 책만 수정 가능
     """
-    user_id = str(claims.get("sub") or claims.get("cognito:username") or "")
+    user_id = str(claims.get("sub") or claims.get("username") or "")
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
 
@@ -296,7 +296,7 @@ async def delete_book(
     - 본인의 책만 삭제 가능
     - 연관된 오디오 파일도 함께 삭제
     """
-    user_id = str(claims.get("sub") or claims.get("cognito:username") or "")
+    user_id = str(claims.get("sub") or claims.get("username") or "")
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
 

@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 import uuid
 
 from app.core.config import settings
-from app.core.auth.deps import get_current_user_claims
+from app.core.auth.simple import get_current_user_claims
 from app.services.books import BookService
 from app.models.audio_chapter import AudioChapter as AudioChapterModel
 from app.services.storage.factory import storage_service
@@ -119,7 +119,7 @@ async def get_audio_chapters(
     - 챕터 번호 순으로 정렬
     - 상태별 필터링 가능
     """
-    user_id = str(claims.get("sub") or claims.get("cognito:username") or "")
+    user_id = str(claims.get("sub") or claims.get("username") or "")
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
 
@@ -178,7 +178,7 @@ async def update_chapter_order(
     - 사용자 인증 및 소유권 검증
     - 동일 책 내에서 번호만 변경 (충돌 케이스는 단순 교체/중복 허용 없이 overwrite)
     """
-    user_id = str(claims.get("sub") or claims.get("cognito:username") or "")
+    user_id = str(claims.get("sub") or claims.get("username") or "")
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
 
@@ -267,7 +267,7 @@ async def get_streaming_url(
     - 로컬: 직접 파일 URL
     """
     # 사용자 인증 및 소유권 확인
-    user_id = str(claims.get("sub") or claims.get("cognito:username") or "")
+    user_id = str(claims.get("sub") or claims.get("username") or "")
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
     if not BookService.get_book(user_id=user_id, book_id=book_id):
@@ -320,7 +320,7 @@ async def delete_audio_chapter(
     오디오 챕터 삭제
     - 파일과 메타데이터 모두 삭제
     """
-    user_id = str(claims.get("sub") or claims.get("cognito:username") or "")
+    user_id = str(claims.get("sub") or claims.get("username") or "")
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
 

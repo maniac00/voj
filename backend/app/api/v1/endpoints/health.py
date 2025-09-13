@@ -79,32 +79,22 @@ async def detailed_health_check():
         except Exception as e:
             dependencies["local_storage"] = {"status": "unhealthy", "error": str(e)}
     
-    # Cognito 설정 확인
+    # 간단한 인증 설정 확인
     try:
-        required_keys = [
-            "COGNITO_USER_POOL_ID",
-            "COGNITO_CLIENT_ID",
-        ]
-        missing = [k for k in required_keys if not getattr(settings, k, None)]
-        config_status = {
+        auth_status = {
             "status": "healthy",
-            "missing": [],
-            "notes": "",
+            "auth_type": "simple",
+            "username": settings.SIMPLE_AUTH_USERNAME,
+            "notes": "하드코딩된 간단한 인증 시스템 사용 중"
         }
+        
         if settings.ENVIRONMENT == "production":
-            if missing:
-                config_status["status"] = "unhealthy"
-                config_status["missing"] = missing
-                config_status["notes"] = "Cognito 환경 변수가 누락되었습니다."
-        else:
-            # local: 누락 시 경고로 보고, 인증 deps는 바이패스 모드 동작
-            if missing:
-                config_status["status"] = "warning"
-                config_status["missing"] = missing
-                config_status["notes"] = "로컬에서는 누락 시 인증 바이패스가 활성화됩니다."
-        dependencies["cognito_config"] = config_status
+            auth_status["notes"] += " (프로덕션에서는 더 강력한 인증 시스템 권장)"
+            auth_status["status"] = "warning"
+        
+        dependencies["auth_config"] = auth_status
     except Exception as e:
-        dependencies["cognito_config"] = {"status": "unhealthy", "error": str(e)}
+        dependencies["auth_config"] = {"status": "unhealthy", "error": str(e)}
     
     # 스토리지 서비스 상태 확인
     try:

@@ -41,12 +41,10 @@ class BaseAppSettings(BaseSettings):
     # S3 기본 설정
     S3_BUCKET_NAME: str = "voj-audiobooks"
     
-    # Cognito 기본 설정
-    COGNITO_REGION: str = "ap-northeast-2"
-    COGNITO_USER_POOL_ID: Optional[str] = None
-    COGNITO_CLIENT_ID: Optional[str] = None
-    COGNITO_CLIENT_SECRET: Optional[str] = None
-    COGNITO_DOMAIN: Optional[str] = None
+    # 간단한 인증 설정
+    SIMPLE_AUTH_ENABLED: bool = True
+    SIMPLE_AUTH_USERNAME: str = "admin"
+    SIMPLE_AUTH_PASSWORD: str = "admin123"
     
     # 로컬 인증 바이패스 설정
     LOCAL_BYPASS_ENABLED: bool = True

@@ -1,3 +1,5 @@
+import { getAuthHeaders } from '@/lib/auth/simple-auth'
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1`
 
 export type ChapterDto = {
@@ -17,6 +19,7 @@ export async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit)
     ...init,
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeaders(),
       ...(init?.headers || {})
     },
     cache: 'no-store'
@@ -36,6 +39,13 @@ export async function reorderChapter(bookId: string, chapterId: string, newNumbe
   return fetchJson<ChapterDto>(
     `${API_BASE}/audio/${encodeURIComponent(bookId)}/chapters/${encodeURIComponent(chapterId)}?new_number=${newNumber}`,
     { method: 'PUT' }
+  )
+}
+
+export async function deleteChapter(bookId: string, chapterId: string): Promise<{ message: string }> {
+  return fetchJson<{ message: string }>(
+    `${API_BASE}/audio/${encodeURIComponent(bookId)}/chapters/${encodeURIComponent(chapterId)}`,
+    { method: 'DELETE' }
   )
 }
 

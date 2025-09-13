@@ -5,13 +5,17 @@ VOJ Audiobooks API - 파일 관리 엔드포인트
 from fastapi import APIRouter, HTTPException, UploadFile, File, Path, Query, Depends, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import uuid
 import io
 
 from app.core.config import settings
 from app.services.storage.factory import storage_service
 from app.core.auth.simple import get_current_user_claims, require_any_scope
+from app.models.audio_chapter import AudioChapter, FileInfo
+from app.services.books import BookService
+from app.utils.ffprobe import extract_audio_metadata
+from app.utils.audio_validation import validate_uploaded_audio, extract_chapter_info, sanitize_filename
 
 router = APIRouter()
 
@@ -25,6 +29,19 @@ class FileUploadResponse(BaseModel):
     content_type: str
     url: Optional[str] = None
     message: str
+
+
+class AudioUploadResponse(BaseModel):
+    """오디오 업로드 응답 모델"""
+    success: bool
+    chapter_id: str
+    file_id: str
+    chapter_number: int
+    title: str
+    status: str
+    message: str
+    warnings: Optional[List[str]] = None
+    processing_info: Optional[Dict[str, Any]] = None
 
 
 class FileInfoResponse(BaseModel):
@@ -105,26 +122,316 @@ async def upload_file(
             metadata=metadata
         )
         
-        if result.success:
-            return FileUploadResponse(
-                success=True,
-                file_id=file_id,
-                key=result.key,
-                size=result.size,
-                content_type=file.content_type,
-                url=result.url,
-                message="File uploaded successfully"
-            )
-        else:
+        if not result.success:
             raise HTTPException(
                 status_code=500,
                 detail=f"File upload failed: {result.error}"
             )
+
+        # 오디오 파일인 경우 AudioChapter 생성
+        if file.content_type in allowed_audio_types and file_type == "upload":
+            try:
+                # 사용자 권한 확인 (책 소유권)
+                user_id_from_claims = str(claims.get("sub") or claims.get("username") or "")
+                book = BookService.get_book(user_id=user_id_from_claims, book_id=book_id)
+                if not book:
+                    raise HTTPException(status_code=404, detail="Book not found or access denied")
+
+                # 다음 챕터 번호 계산
+                next_chapter_number = AudioChapter.get_next_chapter_number(book_id)
+                
+                # AudioChapter 생성
+                chapter = AudioChapter(
+                    chapter_id=file_id,
+                    book_id=book_id,
+                    chapter_number=next_chapter_number,
+                    title=file.filename or f"Chapter {next_chapter_number}",
+                    status="uploading",
+                    file_info=FileInfo(
+                        original_name=file.filename,
+                        file_size=len(file_content),
+                        mime_type=file.content_type,
+                        s3_key=key if settings.ENVIRONMENT == "production" else None,
+                        local_path=key if settings.ENVIRONMENT == "local" else None
+                    )
+                )
+                chapter.save()
+
+                # 로컬 환경에서는 즉시 메타데이터 추출 시도
+                if settings.ENVIRONMENT == "local":
+                    try:
+                        # 임시 파일로 저장하여 ffprobe 실행
+                        import tempfile
+                        import os
+                        
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file.filename.split('.')[-1]}") as temp_file:
+                            temp_file.write(file_content)
+                            temp_file.flush()
+                            
+                            # 메타데이터 추출
+                            metadata_result = extract_audio_metadata(temp_file.name)
+                            
+                            # AudioChapter 업데이트
+                            chapter.mark_processing_completed(metadata_result)
+                            
+                            # 임시 파일 삭제
+                            os.unlink(temp_file.name)
+                            
+                    except Exception as meta_error:
+                        print(f"Metadata extraction failed: {meta_error}")
+                        chapter.mark_processing_error(f"Metadata extraction failed: {str(meta_error)}")
+
+            except Exception as chapter_error:
+                print(f"AudioChapter creation failed: {chapter_error}")
+                # 파일은 업로드되었지만 챕터 생성 실패 - 경고로 처리
+                
+        return FileUploadResponse(
+            success=True,
+            file_id=file_id,
+            key=result.key,
+            size=result.size,
+            content_type=file.content_type,
+            url=result.url,
+            message="File uploaded successfully"
+        )
     
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=f"Internal server error: {str(e)}"
+        )
+
+
+@router.post("/upload/audio", response_model=AudioUploadResponse)
+async def upload_audio_file(
+    file: UploadFile = File(...),
+    book_id: str = Query(..., description="책 ID"),
+    chapter_title: Optional[str] = Query(None, description="챕터 제목"),
+    claims = Depends(require_any_scope(["admin", "editor"]))
+):
+    """
+    오디오 파일 업로드 (AudioChapter 자동 생성)
+    - 지원 형식: WAV, MP3, M4A, FLAC
+    - 파일 크기 제한: 100MB
+    - 자동 메타데이터 추출 (로컬 환경)
+    """
+    # 파일 크기 제한 확인
+    max_size = 100 * 1024 * 1024  # 100MB
+    file_content = await file.read()
+    
+    if len(file_content) > max_size:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File size exceeds limit. Maximum allowed: {max_size / (1024*1024):.1f}MB"
+        )
+    
+    # 강화된 오디오 파일 검증
+    validation_result = validate_uploaded_audio(
+        file_content=file_content,
+        filename=file.filename or "unknown.mp3",
+        content_type=file.content_type or "audio/mpeg"
+    )
+    
+    if not validation_result.is_valid:
+        raise HTTPException(
+            status_code=400,
+            detail=f"파일 검증 실패: {'; '.join(validation_result.errors)}"
+        )
+    
+    # 경고가 있으면 로그에 기록
+    if validation_result.warnings:
+        print(f"Upload warnings for {file.filename}: {validation_result.warnings}")
+
+    try:
+        # 사용자 권한 확인 (책 소유권)
+        user_id = str(claims.get("sub") or claims.get("username") or "")
+        book = BookService.get_book(user_id=user_id, book_id=book_id)
+        if not book:
+            raise HTTPException(status_code=404, detail="Book not found or access denied")
+
+        # 파일 ID 및 키 생성
+        file_id = str(uuid.uuid4())
+        key = storage_service.generate_key(user_id, book_id, f"{file_id}_{file.filename}", "uploads")
+        
+        # 메타데이터 준비
+        metadata = {
+            "original_filename": file.filename,
+            "file_id": file_id,
+            "user_id": user_id,
+            "book_id": book_id,
+            "file_type": "upload",
+            "content_type": file.content_type,
+        }
+        
+        # 파일 업로드
+        upload_result = await storage_service.upload_file(
+            file_data=io.BytesIO(file_content),
+            key=key,
+            content_type=file.content_type,
+            metadata=metadata
+        )
+        
+        if not upload_result.success:
+            raise HTTPException(
+                status_code=500,
+                detail=f"File upload failed: {upload_result.error}"
+            )
+
+        # 파일명에서 챕터 정보 추출
+        chapter_info = extract_chapter_info(file.filename or "unknown.mp3")
+        sanitized_filename = sanitize_filename(file.filename or "unknown.mp3")
+        
+        # 챕터 번호 결정 (파일명에서 추출한 번호 우선, 없으면 자동 할당)
+        suggested_number = chapter_info.get('chapter_number')
+        next_chapter_number = suggested_number or AudioChapter.get_next_chapter_number(book_id)
+        
+        # 챕터 제목 결정 (매개변수 > 파일명 추출 > 기본값)
+        final_title = (
+            chapter_title or 
+            chapter_info.get('suggested_title') or 
+            f"Chapter {next_chapter_number}"
+        )
+        
+        # AudioChapter 생성
+        chapter = AudioChapter(
+            chapter_id=file_id,
+            book_id=book_id,
+            chapter_number=next_chapter_number,
+            title=final_title,
+            status="processing",
+            file_info=FileInfo(
+                original_name=sanitized_filename,
+                file_size=len(file_content),
+                mime_type=file.content_type,
+                s3_key=key if settings.ENVIRONMENT == "production" else None,
+                local_path=key if settings.ENVIRONMENT == "local" else None
+            )
+        )
+        chapter.save()
+
+        # 로컬 환경에서는 즉시 메타데이터 추출
+        if settings.ENVIRONMENT == "local":
+            try:
+                # 임시 파일로 저장하여 ffprobe 실행
+                import tempfile
+                import os
+                
+                with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file.filename.split('.')[-1]}") as temp_file:
+                    temp_file.write(file_content)
+                    temp_file.flush()
+                    
+                    # 메타데이터 추출
+                    metadata_result = extract_audio_metadata(temp_file.name)
+                    
+                    # AudioChapter 업데이트
+                    chapter.mark_processing_completed(metadata_result)
+                    
+                    # 임시 파일 삭제
+                    os.unlink(temp_file.name)
+                    
+            except Exception as meta_error:
+                print(f"Metadata extraction failed: {meta_error}")
+                chapter.mark_processing_error(f"Metadata extraction failed: {str(meta_error)}")
+
+        # 응답에 경고 및 처리 정보 포함
+        processing_info = {}
+        if settings.ENVIRONMENT == "local" and chapter.audio_metadata:
+            processing_info = {
+                "duration": chapter.audio_metadata.duration,
+                "bitrate": chapter.audio_metadata.bitrate,
+                "sample_rate": chapter.audio_metadata.sample_rate,
+                "channels": chapter.audio_metadata.channels,
+                "format": chapter.audio_metadata.format
+            }
+
+        return AudioUploadResponse(
+            success=True,
+            chapter_id=chapter.chapter_id,
+            file_id=file_id,
+            chapter_number=chapter.chapter_number,
+            title=chapter.title,
+            status=chapter.status,
+            message=f"Audio file '{file.filename}' uploaded successfully",
+            warnings=validation_result.warnings if validation_result.warnings else None,
+            processing_info=processing_info if processing_info else None
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Audio upload failed: {str(e)}"
+        )
+
+
+@router.post("/retry-processing/{chapter_id}")
+async def retry_audio_processing(
+    chapter_id: str = Path(..., description="챕터 ID"),
+    claims = Depends(require_any_scope(["admin", "editor"]))
+):
+    """
+    오디오 파일 재처리
+    - 메타데이터 추출 실패 시 재시도
+    - 로컬 환경에서만 지원
+    """
+    if settings.ENVIRONMENT != "local":
+        raise HTTPException(
+            status_code=400,
+            detail="Audio reprocessing is only supported in local environment"
+        )
+
+    try:
+        # 챕터 조회
+        chapter = AudioChapter.get_by_id(chapter_id)
+        if not chapter:
+            raise HTTPException(status_code=404, detail="Chapter not found")
+
+        # 사용자 권한 확인
+        user_id = str(claims.get("sub") or claims.get("username") or "")
+        book = BookService.get_book(user_id=user_id, book_id=chapter.book_id)
+        if not book:
+            raise HTTPException(status_code=404, detail="Book not found or access denied")
+
+        # 파일 경로 확인
+        if not chapter.file_info or not chapter.file_info.local_path:
+            raise HTTPException(status_code=400, detail="No file path found for reprocessing")
+
+        file_path = chapter.file_info.local_path
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="Audio file not found on disk")
+
+        # 재처리 시작
+        chapter.mark_processing_started()
+
+        try:
+            # 메타데이터 재추출
+            metadata_result = extract_audio_metadata(file_path)
+            chapter.mark_processing_completed(metadata_result)
+            
+            return {
+                "success": True,
+                "chapter_id": chapter_id,
+                "status": chapter.status,
+                "message": "Audio reprocessing completed successfully",
+                "metadata": metadata_result
+            }
+            
+        except Exception as meta_error:
+            error_msg = f"Reprocessing failed: {str(meta_error)}"
+            chapter.mark_processing_error(error_msg)
+            
+            raise HTTPException(
+                status_code=500,
+                detail=error_msg
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Reprocessing failed: {str(e)}"
         )
 
 

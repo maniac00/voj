@@ -14,7 +14,18 @@
 - `backend/docs/environment-config.md` - 환경 설정 문서.
 - `docs/checklist.md` - 상위 진행 체크리스트.
 - `frontend/src/lib/auth/amplify-config.ts` - 프론트엔드 Amplify 설정 유틸(환경 변수 기반).
- - `frontend/` - Next.js 15 App Router 소스(`frontend/src/app`), Tailwind/TS 설정(`frontend/*`).
+- `frontend/src/lib/api.ts` - Book API 클라이언트(fetch 래퍼).
+- `frontend/src/lib/upload.ts` - 파일 업로드(XHR 진행률) 유틸.
+- `frontend/src/lib/audio.ts` - Audio 챕터 조회/정렬 API 클라이언트.
+- `frontend/src/app/providers/amplify-provider.tsx` - Amplify 설정 Provider.
+- `frontend/src/app/(auth)/login/page.tsx` - 로그인 페이지(Hosted UI 리다이렉트).
+- `frontend/src/app/(auth)/callback/route.ts` - Amplify signin 콜백 핸들러.
+- `frontend/src/app/(admin)/books/page.tsx` - 책 목록 페이지.
+- `frontend/src/app/(admin)/books/new/page.tsx` - 책 등록 페이지.
+- `frontend/src/app/(admin)/books/[bookId]/page.tsx` - 책 편집/삭제 페이지.
+- `frontend/src/app/(admin)/books/[bookId]/audios/page.tsx` - 오디오 업로드(DnD)/정렬 UI.
+- `frontend/src/app/layout.tsx`, `frontend/src/app/globals.css` - 글로벌 레이아웃/스타일(스킵 링크/포커스 링 포함).
+- `frontend/` - Next.js 15 App Router 소스(`frontend/src/app`), Tailwind/TS 설정(`frontend/*`).
 - `backend/app/services/books.py` - Book 도메인 서비스 계층(CRUD/목록/페이지네이션).
 - `tests/test_books_service.py` - BookService 단위 테스트.
  - `backend/app/utils/ffprobe.py` - ffprobe 기반 오디오 메타데이터 추출 유틸.
@@ -104,12 +115,12 @@
   - [x] 6.2 프로덕션 테이블과 모델 필드 비교표 작성 및 차이 해소 계획
   - [x] 6.3 마이그레이션/백필 전략(필요 시) 수립
 
-- [ ] 7.0 프론트엔드 어드민 기본 UI 프레임(로그인/책/오디오 관리)
+- [x] 7.0 프론트엔드 어드민 기본 UI 프레임(로그인/책/오디오 관리)
   - [x] 7.1 Next.js 15 App Router 스캐폴딩(TypeScript, Tailwind, Shadcn)
   - [x] 7.2 로그인 화면 + Cognito 연동(Amplify/SDK)
   - [x] 7.3 책 목록/등록/편집/삭제 페이지
-  - [ ] 7.4 오디오 업로드(DnD) + 진행률/정렬 UI
-  - [ ] 7.5 접근성 기본(키보드/ARIA/포커스)
+  - [x] 7.4 오디오 업로드(DnD) + 진행률/정렬 UI
+  - [x] 7.5 접근성 기본(키보드/ARIA/포커스)
 
 - [ ] 8.0 보안/시크릿/권한 정책 강화(시크릿 분리, 최소권한)
   - [ ] 8.1 코드 내 시크릿 제거 → `.env`/AWS Secrets Manager로 이전
@@ -118,7 +129,7 @@
 
 - [ ] 9.0 테스트 전략 수립 및 핵심 시나리오 TDD(백엔드/프론트엔드)
   - [ ] 9.1 백엔드 단위/통합 테스트 스캐폴딩(pytest-asyncio 포함)
-  - [ ] 9.2 인증/파일/헬스체크 주요 경로 커버리지 목표 설정
+  - [ ] 9.2 인증/파일/헬스체크 주요 경로 커버리지 목표 설정 
   - [ ] 9.3 프론트엔드 컴포넌트 테스트(Jest/RTL) 기초
 
 - [ ] 10.0 배포 파이프라인 및 운영 가이드(로그/알람)

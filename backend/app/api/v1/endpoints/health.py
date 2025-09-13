@@ -11,6 +11,12 @@ import os
 from app.core.config import settings
 from app.services.database import db_service
 from app.services.storage.factory import storage_service
+from app.core.environment.detector import (
+    get_current_environment,
+    validate_current_environment,
+    check_environment_readiness,
+    auto_configure_environment
+)
 
 router = APIRouter()
 
@@ -78,6 +84,30 @@ async def detailed_health_check():
             }
         except Exception as e:
             dependencies["local_storage"] = {"status": "unhealthy", "error": str(e)}
+    
+    # 환경 감지 및 검증
+    try:
+        current_env = get_current_environment()
+        env_validation = validate_current_environment()
+        
+        env_status = {
+            "detected_environment": current_env.value,
+            "is_valid": env_validation["is_valid"],
+            "missing_required": env_validation.get("missing_required", []),
+            "warnings": env_validation.get("warnings", []),
+            "features": env_validation.get("features", [])
+        }
+        
+        if not env_validation["is_valid"]:
+            env_status["status"] = "unhealthy"
+        elif env_validation.get("warnings"):
+            env_status["status"] = "warning"
+        else:
+            env_status["status"] = "healthy"
+        
+        dependencies["environment"] = env_status
+    except Exception as e:
+        dependencies["environment"] = {"status": "unhealthy", "error": str(e)}
     
     # 간단한 인증 설정 확인
     try:
@@ -158,4 +188,46 @@ async def initialize_database():
         raise HTTPException(
             status_code=500,
             detail=f"Database initialization failed: {str(e)}"
+        )
+
+
+@router.get("/environment")
+async def get_environment_info():
+    """
+    환경 정보 조회
+    - 현재 감지된 환경
+    - 환경 검증 결과
+    - 권장사항
+    """
+    try:
+        readiness_info = check_environment_readiness()
+        return readiness_info
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get environment info: {str(e)}"
+        )
+
+
+@router.post("/environment/auto-configure")
+async def auto_configure():
+    """
+    환경 자동 설정
+    - 필요한 디렉토리 생성
+    - 기본 설정 적용
+    - 로컬 환경에서만 지원
+    """
+    if settings.ENVIRONMENT != "local":
+        raise HTTPException(
+            status_code=400,
+            detail="Auto-configuration is only supported in local environment"
+        )
+    
+    try:
+        result = auto_configure_environment()
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Auto-configuration failed: {str(e)}"
         )

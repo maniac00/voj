@@ -71,9 +71,9 @@ EOF
   if command -v node >/dev/null 2>&1; then
     echo "[start-local] Starting frontend (next dev) on :3000..."
     pushd "$ROOT_DIR/frontend" >/dev/null
-    # Install deps if node_modules missing
+    # Install deps if node_modules missing (allow legacy peer deps for React 19 conflicts)
     if [[ ! -d node_modules ]]; then
-      npm install --no-fund --no-audit || true
+      npm install --no-fund --no-audit --legacy-peer-deps || true
     fi
     (nohup npm run dev >"$STATE_DIR/frontend.log" 2>&1 & echo $! >"$STATE_DIR/frontend.pid")
     popd >/dev/null

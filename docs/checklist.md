@@ -277,6 +277,13 @@
 
 ## 📝 업데이트 로그
 
+### 2025-09-13
+- 프론트엔드: DnD를 `@hello-pangea/dnd`로 이전(React 19 호환)
+- 프론트엔드: React 19 호환성 정리(`lucide-react` 제거, `@radix-ui/react-form` 제거, `@types/react*` 19로 갱신)
+- 스크립트: `scripts/start-local.sh`에 `npm install --legacy-peer-deps` 적용(ERESOLVE 충돌 완화)
+- 프론트엔드: 홈(`/`) → `/books` 리다이렉트, 목록 응답 정규화로 렌더 오류 제거
+- 의존성: 존재하지 않는 `@radix-ui/react-button` 제거로 npm 404 해결
+
 ### 2025-09-12
 - URL 설계 가이드 추가(로컬/프로덕션), 스트리밍 항목 체크 반영
 - 인코딩 파이프라인 5.1 S3→Lambda 트리거 스펙 문서화

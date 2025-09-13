@@ -22,24 +22,9 @@ else
   docker-compose -f "$ROOT_DIR/docker-compose.yml" up -d dynamodb-local
 fi
 
-# 3) Wait for container health (uses compose healthcheck)
-echo "[start-local] Waiting for container health (voj-dynamodb-local)..."
-for i in {1..60}; do
-  STATUS=$(docker inspect --format '{{.State.Health.Status}}' voj-dynamodb-local 2>/dev/null || echo "starting")
-  if [[ "$STATUS" == "healthy" ]]; then
-    echo "[start-local] Container is healthy."
-    break
-  fi
-  sleep 1
-  if [[ $i -eq 60 ]]; then
-    echo "[start-local] ERROR: Container health not healthy in time (status=$STATUS)." >&2
-    exit 1
-  fi
-done
-
-# 4) Optional: wait for host port to accept connections
-echo "[start-local] Verifying host port 8001 is reachable..."
-for i in {1..10}; do
+# 3) Wait for host port to accept connections (prefer this over container health)
+echo "[start-local] Waiting for DynamoDB Local on host port 8001..."
+for i in {1..90}; do
   if command -v nc >/dev/null 2>&1; then
     if nc -z localhost 8001 >/dev/null 2>&1; then
       echo "[start-local] Port 8001 reachable."
@@ -52,18 +37,19 @@ for i in {1..10}; do
     fi
   fi
   sleep 1
-  if [[ $i -eq 10 ]]; then
-    echo "[start-local] WARN: Port 8001 not verified, continuing..."
+  if [[ $i -eq 90 ]]; then
+    echo "[start-local] ERROR: DynamoDB Local not reachable on port 8001 in time." >&2
+    exit 1
   fi
 done
 
-# 5) Create local tables and sample data
+# 4) Create local tables and sample data
 echo "[start-local] Creating local tables..."
 pushd "$ROOT_DIR" >/dev/null
 poetry run python scripts/create-local-tables.py || true
 popd >/dev/null
 
-# 6) Start backend (FastAPI) on :8000
+# 5) Start backend (FastAPI) on :8000
 echo "[start-local] Starting backend (uvicorn) on :8000..."
 pushd "$ROOT_DIR/backend" >/dev/null
 (
@@ -73,7 +59,7 @@ pushd "$ROOT_DIR/backend" >/dev/null
 )
 popd >/dev/null
 
-# 7) Prepare frontend env and start Next dev on :3000 (optional)
+# 6) Prepare frontend env and start Next dev on :3000 (optional)
 if [[ -d "$ROOT_DIR/frontend" ]]; then
   echo "[start-local] Preparing frontend..."
   if [[ ! -f "$ROOT_DIR/frontend/.env.local" ]]; then

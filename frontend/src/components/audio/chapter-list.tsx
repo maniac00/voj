@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { ChapterDto } from '@/lib/audio'
 import { useNotification } from '@/contexts/notification-context'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { StatusIndicator } from '@/components/status/real-time-status'
 
 interface ChapterListProps {
   chapters: ChapterDto[]
@@ -11,6 +12,8 @@ interface ChapterListProps {
   onDelete: (chapterId: string) => Promise<void>
   onPlay?: (chapterId: string) => void
   onEdit?: (chapterId: string) => void
+  onSelect?: (chapterId: string) => void
+  selectedChapterId?: string
   className?: string
 }
 
@@ -20,6 +23,8 @@ export function ChapterList({
   onDelete,
   onPlay,
   onEdit,
+  onSelect,
+  selectedChapterId,
   className = ''
 }: ChapterListProps) {
   const [chapterToDelete, setChapterToDelete] = useState<ChapterDto | null>(null)
@@ -120,7 +125,12 @@ export function ChapterList({
         {chapters.map((chapter, index) => (
           <div 
             key={chapter.chapter_id} 
-            className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow"
+            className={`bg-white border rounded-lg p-4 hover:shadow-sm transition-all cursor-pointer ${
+              selectedChapterId === chapter.chapter_id 
+                ? 'border-blue-500 bg-blue-50' 
+                : 'border-gray-200'
+            }`}
+            onClick={() => onSelect?.(chapter.chapter_id)}
           >
             <div className="flex items-start justify-between">
               {/* 왼쪽: 챕터 정보 */}

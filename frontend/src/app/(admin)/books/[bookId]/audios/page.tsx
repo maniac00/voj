@@ -7,6 +7,9 @@ import { getChapters, reorderChapter, deleteChapter, type ChapterDto } from '@/l
 import { getBook, BookDto } from '@/lib/api'
 import { FileUploadForm } from '@/components/audio/file-upload-form'
 import { ChapterList, ChapterStats, ChapterSearch } from '@/components/audio/chapter-list'
+import { RealTimeLogs } from '@/components/logs/real-time-logs'
+import { RealTimeStatus } from '@/components/status/real-time-status'
+import { LogManager } from '@/components/logs/log-manager'
 import { useNotification } from '@/contexts/notification-context'
 import { ErrorState, LoadingState } from '@/components/ui/error-state'
 
@@ -16,9 +19,15 @@ export default function BookAudiosPage() {
   const [book, setBook] = useState<BookDto | null>(null)
   const [chapters, setChapters] = useState<ChapterDto[]>([])
   const [filteredChapters, setFilteredChapters] = useState<ChapterDto[]>([])
+  const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null)
+  const [showLogs, setShowLogs] = useState(true)
+  const [showLogManager, setShowLogManager] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const { success, error: showError } = useNotification()
+  
+  // 현재 로그를 위한 상태 (LogManager에서 사용)
+  const [currentLogs, setCurrentLogs] = useState<any[]>([])
 
   useEffect(() => {
     const loadData = async () => {
@@ -35,6 +44,11 @@ export default function BookAudiosPage() {
         const sortedChapters = chaptersData.sort((a, b) => a.chapter_number - b.chapter_number)
         setChapters(sortedChapters)
         setFilteredChapters(sortedChapters)
+        
+        // 첫 번째 챕터를 기본 선택
+        if (sortedChapters.length > 0 && !selectedChapterId) {
+          setSelectedChapterId(sortedChapters[0].chapter_id)
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : '데이터를 불러오는데 실패했습니다.')
       } finally {
@@ -154,52 +168,128 @@ export default function BookAudiosPage() {
         </div>
       </div>
 
-      <div className="space-y-6">
-        {/* 파일 업로드 */}
-        <FileUploadForm
-          bookId={bookId}
-          onUploadComplete={handleUploadComplete}
-          onUploadStart={(fileName) => {
-            console.log(`Upload started: ${fileName}`)
-          }}
-        />
-
-        {/* 챕터 통계 */}
-        {chapters.length > 0 && (
-          <ChapterStats chapters={chapters} />
-        )}
-
-        {/* 챕터 검색 및 필터 */}
-        {chapters.length > 0 && (
-          <ChapterSearch
-            chapters={chapters}
-            onFilter={setFilteredChapters}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* 왼쪽: 파일 업로드 및 챕터 관리 */}
+        <div className="xl:col-span-2 space-y-6">
+          {/* 파일 업로드 */}
+          <FileUploadForm
+            bookId={bookId}
+            onUploadComplete={handleUploadComplete}
+            onUploadStart={(fileName) => {
+              console.log(`Upload started: ${fileName}`)
+            }}
           />
-        )}
 
-        {/* 챕터 목록 */}
-        <div className="bg-white rounded-lg border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-200">
+          {/* 챕터 통계 */}
+          {chapters.length > 0 && (
+            <ChapterStats chapters={chapters} />
+          )}
+
+          {/* 챕터 검색 및 필터 */}
+          {chapters.length > 0 && (
+            <ChapterSearch
+              chapters={chapters}
+              onFilter={setFilteredChapters}
+            />
+          )}
+
+          {/* 챕터 목록 */}
+          <div className="bg-white rounded-lg border border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-medium text-gray-900">챕터 목록</h2>
+                <div className="text-sm text-gray-600">
+                  {filteredChapters.length !== chapters.length 
+                    ? `${filteredChapters.length}개 표시 (전체 ${chapters.length}개)`
+                    : `총 ${chapters.length}개 챕터`
+                  }
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              <ChapterList
+                chapters={filteredChapters}
+                onReorder={handleChapterReorder}
+                onDelete={handleChapterDelete}
+                onPlay={handleChapterPlay}
+                onEdit={handleChapterEdit}
+                onSelect={setSelectedChapterId}
+                selectedChapterId={selectedChapterId || undefined}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* 오른쪽: 실시간 모니터링 */}
+        <div className="space-y-6">
+          {/* 모니터링 컨트롤 */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-medium text-gray-900">챕터 목록</h2>
-              <div className="text-sm text-gray-600">
-                {filteredChapters.length !== chapters.length 
-                  ? `${filteredChapters.length}개 표시 (전체 ${chapters.length}개)`
-                  : `총 ${chapters.length}개 챕터`
-                }
+              <h3 className="text-lg font-medium text-gray-900">모니터링</h3>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setShowLogManager(!showLogManager)}
+                  className={`px-3 py-1 text-sm rounded-md ${
+                    showLogManager 
+                      ? 'bg-purple-100 text-purple-700' 
+                      : 'bg-gray-100 text-gray-700'
+                  } hover:opacity-80`}
+                >
+                  {showLogManager ? '관리 숨기기' : '로그 관리'}
+                </button>
+                
+                <button
+                  onClick={() => setShowLogs(!showLogs)}
+                  className={`px-3 py-1 text-sm rounded-md ${
+                    showLogs 
+                      ? 'bg-blue-100 text-blue-700' 
+                      : 'bg-gray-100 text-gray-700'
+                  } hover:opacity-80`}
+                >
+                  {showLogs ? '로그 숨기기' : '로그 보기'}
+                </button>
               </div>
             </div>
           </div>
-          
-          <div className="p-6">
-            <ChapterList
-              chapters={filteredChapters}
-              onReorder={handleChapterReorder}
-              onDelete={handleChapterDelete}
-              onPlay={handleChapterPlay}
-              onEdit={handleChapterEdit}
+
+          {/* 선택된 챕터 실시간 상태 */}
+          {selectedChapterId && (
+            <RealTimeStatus 
+              chapterId={selectedChapterId}
             />
-          </div>
+          )}
+
+          {/* 로그 관리자 */}
+          {showLogManager && (
+            <LogManager
+              currentLogs={currentLogs}
+              chapterId={selectedChapterId || undefined}
+            />
+          )}
+
+          {/* 실시간 로그 */}
+          {showLogs && (
+            <RealTimeLogs
+              chapterId={selectedChapterId || undefined}
+              maxHeight="500px"
+              autoScroll={true}
+              showFilters={true}
+              onLogsUpdate={setCurrentLogs}
+            />
+          )}
+
+          {/* 전체 책 로그 (챕터 선택 안된 경우) */}
+          {showLogs && !selectedChapterId && (
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <h4 className="text-md font-medium text-gray-900 mb-3">전체 활동 로그</h4>
+              <RealTimeLogs
+                maxHeight="400px"
+                autoScroll={true}
+                showFilters={false}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -7,6 +7,7 @@ import { BatchUploadProgress } from '@/components/audio/upload-progress'
 import { validateAudioFiles, analyzeAudiobookSeries, checkDuplicateFiles, quickValidateAudioFile } from '@/lib/audio-validation'
 import { useUploadErrorHandler } from '@/hooks/use-upload-error-handler'
 import { NetworkStatusIndicator, UploadTroubleshooting } from '@/components/audio/upload-error-handler'
+import { ErrorAnalyzer } from '@/components/error/error-analyzer'
 
 interface FileUploadFormProps {
   bookId: string

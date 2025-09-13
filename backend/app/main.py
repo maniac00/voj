@@ -1,7 +1,7 @@
 """
 VOJ Audiobooks API - FastAPI 메인 애플리케이션
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
@@ -9,6 +9,7 @@ from app.api.v1.api import api_router
 from app.core.config import settings
 from app.services.encoding.encoding_queue import initialize_encoding_system, cleanup_encoding_system
 from app.services.encoding.retry_manager import initialize_retry_system, shutdown_retry_system
+from app.services.websocket.log_streamer import setup_websocket_logging
 
 # FastAPI 애플리케이션 인스턴스 생성
 app = FastAPI(
@@ -46,6 +47,7 @@ async def startup_event():
     try:
         initialize_encoding_system()
         initialize_retry_system()
+        setup_websocket_logging()
     except Exception as e:
         print(f"Warning: Failed to initialize encoding system: {e}")
 

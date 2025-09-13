@@ -2,12 +2,14 @@
 VOJ Audiobooks API - 파일 관리 엔드포인트
 파일 업로드, 다운로드, 관리 기능
 """
-from fastapi import APIRouter, HTTPException, UploadFile, File, Path, Query, Depends, Request
+from fastapi import APIRouter, HTTPException, UploadFile, File, Path as PathParam, Query, Depends, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import uuid
 import io
+import os
+from pathlib import Path
 
 from app.core.config import settings
 from app.services.storage.factory import storage_service
@@ -16,6 +18,8 @@ from app.models.audio_chapter import AudioChapter, FileInfo
 from app.services.books import BookService
 from app.utils.ffprobe import extract_audio_metadata
 from app.utils.audio_validation import validate_uploaded_audio, extract_chapter_info, sanitize_filename
+from app.services.encoding.encoding_queue import submit_encoding_job
+from app.services.encoding.ffmpeg_service import should_encode_file
 
 router = APIRouter()
 
@@ -309,40 +313,86 @@ async def upload_audio_file(
         )
         chapter.save()
 
-        # 로컬 환경에서는 즉시 메타데이터 추출
-        if settings.ENVIRONMENT == "local":
-            try:
-                # 임시 파일로 저장하여 ffprobe 실행
-                import tempfile
-                import os
-                
-                with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file.filename.split('.')[-1]}") as temp_file:
-                    temp_file.write(file_content)
-                    temp_file.flush()
-                    
-                    # 메타데이터 추출
-                    metadata_result = extract_audio_metadata(temp_file.name)
-                    
-                    # AudioChapter 업데이트
-                    chapter.mark_processing_completed(metadata_result)
-                    
-                    # 임시 파일 삭제
-                    os.unlink(temp_file.name)
-                    
-            except Exception as meta_error:
-                print(f"Metadata extraction failed: {meta_error}")
-                chapter.mark_processing_error(f"Metadata extraction failed: {str(meta_error)}")
-
-        # 응답에 경고 및 처리 정보 포함
+        # 응답 정보 초기화
         processing_info = {}
+
+        # 인코딩 필요성 확인 및 자동 트리거
+        should_encode, encode_reason = should_encode_file(key, force=False)
+        
+        if should_encode:
+            # 출력 경로 생성 (uploads → media)
+            output_key = key.replace("/uploads/", "/media/").replace(f"_{file.filename}", f"_{Path(file.filename).stem}.m4a")
+            
+            try:
+                # 인코딩 작업 제출
+                job_id = submit_encoding_job(
+                    chapter_id=file_id,
+                    book_id=book_id,
+                    input_path=key,
+                    output_path=output_key
+                )
+                
+                print(f"Encoding job submitted: {job_id} for chapter {file_id}")
+                print(f"Reason: {encode_reason}")
+                
+                # 처리 중 상태로 유지
+                processing_info["encoding_job_id"] = job_id
+                processing_info["encoding_reason"] = encode_reason
+                
+            except Exception as encoding_error:
+                print(f"Failed to submit encoding job: {encoding_error}")
+                
+                # 인코딩 실패 시 원본 파일 메타데이터라도 추출
+                if settings.ENVIRONMENT == "local":
+                    try:
+                        import tempfile
+                        
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file.filename.split('.')[-1]}") as temp_file:
+                            temp_file.write(file_content)
+                            temp_file.flush()
+                            
+                            metadata_result = extract_audio_metadata(temp_file.name)
+                            chapter.mark_processing_completed(metadata_result)
+                            
+                            os.unlink(temp_file.name)
+                            
+                    except Exception as meta_error:
+                        print(f"Metadata extraction failed: {meta_error}")
+                        chapter.mark_processing_error(f"Processing failed: {str(meta_error)}")
+        
+        else:
+            # 인코딩 불필요 - 원본 파일 메타데이터 추출
+            print(f"Encoding not required: {encode_reason}")
+            
+            if settings.ENVIRONMENT == "local":
+                try:
+                    import tempfile
+                    
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file.filename.split('.')[-1]}") as temp_file:
+                        temp_file.write(file_content)
+                        temp_file.flush()
+                        
+                        metadata_result = extract_audio_metadata(temp_file.name)
+                        chapter.mark_processing_completed(metadata_result)
+                        
+                        os.unlink(temp_file.name)
+                        
+                except Exception as meta_error:
+                    print(f"Metadata extraction failed: {meta_error}")
+                    chapter.mark_processing_error(f"Metadata extraction failed: {str(meta_error)}")
+            
+            processing_info["encoding_skipped"] = True
+            processing_info["skip_reason"] = encode_reason
+
+        # 메타데이터 정보 추가 (있는 경우)
         if settings.ENVIRONMENT == "local" and chapter.audio_metadata:
-            processing_info = {
+            processing_info.update({
                 "duration": chapter.audio_metadata.duration,
                 "bitrate": chapter.audio_metadata.bitrate,
                 "sample_rate": chapter.audio_metadata.sample_rate,
                 "channels": chapter.audio_metadata.channels,
                 "format": chapter.audio_metadata.format
-            }
+            })
 
         return AudioUploadResponse(
             success=True,
@@ -367,7 +417,7 @@ async def upload_audio_file(
 
 @router.post("/retry-processing/{chapter_id}")
 async def retry_audio_processing(
-    chapter_id: str = Path(..., description="챕터 ID"),
+    chapter_id: str = PathParam(..., description="챕터 ID"),
     claims = Depends(require_any_scope(["admin", "editor"]))
 ):
     """
@@ -470,7 +520,7 @@ async def list_files(
 
 @router.get("/info/{file_key:path}", response_model=FileInfoResponse)
 async def get_file_info(
-    file_key: str = Path(..., description="파일 키"),
+    file_key: str = PathParam(..., description="파일 키"),
     claims = Depends(get_current_user_claims)
 ):
     """파일 정보 조회"""
@@ -500,7 +550,7 @@ async def get_file_info(
 
 @router.get("/{file_key:path}", response_class=StreamingResponse)
 async def download_file(
-    file_key: str = Path(..., description="파일 키"),
+    file_key: str = PathParam(..., description="파일 키"),
     request: Request = None,
     claims = Depends(get_current_user_claims)
 ):
@@ -586,7 +636,7 @@ async def download_file(
 
 @router.delete("/{file_key:path}")
 async def delete_file(
-    file_key: str = Path(..., description="파일 키"),
+    file_key: str = PathParam(..., description="파일 키"),
     claims = Depends(require_any_scope(["admin"]))
 ):
     """파일 삭제"""

@@ -58,7 +58,16 @@ export function useWebSocketLogs({
 
   const getWebSocketUrl = useCallback(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = process.env.NEXT_PUBLIC_API_URL?.replace(/^https?:\/\//, '') || 'localhost:8000'
+    // 우선순위: NEXT_PUBLIC_API_URL -> NEXT_PUBLIC_API_BASE -> localhost:8000
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
+    let host = 'localhost:8000'
+    try {
+      const parsed = new URL(apiUrl)
+      host = `${parsed.hostname}${parsed.port ? `:${parsed.port}` : (parsed.protocol === 'https:' ? '' : ':8000')}`
+    } catch {
+      // 문자열에서 프로토콜 제거 및 경로 제거
+      host = apiUrl.replace(/^https?:\/\//, '').replace(/\/.*/, '') || 'localhost:8000'
+    }
     const chapterParam = chapterId ? `?chapter_id=${encodeURIComponent(chapterId)}` : ''
     return `${protocol}//${host}/api/v1/ws/logs${chapterParam}`
   }, [chapterId])
@@ -105,7 +114,16 @@ export function useWebSocketLogs({
       }
 
       ws.onerror = (error) => {
-        console.error('WebSocket error:', error)
+        // 개발 환경(StrictMode)에서 mount/unmount 2회로 인한 일시적 onerror 무시
+        if (ws.readyState === WebSocket.CLOSING || ws.readyState === WebSocket.CLOSED) {
+          return
+        }
+        try {
+          const ready = (ws as any)?.readyState
+          console.error('WebSocket error:', { error, url: ws.url, readyState: ready })
+        } catch {
+          console.error('WebSocket error:', error)
+        }
         setError('WebSocket connection error')
       }
 
@@ -244,7 +262,14 @@ export function useChapterStatus({
 
   const getWebSocketUrl = useCallback(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = process.env.NEXT_PUBLIC_API_URL?.replace(/^https?:\/\//, '') || 'localhost:8000'
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
+    let host = 'localhost:8000'
+    try {
+      const parsed = new URL(apiUrl)
+      host = `${parsed.hostname}${parsed.port ? `:${parsed.port}` : (parsed.protocol === 'https:' ? '' : ':8000')}`
+    } catch {
+      host = apiUrl.replace(/^https?:\/\//, '').replace(/\/.*/, '') || 'localhost:8000'
+    }
     return `${protocol}//${host}/api/v1/ws/status/${encodeURIComponent(chapterId)}`
   }, [chapterId])
 
@@ -292,7 +317,15 @@ export function useChapterStatus({
       }
 
       ws.onerror = (error) => {
-        console.error('Chapter status WebSocket error:', error)
+        if (ws.readyState === WebSocket.CLOSING || ws.readyState === WebSocket.CLOSED) {
+          return
+        }
+        try {
+          const ready = (ws as any)?.readyState
+          console.error('Chapter status WebSocket error:', { error, url: ws.url, readyState: ready })
+        } catch {
+          console.error('Chapter status WebSocket error:', error)
+        }
         setError('Connection error')
       }
 

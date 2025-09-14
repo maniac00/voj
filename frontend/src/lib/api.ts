@@ -78,4 +78,21 @@ export async function deleteBook(bookId: string): Promise<{ message: string }> {
   return fetchJson<{ message: string }>(`${API_BASE}/books/${bookId}`, { method: 'DELETE' })
 }
 
+// Health
+export interface HealthDependencyInfo {
+  status?: string
+  [key: string]: any
+}
+
+export interface HealthDetailedResponse {
+  status: string
+  environment: string
+  version: string
+  dependencies: Record<string, HealthDependencyInfo>
+}
+
+export async function getHealthDetailed(): Promise<HealthDetailedResponse> {
+  return fetchJson<HealthDetailedResponse>(`${API_BASE}/health/detailed`)
+}
+
 

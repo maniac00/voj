@@ -31,7 +31,8 @@ const DEFAULT_OPTIONS: AudioValidationOptions = {
   maxFileSize: 100 * 1024 * 1024, // 100MB
   minDuration: 10, // 10초 이상
   maxDuration: 4 * 60 * 60, // 4시간 이하
-  allowedFormats: ['.mp3', '.wav', '.m4a', '.flac'],
+  // MVP: mp4 컨테이너만 허용 (m4a 포함)
+  allowedFormats: ['.mp4', '.m4a'],
   minBitrate: 32, // 32kbps 이상
   maxBitrate: 320, // 320kbps 이하
   allowedSampleRates: [8000, 11025, 16000, 22050, 44100, 48000],
@@ -72,30 +73,29 @@ function validateFileSize(file: File, maxSize: number): string | null {
  * 파일명 검증
  */
 function validateFileName(fileName: string): string[] {
-  const errors: string[] = []
-  const warnings: string[] = []
+  const issues: string[] = []
   
-  // 특수문자 검증 (더 엄격하게)
-  if (!/^[a-zA-Z0-9가-힣\s\-_\.()]+$/.test(fileName)) {
-    errors.push('파일명에 지원되지 않는 특수문자가 포함되어 있습니다.')
+  // 금지 문자만 차단 (Windows/FileSystem 위험 문자)
+  if (/[<>:"/\\|?*]/.test(fileName)) {
+    issues.push('파일명에 사용할 수 없는 문자가 포함되어 있습니다. (< > : " / \\ | ? *)')
   }
   
-  // 길이 검증
+  // 경로 순회 방지
+  if (fileName.includes('..')) {
+    issues.push('파일명에 .. 을 포함할 수 없습니다.')
+  }
+  
+  // 길이 검증 (UTF-16 기준 문자열 길이 체크)
   if (fileName.length > 255) {
-    errors.push('파일명이 너무 깁니다. (최대 255자)')
+    issues.push('파일명이 너무 깁니다. (최대 255자)')
   }
   
-  // 한글 파일명 경고
-  if (/[가-힣]/.test(fileName)) {
-    warnings.push('한글 파일명은 일부 시스템에서 문제가 될 수 있습니다.')
-  }
-  
-  // 공백으로 시작/끝나는 경우
+  // 앞뒤 공백 경고 (에러 아님)
   if (fileName.trim() !== fileName) {
-    warnings.push('파일명 앞뒤 공백이 제거됩니다.')
+    issues.push('파일명 앞뒤 공백이 제거됩니다.')
   }
   
-  return [...errors, ...warnings]
+  return issues
 }
 
 /**
@@ -103,14 +103,8 @@ function validateFileName(fileName: string): string[] {
  */
 function validateMimeType(file: File): string | null {
   const allowedMimeTypes = [
-    'audio/mpeg',     // MP3
-    'audio/wav',      // WAV
-    'audio/wave',     // WAV (alternative)
-    'audio/x-wav',    // WAV (alternative)
-    'audio/mp4',      // M4A
-    'audio/x-m4a',    // M4A (alternative)
-    'audio/flac',     // FLAC
-    'audio/x-flac'    // FLAC (alternative)
+    'audio/mp4',      // M4A/MP4 (오디오)
+    'audio/x-m4a'     // 일부 브라우저에서 보고
   ]
   
   if (!allowedMimeTypes.includes(file.type)) {
@@ -128,25 +122,14 @@ async function validateFileHeader(file: File): Promise<string | null> {
     const buffer = await file.slice(0, 12).arrayBuffer()
     const bytes = new Uint8Array(buffer)
     
-    // MP3 검증
-    if (bytes[0] === 0xFF && (bytes[1] & 0xE0) === 0xE0) {
-      return null // 유효한 MP3
+    // ID3 태그로 시작하는 MP3는 유효로 간주 (프레임은 태그 뒤에 위치)
+    if (bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) { // 'ID3'
+      return null
     }
     
-    // WAV 검증
-    if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
-        bytes[8] === 0x57 && bytes[9] === 0x41 && bytes[10] === 0x56 && bytes[11] === 0x45) {
-      return null // 유효한 WAV
-    }
-    
-    // M4A 검증 (ftyp 확인)
+    // M4A/MP4 검증 (ftyp 확인)
     if (bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
       return null // 유효한 M4A
-    }
-    
-    // FLAC 검증
-    if (bytes[0] === 0x66 && bytes[1] === 0x4C && bytes[2] === 0x61 && bytes[3] === 0x43) {
-      return null // 유효한 FLAC
     }
     
     return '파일 헤더가 올바르지 않습니다. 손상된 파일이거나 지원되지 않는 형식일 수 있습니다.'
@@ -244,6 +227,7 @@ export async function validateAudioFile(
   let fileInfo: AudioValidationResult['fileInfo']
   
   try {
+    // MP4는 Web Audio decode 실패가 잦을 수 있어 실패 시에도 통과
     const metadata = await extractClientAudioMetadata(file)
     if (metadata) {
       fileInfo = {
@@ -485,9 +469,9 @@ export function quickValidateAudioFile(file: File): { isValid: boolean; error?: 
     return { isValid: false, error: '지원되지 않는 파일 형식입니다.' }
   }
   
-  // 파일명
-  if (!/^[a-zA-Z0-9가-힣\s\-_\.()]+$/.test(file.name)) {
-    return { isValid: false, error: '파일명에 지원되지 않는 문자가 포함되어 있습니다.' }
+  // 파일명(금지 문자만 차단)
+  if (/[<>:"/\\|?*]/.test(file.name) || file.name.includes('..')) {
+    return { isValid: false, error: '파일명에 사용할 수 없는 문자가 포함되어 있습니다.' }
   }
   
   return { isValid: true }

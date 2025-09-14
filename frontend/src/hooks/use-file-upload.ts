@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { getAuthHeaders } from '@/lib/auth/simple-auth'
 
 export interface UploadProgress {
@@ -114,8 +114,10 @@ export function useFileUpload() {
         })
       }
 
-      // 요청 설정
-      const url = `/api/v1/files/upload/audio?book_id=${encodeURIComponent(bookId)}&chapter_title=${encodeURIComponent(title)}`
+      // API 베이스 URL 구성 (절대 경로 사용)
+      const apiOrigin = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const apiV1 = process.env.NEXT_PUBLIC_API_BASE || `${apiOrigin}/api/v1`
+      const url = `${apiV1}/files/upload/audio?book_id=${encodeURIComponent(bookId)}&chapter_title=${encodeURIComponent(title)}`
       xhr.open('POST', url)
       
       // 인증 헤더 추가
@@ -156,6 +158,11 @@ export interface BatchUploadItem {
 export function useBatchFileUpload() {
   const [uploadItems, setUploadItems] = useState<BatchUploadItem[]>([])
   const [isUploading, setIsUploading] = useState(false)
+  // 최신 상태를 참조하기 위한 ref (addFiles 직후 uploadAll 호출 시 상태 갱신 지연 방지)
+  const uploadItemsRef = useRef<BatchUploadItem[]>([])
+  useEffect(() => {
+    uploadItemsRef.current = uploadItems
+  }, [uploadItems])
 
   const addFiles = useCallback((files: File[], bookId: string) => {
     const newItems: BatchUploadItem[] = files.map(file => ({
@@ -171,8 +178,9 @@ export function useBatchFileUpload() {
     return newItems
   }, [])
 
-  const uploadAll = useCallback(async (bookId: string) => {
-    const pendingItems = uploadItems.filter(item => item.status === 'pending')
+  const uploadAll = useCallback(async (bookId: string, itemsOverride?: BatchUploadItem[]) => {
+    const source = itemsOverride && itemsOverride.length > 0 ? itemsOverride : uploadItemsRef.current
+    const pendingItems = source.filter(item => item.status === 'pending')
     
     if (pendingItems.length === 0) return
 
@@ -289,8 +297,10 @@ export function useBatchFileUpload() {
         })
       }
 
-      // 요청 설정
-      const url = `/api/v1/files/upload/audio?book_id=${encodeURIComponent(bookId)}&chapter_title=${encodeURIComponent(title)}`
+      // API 베이스 URL 구성 (절대 경로 사용)
+      const apiOrigin = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const apiV1 = process.env.NEXT_PUBLIC_API_BASE || `${apiOrigin}/api/v1`
+      const url = `${apiV1}/files/upload/audio?book_id=${encodeURIComponent(bookId)}&chapter_title=${encodeURIComponent(title)}`
       xhr.open('POST', url)
       
       // 인증 헤더 추가

@@ -1,6 +1,8 @@
 import { getAuthHeaders } from '@/lib/auth/simple-auth'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1`
+// API 베이스 URL: 환경변수 없으면 로컬 백엔드로 절대 경로 사용
+const apiOrigin = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || `${apiOrigin}/api/v1`
 
 export type ChapterDto = {
   chapter_id: string
@@ -12,6 +14,8 @@ export type ChapterDto = {
   file_size: number
   duration: number
   status: string
+  created_at?: string
+  updated_at?: string
 }
 
 export async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
@@ -46,6 +50,18 @@ export async function deleteChapter(bookId: string, chapterId: string): Promise<
   return fetchJson<{ message: string }>(
     `${API_BASE}/audio/${encodeURIComponent(bookId)}/chapters/${encodeURIComponent(chapterId)}`,
     { method: 'DELETE' }
+  )
+}
+
+export type StreamUrlResponse = {
+  streaming_url: string
+  expires_at: string
+  duration: number
+}
+
+export async function getStreamingUrlApi(bookId: string, chapterId: string): Promise<StreamUrlResponse> {
+  return fetchJson<StreamUrlResponse>(
+    `${API_BASE}/audio/${encodeURIComponent(bookId)}/chapters/${encodeURIComponent(chapterId)}/stream`
   )
 }
 

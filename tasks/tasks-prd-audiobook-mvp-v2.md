@@ -31,12 +31,17 @@
 - `backend/app/core/settings/base.py` - 하드코딩 인증 설정 추가
 - `backend/app/main.py` - WebSocket 지원 추가
 - `docker-compose.yml` - Redis 추가 (WebSocket 세션 관리용)
+// 업데이트 (MVP 스트리밍 고도화 및 절대 경로 적용)
+- `backend/app/api/v1/endpoints/files.py` - 로컬 업로드 시 `local_path` 절대 경로 저장 및 메타데이터 정리
+- `backend/app/api/v1/endpoints/audio.py` - 로컬 스트리밍 URL 파일 키 해석 보완 (스토리지 루트 기준 변환 및 레거시 호환)
+- `frontend/src/lib/audio.ts` - API_BASE 절대 경로화 및 `getStreamingUrlApi` 추가
+- `frontend/src/app/(admin)/books/[bookId]/audios/page.tsx` - 스트리밍 URL 호출을 절대 경로 API로 통일
 
 ### Notes
 
 - 현재 Cognito 기반 인증을 하드코딩 인증으로 교체
 - 드래그앤드롭을 파일 선택 버튼으로 변경
-- FFmpeg 인코딩 파이프라인 완전 구현
+- MVP 업데이트: 인코딩 파이프라인 비활성화(ENCODING_ENABLED=False), 업로드는 MP4/M4A만 허용, 업로드 즉시 ready 처리
 - WebSocket을 통한 실시간 로그 스트리밍 구현
 - 모든 새로운 컴포넌트와 서비스에 대한 테스트 작성
 - 환경별 설정 지원 (로컬/AWS)
@@ -93,5 +98,11 @@
   - [x] 7.5 설정 검증 및 헬스체크 개선
   - [x] 7.6 환경 전환 테스트 및 문서화
 - [ ] 8.0 대시보드 및 전체 워크플로우 통합
+  - [x] 8.1 업로드 → 스트리밍 로컬 워크플로우 검증(절대 경로 및 파일 키 해석 보완)
+  - [x] 8.2 프론트 API 절대 경로화(NEXT_PUBLIC_API_BASE/NEXT_PUBLIC_API_URL 적용)
+  - [x] 8.3 대시보드 페이지 스켈레톤 및 핵심 메트릭(책/챕터 수, Health)
+  - [x] 8.4 최근 업로드/활동 로그 위젯
+  - [x] 8.5 접근성/에러 메시지 및 로딩 상태 강화
+  - [x] 8.6 스타일 정리 및 카드 레이아웃 개선
 - [ ] 9.0 테스트 및 품질 보증
 - [ ] 10.0 성능 최적화 및 에러 처리

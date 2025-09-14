@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.services.encoding.encoding_queue import initialize_encoding_system, cleanup_encoding_system
 from app.services.encoding.retry_manager import initialize_retry_system, shutdown_retry_system
 from app.services.websocket.log_streamer import setup_websocket_logging
+from app.core.config import settings
 
 # FastAPI 애플리케이션 인스턴스 생성
 app = FastAPI(
@@ -45,8 +46,9 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 async def startup_event():
     """애플리케이션 시작 시 실행"""
     try:
-        initialize_encoding_system()
-        initialize_retry_system()
+        if settings.ENCODING_ENABLED:
+            initialize_encoding_system()
+            initialize_retry_system()
         setup_websocket_logging()
     except Exception as e:
         print(f"Warning: Failed to initialize encoding system: {e}")
@@ -55,8 +57,9 @@ async def startup_event():
 async def shutdown_event():
     """애플리케이션 종료 시 실행"""
     try:
-        shutdown_retry_system()
-        cleanup_encoding_system()
+        if settings.ENCODING_ENABLED:
+            shutdown_retry_system()
+            cleanup_encoding_system()
     except Exception as e:
         print(f"Warning: Failed to cleanup encoding system: {e}")
 

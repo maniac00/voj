@@ -37,7 +37,8 @@ export function FileUploadForm({
   } = useBatchFileUpload()
 
   // 지원되는 오디오 파일 형식
-  const acceptedFormats = ['.wav', '.mp3', '.m4a', '.flac']
+  // MVP: mp4/m4a만 업로드 허용
+  const acceptedFormats = ['.mp4', '.m4a']
   const maxFileSize = 100 * 1024 * 1024 // 100MB
 
   const [validationResults, setValidationResults] = useState<Map<string, any>>(new Map())
@@ -110,8 +111,8 @@ export function FileUploadForm({
         success(`${validationResult.validFiles.length}개 파일 선택됨 (총 ${totalMinutes}분, ${totalSizeMB}MB)`)
       }
 
-      // 9. 업로드 시작
-      await uploadAll(bookId)
+      // 9. 업로드 시작 (방금 추가한 목록으로 즉시 시작)
+      await uploadAll(bookId, newItems)
 
     } catch (error) {
       showError(`파일 처리 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`)
@@ -127,11 +128,6 @@ export function FileUploadForm({
   const handleUploadComplete = (chapterId: string, fileName: string) => {
     onUploadComplete?.(chapterId, fileName)
     success(`"${fileName}" 업로드가 완료되었습니다.`)
-  }
-
-  // 업로드 에러 콜백
-  const handleUploadError = (fileName: string, error: string) => {
-    showError(`"${fileName}" 업로드 실패: ${error}`)
   }
 
   return (
@@ -244,7 +240,7 @@ export function QuickUploadButton({
         ref={fileInputRef}
         type="file"
         multiple
-        accept=".wav,.mp3,.m4a,.flac"
+        accept=".mp4,.m4a"
         onChange={handleFileChange}
         className="sr-only"
         disabled={disabled}

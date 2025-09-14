@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { getChapters, reorderChapter, deleteChapter, type ChapterDto } from '@/lib/audio'
+import { getChapters, reorderChapter, deleteChapter, type ChapterDto, getStreamingUrlApi } from '@/lib/audio'
 import { getBook, BookDto } from '@/lib/api'
 import { FileUploadForm } from '@/components/audio/file-upload-form'
 import { ChapterList, ChapterStats, ChapterSearch } from '@/components/audio/chapter-list'
@@ -115,19 +115,8 @@ export default function BookAudiosPage() {
 
   const handleChapterPlay = async (chapterId: string) => {
     try {
-      // 스트리밍 URL 요청
-      const response = await fetch(`/api/v1/audio/${bookId}/chapters/${chapterId}/stream`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('voj_access_token')}`
-        }
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Streaming URL generation failed' }))
-        throw new Error(errorData.detail)
-      }
-
-      const streamData = await response.json()
+      // 스트리밍 URL 요청 (절대 경로 API 사용)
+      const streamData = await getStreamingUrlApi(bookId, chapterId)
       
       // 재생 시작
       setCurrentlyPlaying(chapterId)
@@ -147,18 +136,7 @@ export default function BookAudiosPage() {
 
   // 스트리밍 URL 생성 (플레이리스트용)
   const getStreamingUrl = async (chapterId: string): Promise<string> => {
-    const response = await fetch(`/api/v1/audio/${bookId}/chapters/${chapterId}/stream`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('voj_access_token')}`
-      }
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: 'Streaming URL generation failed' }))
-      throw new Error(errorData.detail)
-    }
-
-    const streamData = await response.json()
+    const streamData = await getStreamingUrlApi(bookId, chapterId)
     return streamData.streaming_url
   }
 

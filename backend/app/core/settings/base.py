@@ -61,6 +61,9 @@ class BaseAppSettings(BaseSettings):
     # 로깅 설정
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+    # 인코딩 기능 플래그 (MVP에서는 비활성화)
+    ENCODING_ENABLED: bool = False
     
     model_config = ConfigDict(case_sensitive=True)
         

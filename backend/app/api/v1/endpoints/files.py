@@ -16,10 +16,7 @@ from app.services.storage.factory import storage_service
 from app.core.auth.simple import get_current_user_claims, require_any_scope
 from app.models.audio_chapter import AudioChapter, FileInfo
 from app.services.books import BookService
-from app.utils.ffprobe import extract_audio_metadata
-from app.utils.audio_validation import validate_uploaded_audio, extract_chapter_info, sanitize_filename
-from app.services.encoding.encoding_queue import submit_encoding_job
-from app.services.encoding.ffmpeg_service import should_encode_file
+from app.utils.audio_validation import extract_chapter_info, sanitize_filename
 
 router = APIRouter()
 
@@ -35,7 +32,7 @@ class FileUploadResponse(BaseModel):
     message: str
 
 
-class AudioUploadResponse(BaseModel):
+class AudioUploadResponseDto(BaseModel):
     """오디오 업로드 응답 모델"""
     success: bool
     chapter_id: str
@@ -88,7 +85,8 @@ async def upload_file(
         )
     
     # 파일 형식 검증
-    allowed_audio_types = ["audio/mpeg", "audio/wav", "audio/mp4", "audio/flac", "audio/aac"]
+    # MVP: mp4 컨테이너만 허용 (audio/mp4, audio/x-m4a)
+    allowed_audio_types = ["audio/mp4", "audio/x-m4a"]
     allowed_image_types = ["image/jpeg", "image/png", "image/webp"]
     allowed_types = allowed_audio_types + allowed_image_types
     
@@ -156,34 +154,19 @@ async def upload_file(
                         file_size=len(file_content),
                         mime_type=file.content_type,
                         s3_key=key if settings.ENVIRONMENT == "production" else None,
-                        local_path=key if settings.ENVIRONMENT == "local" else None
+                        local_path=(os.path.join(settings.LOCAL_STORAGE_PATH, key) if settings.ENVIRONMENT == "local" else None)
                     )
                 )
                 chapter.save()
 
-                # 로컬 환경에서는 즉시 메타데이터 추출 시도
-                if settings.ENVIRONMENT == "local":
-                    try:
-                        # 임시 파일로 저장하여 ffprobe 실행
-                        import tempfile
-                        import os
-                        
-                        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file.filename.split('.')[-1]}") as temp_file:
-                            temp_file.write(file_content)
-                            temp_file.flush()
-                            
-                            # 메타데이터 추출
-                            metadata_result = extract_audio_metadata(temp_file.name)
-                            
-                            # AudioChapter 업데이트
-                            chapter.mark_processing_completed(metadata_result)
-                            
-                            # 임시 파일 삭제
-                            os.unlink(temp_file.name)
-                            
-                    except Exception as meta_error:
-                        print(f"Metadata extraction failed: {meta_error}")
-                        chapter.mark_processing_error(f"Metadata extraction failed: {str(meta_error)}")
+                # 인코딩/메타데이터 자동 처리 비활성화: 즉시 ready 처리
+                chapter.mark_processing_completed({
+                    "duration": 0,
+                    "bitrate": None,
+                    "sample_rate": 44100,
+                    "channels": 1,
+                    "format": "mp4"
+                })
 
             except Exception as chapter_error:
                 print(f"AudioChapter creation failed: {chapter_error}")
@@ -206,7 +189,7 @@ async def upload_file(
         )
 
 
-@router.post("/upload/audio", response_model=AudioUploadResponse)
+@router.post("/upload/audio", response_model=AudioUploadResponseDto)
 async def upload_audio_file(
     file: UploadFile = File(...),
     book_id: str = Query(..., description="책 ID"),
@@ -229,22 +212,12 @@ async def upload_audio_file(
             detail=f"File size exceeds limit. Maximum allowed: {max_size / (1024*1024):.1f}MB"
         )
     
-    # 강화된 오디오 파일 검증
-    validation_result = validate_uploaded_audio(
-        file_content=file_content,
-        filename=file.filename or "unknown.mp3",
-        content_type=file.content_type or "audio/mpeg"
-    )
+    # MVP: mp4/m4a만 허용 (간단 검증)
+    filename = (file.filename or "").lower()
+    if not (filename.endswith('.mp4') or filename.endswith('.m4a')):
+        raise HTTPException(status_code=400, detail="Only .mp4/.m4a files are allowed in MVP")
     
-    if not validation_result.is_valid:
-        raise HTTPException(
-            status_code=400,
-            detail=f"파일 검증 실패: {'; '.join(validation_result.errors)}"
-        )
-    
-    # 경고가 있으면 로그에 기록
-    if validation_result.warnings:
-        print(f"Upload warnings for {file.filename}: {validation_result.warnings}")
+    # 간소화 모드: 추가 검증/경고 로깅 없음 (확장자만 확인)
 
     try:
         # 사용자 권한 확인 (책 소유권)
@@ -308,7 +281,7 @@ async def upload_audio_file(
                 file_size=len(file_content),
                 mime_type=file.content_type,
                 s3_key=key if settings.ENVIRONMENT == "production" else None,
-                local_path=key if settings.ENVIRONMENT == "local" else None
+                local_path=(os.path.join(settings.LOCAL_STORAGE_PATH, key) if settings.ENVIRONMENT == "local" else None)
             )
         )
         chapter.save()
@@ -316,73 +289,16 @@ async def upload_audio_file(
         # 응답 정보 초기화
         processing_info = {}
 
-        # 인코딩 필요성 확인 및 자동 트리거
-        should_encode, encode_reason = should_encode_file(key, force=False)
-        
-        if should_encode:
-            # 출력 경로 생성 (uploads → media)
-            output_key = key.replace("/uploads/", "/media/").replace(f"_{file.filename}", f"_{Path(file.filename).stem}.m4a")
-            
-            try:
-                # 인코딩 작업 제출
-                job_id = submit_encoding_job(
-                    chapter_id=file_id,
-                    book_id=book_id,
-                    input_path=key,
-                    output_path=output_key
-                )
-                
-                print(f"Encoding job submitted: {job_id} for chapter {file_id}")
-                print(f"Reason: {encode_reason}")
-                
-                # 처리 중 상태로 유지
-                processing_info["encoding_job_id"] = job_id
-                processing_info["encoding_reason"] = encode_reason
-                
-            except Exception as encoding_error:
-                print(f"Failed to submit encoding job: {encoding_error}")
-                
-                # 인코딩 실패 시 원본 파일 메타데이터라도 추출
-                if settings.ENVIRONMENT == "local":
-                    try:
-                        import tempfile
-                        
-                        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file.filename.split('.')[-1]}") as temp_file:
-                            temp_file.write(file_content)
-                            temp_file.flush()
-                            
-                            metadata_result = extract_audio_metadata(temp_file.name)
-                            chapter.mark_processing_completed(metadata_result)
-                            
-                            os.unlink(temp_file.name)
-                            
-                    except Exception as meta_error:
-                        print(f"Metadata extraction failed: {meta_error}")
-                        chapter.mark_processing_error(f"Processing failed: {str(meta_error)}")
-        
-        else:
-            # 인코딩 불필요 - 원본 파일 메타데이터 추출
-            print(f"Encoding not required: {encode_reason}")
-            
-            if settings.ENVIRONMENT == "local":
-                try:
-                    import tempfile
-                    
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file.filename.split('.')[-1]}") as temp_file:
-                        temp_file.write(file_content)
-                        temp_file.flush()
-                        
-                        metadata_result = extract_audio_metadata(temp_file.name)
-                        chapter.mark_processing_completed(metadata_result)
-                        
-                        os.unlink(temp_file.name)
-                        
-                except Exception as meta_error:
-                    print(f"Metadata extraction failed: {meta_error}")
-                    chapter.mark_processing_error(f"Metadata extraction failed: {str(meta_error)}")
-            
-            processing_info["encoding_skipped"] = True
-            processing_info["skip_reason"] = encode_reason
+        # 인코딩 비활성화: 즉시 ready 처리, processing_info 단순화
+        chapter.mark_processing_completed({
+            "duration": 0,
+            "bitrate": None,
+            "sample_rate": 44100,
+            "channels": 1,
+            "format": "mp4"
+        })
+        processing_info["encoding_skipped"] = True
+        processing_info["skip_reason"] = "encoding disabled in MVP"
 
         # 메타데이터 정보 추가 (있는 경우)
         if settings.ENVIRONMENT == "local" and chapter.audio_metadata:
@@ -394,7 +310,7 @@ async def upload_audio_file(
                 "format": chapter.audio_metadata.format
             })
 
-        return AudioUploadResponse(
+        return AudioUploadResponseDto(
             success=True,
             chapter_id=chapter.chapter_id,
             file_id=file_id,
@@ -402,7 +318,7 @@ async def upload_audio_file(
             title=chapter.title,
             status=chapter.status,
             message=f"Audio file '{file.filename}' uploaded successfully",
-            warnings=validation_result.warnings if validation_result.warnings else None,
+            warnings=None,
             processing_info=processing_info if processing_info else None
         )
 

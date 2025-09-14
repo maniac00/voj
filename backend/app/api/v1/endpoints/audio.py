@@ -286,27 +286,25 @@ async def get_streaming_url(
         if chapter.file_info and chapter.file_info.local_path:
             file_path = chapter.file_info.local_path
             
-            # 파일 존재 확인
+            # 1차: 현재 경로 그대로 존재하는지 확인
             if not os.path.exists(file_path):
-                # 원본 파일이 없으면 uploads 디렉토리에서 찾기
-                print(f"File not found at {file_path}, searching in uploads...")
+                # 2차: 스토리지 루트와 조합하여 확인 (기존 데이터 호환)
+                storage_root = os.path.abspath(getattr(settings, 'LOCAL_STORAGE_PATH', './storage'))
+                candidate = os.path.abspath(os.path.join(storage_root, file_path.lstrip('/').lstrip('.').lstrip('/')))
                 
-                # uploads 디렉토리에서 원본 파일 찾기
-                if chapter.file_info.original_name:
-                    # 절대 경로로 변환
+                if os.path.exists(candidate):
+                    file_path = candidate
+                else:
+                    # 3차: media -> uploads 대체 후 확인 (레거시 호환)
                     abs_file_path = os.path.abspath(file_path)
                     abs_base_path = abs_file_path.replace("/media/", "/uploads/")
                     
                     if os.path.exists(abs_file_path):
                         file_path = abs_file_path
-                        print(f"Found file at: {file_path}")
                     elif os.path.exists(abs_base_path):
                         file_path = abs_base_path
-                        print(f"Found original file at: {file_path}")
                     else:
                         raise HTTPException(status_code=404, detail=f"Audio file not found: {abs_file_path} or {abs_base_path}")
-                else:
-                    raise HTTPException(status_code=404, detail="Audio file not found on disk")
         else:
             raise HTTPException(status_code=404, detail="No file path found for chapter")
     
@@ -339,12 +337,15 @@ async def get_streaming_url(
 
     # 로컬: Files 다운로드 엔드포인트를 통한 스트리밍
     # 실제 파일 경로를 파일 키로 변환
-    if file_path.startswith("./storage/"):
+    storage_root = os.path.abspath(getattr(settings, 'LOCAL_STORAGE_PATH', './storage')) + os.sep
+    abs_file = os.path.abspath(file_path)
+    if abs_file.startswith(storage_root):
+        file_key = abs_file[len(storage_root):]
+    elif file_path.startswith("./storage/"):
         file_key = file_path.replace("./storage/", "")
-    elif file_path.startswith("/"):
-        file_key = file_path[1:]  # 절대 경로에서 첫 번째 슬래시 제거
     else:
-        file_key = file_path
+        # 마지막 수단: 상대 경로 그대로 사용 (스토리지 서비스가 내부적으로 처리)
+        file_key = file_path.lstrip('/').lstrip('./')
     
     local_url = f"http://localhost:{settings.PORT}{settings.API_V1_STR}/files/{file_key}"
     print(f"Generated streaming URL: {local_url}")

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useNotification } from '@/contexts/notification-context'
 
 export type UploadErrorType = 
@@ -253,7 +253,7 @@ export function useNetworkStatus() {
   const [isOnline, setIsOnline] = useState(navigator.onLine)
   const [wasOffline, setWasOffline] = useState(false)
 
-  React.useEffect(() => {
+  useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true)
       if (wasOffline) {

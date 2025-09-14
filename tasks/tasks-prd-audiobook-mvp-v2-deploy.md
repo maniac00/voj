@@ -45,9 +45,9 @@
   - [ ] 2.6 최소 권한 점검(권한 스코프/리소스 ARN 범위 축소)
 
 - [ ] 3.0 S3 버킷 생성 및 CORS/암호화/퍼블릭 차단 설정
-  - [ ] 3.1 버킷 생성(비공개, 리전 일치)
-  - [ ] 3.2 Block Public Access=ON, 기본 암호화=SSE-S3
-  - [ ] 3.3 CORS 정책 적용(GET/HEAD, Range, 최소 Origin)
+  - [x] 3.1 버킷 생성(비공개, 리전 일치)
+  - [x] 3.2 Block Public Access=ON, 기본 암호화=SSE-S3
+  - [x] 3.3 CORS 정책 적용(GET/HEAD, Range, 최소 Origin)
   - [ ] 3.4 OAC 연동 대비 버킷 정책 점검(직접 퍼블릭 접근 차단)
   - [ ] 3.5 수명주기/버전관리 여부 결정(선택)
 

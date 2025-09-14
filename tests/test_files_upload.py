@@ -31,7 +31,7 @@ def test_upload_audio_success_and_key_format():
     client = TestClient(app)
     file_content = b"\x00" * 1024  # 1KB
     files = {
-        "file": ("001 Intro.wav", file_content, "audio/wav"),
+        "file": ("001 Intro.m4a", file_content, "audio/mp4"),
     }
     params = {
         "user_id": "user-1",

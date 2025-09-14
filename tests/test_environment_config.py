@@ -20,6 +20,7 @@ from app.services.encoding.environment_config import (
     validate_current_environment,
     get_ffmpeg_command_preview
 )
+from app.core.config import settings as app_settings
 
 
 @pytest.fixture(autouse=True)
@@ -97,6 +98,7 @@ class TestEnvironmentConfigManager:
         print(f"Validation result: {validation}")
 
 
+@pytest.mark.skipif(getattr(app_settings, 'ENCODING_ENABLED', False) is False, reason="Encoding disabled in MVP")
 class TestEnvironmentConfigAPI:
     """환경별 설정 API 테스트"""
     

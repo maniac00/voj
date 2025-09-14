@@ -16,6 +16,7 @@ if BACKEND_DIR not in sys.path:
 from app.main import app
 from app.core.config import settings
 from app.services.encoding.file_manager import EncodingFileManager, file_manager
+from app.core.config import settings as app_settings
 from app.services.books import BookService
 from app.models.book import Book
 
@@ -30,6 +31,10 @@ def _local_setup():
     if not Book.exists():
         Book.create_table(read_capacity_units=5, write_capacity_units=5, wait=True)
     
+    # MVP에서는 인코딩 비활성화 시 전체 스킵 (파일 관리/환경 API도 비활성)
+    if getattr(app_settings, 'ENCODING_ENABLED', False) is False:
+        pytest.skip("Encoding disabled in MVP (ENCODING_ENABLED=False)")
+
     yield
 
 

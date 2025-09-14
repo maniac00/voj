@@ -26,6 +26,7 @@ def _local_setup():
     """로컬 환경 설정"""
     settings.ENVIRONMENT = "local"
     settings.LOCAL_BYPASS_ENABLED = True
+    settings.LOCAL_BYPASS_SCOPE = "admin"
     
     # 테이블 생성
     if not Book.exists():
@@ -56,10 +57,10 @@ class TestAudioStreaming:
     )
     def test_upload_and_stream_real_audio(self):
         """실제 오디오 파일 업로드 및 스트리밍 테스트"""
-        mp3_files = [f for f in os.listdir(TEST_AUDIO_DIR) if f.endswith('.mp3')]
+        mp3_files = [f for f in os.listdir(TEST_AUDIO_DIR) if f.endswith('.m4a')]
         
         if not mp3_files:
-            pytest.skip("MP3 파일이 없습니다")
+            pytest.skip("M4A 파일이 없습니다")
         
         test_file_path = os.path.join(TEST_AUDIO_DIR, mp3_files[0])
         
@@ -71,7 +72,7 @@ class TestAudioStreaming:
         # 1. 파일 업로드
         upload_response = self.client.post(
             f"/api/v1/files/upload/audio?book_id={self.book.book_id}&chapter_title=Streaming Test",
-            files={"file": (mp3_files[0], file_content, "audio/mpeg")}
+            files={"file": (mp3_files[0], file_content, "audio/mp4")}
         )
         
         assert upload_response.status_code == 200

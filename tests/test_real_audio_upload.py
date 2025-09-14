@@ -26,6 +26,7 @@ def _local_setup():
     """로컬 환경 설정"""
     settings.ENVIRONMENT = "local"
     settings.LOCAL_BYPASS_ENABLED = True
+    settings.LOCAL_BYPASS_SCOPE = "admin"
     
     # 테이블 생성
     if not Book.exists():
@@ -59,10 +60,10 @@ class TestRealAudioUpload:
     def test_upload_real_mp3_file(self):
         """실제 MP3 파일 업로드 테스트"""
         # 첫 번째 MP3 파일 찾기
-        mp3_files = [f for f in os.listdir(TEST_AUDIO_DIR) if f.endswith('.mp3')]
+        mp3_files = [f for f in os.listdir(TEST_AUDIO_DIR) if f.endswith('.m4a')]
         
         if not mp3_files:
-            pytest.skip("MP3 파일이 없습니다")
+            pytest.skip("M4A 파일이 없습니다")
         
         test_file_path = os.path.join(TEST_AUDIO_DIR, mp3_files[0])
         
@@ -76,7 +77,7 @@ class TestRealAudioUpload:
         # 업로드 요청
         response = self.client.post(
             f"/api/v1/files/upload/audio?book_id={self.book.book_id}&chapter_title=Chapter 1",
-            files={"file": (mp3_files[0], file_content, "audio/mpeg")}
+            files={"file": (mp3_files[0], file_content, "audio/mp4")}
         )
         
         print(f"Response status: {response.status_code}")
@@ -110,7 +111,7 @@ class TestRealAudioUpload:
     )
     def test_upload_multiple_real_files(self):
         """여러 실제 MP3 파일 업로드 테스트"""
-        mp3_files = [f for f in os.listdir(TEST_AUDIO_DIR) if f.endswith('.mp3')][:2]  # 처음 2개만
+        mp3_files = [f for f in os.listdir(TEST_AUDIO_DIR) if f.endswith('.m4a')][:2]  # 처음 2개만
         
         if len(mp3_files) < 2:
             pytest.skip("MP3 파일이 2개 미만입니다")
@@ -127,7 +128,7 @@ class TestRealAudioUpload:
             
             response = self.client.post(
                 f"/api/v1/files/upload/audio?book_id={self.book.book_id}&chapter_title=Chapter {i+1}",
-                files={"file": (filename, file_content, "audio/mpeg")}
+                files={"file": (filename, file_content, "audio/mp4")}
             )
             
             assert response.status_code == 200
@@ -165,7 +166,7 @@ class TestRealAudioUpload:
             print(f"Extracted metadata: {metadata}")
             
             assert metadata["duration"] > 0
-            assert metadata["format"] in ["mp3", "mpeg"]
+            assert metadata["format"] in ["m4a", "mp4", "aac", "isom", "mp3"]
             assert metadata["sample_rate"] in [44100, 48000, 22050]
             assert metadata["channels"] in [1, 2]
             

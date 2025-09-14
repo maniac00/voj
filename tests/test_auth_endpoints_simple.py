@@ -62,7 +62,7 @@ class TestAuthEndpoints:
                 }
             )
             
-            assert response.status_code in [401, 422]  # 401 for auth, 422 for validation
+            assert response.status_code in [400, 401, 422]  # 400 for missing username/email, 401 auth, 422 validation
 
     def test_logout_success(self):
         """로그아웃 성공 테스트"""

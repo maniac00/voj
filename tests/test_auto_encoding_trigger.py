@@ -18,6 +18,7 @@ from app.services.books import BookService
 from app.models.book import Book
 from app.models.audio_chapter import AudioChapter
 from app.services.encoding.encoding_queue import encoding_queue
+from app.core.config import settings as app_settings
 
 # 테스트 오디오 파일 경로
 TEST_AUDIO_DIR = "/Users/kimsungwook/dev/voj/tmp_test_media/sample_audiobooks"
@@ -35,6 +36,10 @@ def _local_setup():
     if not AudioChapter.exists():
         AudioChapter.create_table(read_capacity_units=5, write_capacity_units=5, wait=True)
     
+    # MVP에서는 인코딩 비활성화 시 전체 스킵
+    if getattr(app_settings, 'ENCODING_ENABLED', False) is False:
+        pytest.skip("Encoding disabled in MVP (ENCODING_ENABLED=False)")
+
     # 인코딩 큐 시작
     encoding_queue.start()
     

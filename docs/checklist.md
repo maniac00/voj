@@ -277,6 +277,12 @@
 
 ## 📝 업데이트 로그
 
+### 2025-09-14
+- 테스트: 인코딩 관련 테스트를 ENCODING_ENABLED=False 조건에서 전역 skip 처리(MVP 정책 반영)
+- 백엔드: `GET /api/v1/audio/{book_id}/chapters/{chapter_id}`가 더미 응답이 아닌 DB 기반 응답으로 동작하도록 수정
+- 테스트: MP4/M4A 전용 업로드 정책 반영(확장자/콘텐츠타입 정합), 인증 실패 케이스에 400 허용하도록 보정
+- 스트리밍: 로컬 파일 경로 해석 개선 이후 E2E 재검증 완료
+
 ### 2025-09-13
 - 프론트엔드: DnD를 `@hello-pangea/dnd`로 이전(React 19 호환)
 - 프론트엔드: React 19 호환성 정리(`lucide-react` 제거, `@radix-ui/react-form` 제거, `@types/react*` 19로 갱신)

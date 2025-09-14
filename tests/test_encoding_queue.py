@@ -21,8 +21,10 @@ from app.services.encoding.encoding_queue import (
     EncodingStatusManager
 )
 from app.services.encoding.ffmpeg_service import EncodingResult
+from app.core.config import settings as app_settings
 
 
+@pytest.mark.skipif(getattr(app_settings, 'ENCODING_ENABLED', False) is False, reason="Encoding disabled in MVP")
 class TestEncodingQueue:
     """인코딩 큐 테스트"""
     
@@ -213,6 +215,7 @@ class TestEncodingQueue:
         assert stats["workers"] == 0  # 시작하지 않았으므로
 
 
+@pytest.mark.skipif(getattr(app_settings, 'ENCODING_ENABLED', False) is False, reason="Encoding disabled in MVP")
 class TestEncodingStatusManager:
     """인코딩 상태 관리자 테스트"""
     
@@ -263,6 +266,7 @@ class TestEncodingStatusManager:
         assert notification["progress"] == 0.5
 
 
+@pytest.mark.skipif(getattr(app_settings, 'ENCODING_ENABLED', False) is False, reason="Encoding disabled in MVP")
 class TestEncodingIntegration:
     """인코딩 시스템 통합 테스트"""
     

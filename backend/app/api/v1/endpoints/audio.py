@@ -223,35 +223,47 @@ async def update_chapter_order(
 @router.get("/{book_id}/chapters/{chapter_id}", response_model=AudioChapter)
 async def get_audio_chapter(
     book_id: str = Path(..., description="책 ID"),
-    chapter_id: str = Path(..., description="챕터 ID")
+    chapter_id: str = Path(..., description="챕터 ID"),
+    claims = Depends(get_current_user_claims)
 ):
     """
-    특정 오디오 챕터 상세 조회
+    특정 오디오 챕터 상세 조회 (DB 기반)
     """
-    # TODO: 사용자 인증 확인
-    # TODO: 책 소유권 확인
-    # TODO: DynamoDB에서 챕터 정보 조회
-    
-    if settings.ENVIRONMENT == "local":
-        # 로컬 개발용 더미 응답
-        now = datetime.now(timezone.utc)
-        return AudioChapter(
-            chapter_id=chapter_id,
-            book_id=book_id,
-            chapter_number=1,
-            title="테스트 챕터",
-            description="테스트 챕터의 설명",
-            file_name="test_chapter.mp3",
-            file_size=1024000,
-            duration=1800,
-            status="ready",
-            created_at=now,
-            updated_at=now
-        )
-    
-    raise HTTPException(
-        status_code=404,
-        detail="Audio chapter not found"
+    # 사용자 인증 및 책 소유권 확인
+    user_id = str(claims.get("sub") or claims.get("username") or "")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
+
+    if not BookService.get_book(user_id=user_id, book_id=book_id):
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    # 챕터 조회 및 검증
+    chapter = AudioChapterModel.get_by_id(chapter_id)
+    if not chapter or chapter.book_id != book_id:
+        raise HTTPException(status_code=404, detail="Audio chapter not found")
+
+    # 응답 모델 구성
+    file_name = ""
+    file_size = 0
+    duration = 0
+    if getattr(chapter, "file_info", None):
+        file_name = chapter.file_info.original_name if hasattr(chapter.file_info, "original_name") else ""
+        file_size = int(chapter.file_info.file_size) if hasattr(chapter.file_info, "file_size") and chapter.file_info.file_size is not None else 0
+    if getattr(chapter, "audio_metadata", None) and hasattr(chapter.audio_metadata, "duration") and chapter.audio_metadata.duration is not None:
+        duration = int(chapter.audio_metadata.duration)
+
+    return AudioChapter(
+        chapter_id=chapter.chapter_id,
+        book_id=chapter.book_id,
+        chapter_number=int(chapter.chapter_number),
+        title=chapter.title,
+        description=chapter.description,
+        file_name=file_name,
+        file_size=file_size,
+        duration=duration,
+        status=chapter.status,
+        created_at=chapter.created_at,
+        updated_at=chapter.updated_at,
     )
 
 

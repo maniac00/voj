@@ -167,6 +167,13 @@ s3://<bucket>/
 
 ## 5. 인코딩 파이프라인(FFmpeg)
 
+> Note (MVP v2): 현재 MVP 단계에서는 인코딩 기능을 비활성화하였습니다.
+> - 설정: `ENCODING_ENABLED = False`
+> - 업로드: `.mp4/.m4a` 파일만 허용 (프론트/백엔드 모두 확장자 기준 검증)
+> - 처리: 업로드 시 챕터는 즉시 `ready` 처리, 메타데이터는 최소 필드로만 저장
+> - 테스트: 인코딩 관련 테스트군은 `ENCODING_ENABLED=False` 조건에서 전역 skip 처리
+> - 로컬 스트리밍: `GET /api/v1/files/{file_key}` 경유 Range 지원 스트리밍로 검증
+
 ### 트리거
 
 * S3 PUT(`book/<id>/uploads/*.wav`) → S3 Event(Notification) → **Encode Lambda**

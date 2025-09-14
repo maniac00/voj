@@ -21,6 +21,7 @@ from app.models.audio_chapter import AudioChapter, FileInfo, AudioMetadata  # no
 def _local_setup():
     settings.ENVIRONMENT = "local"
     settings.LOCAL_BYPASS_ENABLED = True
+    settings.LOCAL_BYPASS_SCOPE = "admin"
     yield
 
 
@@ -41,7 +42,7 @@ def test_audio_upload_list_reorder_delete_flow():
 
     # 2) 파일 업로드 (uploads)
     content = b"\x00" * 2048
-    files = {"file": ("001 Intro.wav", content, "audio/wav")}
+    files = {"file": ("001 Intro.m4a", content, "audio/mp4")}
     params = {"user_id": settings.LOCAL_BYPASS_SUB, "book_id": book.book_id, "file_type": "uploads"}
     r = client.post("/api/v1/files/upload", files=files, params=params)
     assert r.status_code == 200, r.text
@@ -55,7 +56,7 @@ def test_audio_upload_list_reorder_delete_flow():
         chapter_number=1,
         title="Intro",
         status="ready",
-        file_info=FileInfo(original_name="001 Intro.wav", file_size=len(content), mime_type="audio/wav", s3_key=key),
+        file_info=FileInfo(original_name="001 Intro.m4a", file_size=len(content), mime_type="audio/mp4", s3_key=key),
         audio_metadata=AudioMetadata(duration=60),
     )
     chap.save()

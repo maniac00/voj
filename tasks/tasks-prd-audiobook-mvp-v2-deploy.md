@@ -54,9 +54,9 @@
 - [x] 4.0 CloudFront 배포(OAC)/키 그룹/서명 키 생성 및 정책 연결
   - [x] 4.1 배포 생성(S3 Origin+OAC), 기본 동작에 Range 허용 캐시 정책 연결
   - [x] 4.2 Key Group 생성 및 공개키 등록, 배포에 서명 정책 연결
-  - [ ] 4.3 개인키 보관(Secrets Manager/Parameter Store) 및 애플리케이션에서 접근 경로 확정
+  - [x] 4.3 개인키 보관(Secrets Manager/Parameter Store) 및 애플리케이션에서 접근 경로 확정
   - [x] 4.4 배포 도메인 확보, 캐시 정책/오류 응답 정책 최적화
-  - [ ] 4.5 Invalidation 전략/스크립트 마련
+  - [x] 4.5 Invalidation 전략/스크립트 마련
 
 - [ ] 5.0 DynamoDB 프로덕션 테이블 준비(Books, AudioChapters)
   - [ ] 5.1 테이블 생성(스루풋/온디맨드 결정), 파티션키/인덱스 정책 확정

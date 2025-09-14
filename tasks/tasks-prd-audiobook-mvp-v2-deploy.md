@@ -35,20 +35,21 @@
   - [x] 1.4 프로덕션 설정에서 `ENCODING_ENABLED=False` 확인 및 문서화
   - [x] 1.5 배포용 시크릿 키 목록 정리 (CF KeyPair, 테이블/버킷명, API URL)
 
-- [ ] 2.0 IAM/권한 준비 (역할/정책/키)
+- [x] 2.0 IAM/권한 준비 (역할/정책/키)
   - [x] 2.1 AWS CLI 프로파일/자격 확인 (`aws sts get-caller-identity`)
   - [x] 2.2 Lambda(API) 실행 역할 생성 및 신뢰 정책 연결
   - [x] 2.3 정책 연결: S3(read uploads/ put media/), DynamoDB(Books/AudioChapters CRUD), Logs
   - [x] 2.4 CloudFront Key Group/Key Pair 준비(공개키/개인키), 키 관리 전략(Secrets Manager/SSM)
   - [x] 2.5 스크립트 실행 검토: `scripts/setup-aws-permissions.sh`, `create-lambda-roles.sh`, `attach-lambda-policies.sh`, `add-cloudfront-permissions.sh`
-  - [ ] 2.6 최소 권한 점검(권한 스코프/리소스 ARN 범위 축소)
+  - [x] 2.6 최소 권한 점검(권한 스코프/리소스 ARN 범위 축소)
+
 
 - [ ] 3.0 S3 버킷 생성 및 CORS/암호화/퍼블릭 차단 설정
   - [x] 3.1 버킷 생성(비공개, 리전 일치)
   - [x] 3.2 Block Public Access=ON, 기본 암호화=SSE-S3
   - [x] 3.3 CORS 정책 적용(GET/HEAD, Range, 최소 Origin)
   - [x] 3.4 OAC 연동 대비 버킷 정책 점검(직접 퍼블릭 접근 차단)
-  - [ ] 3.5 수명주기/버전관리 여부 결정(선택)
+  - [x] 3.5 수명주기/버전관리 여부 결정(선택)
 
 - [ ] 4.0 CloudFront 배포(OAC)/키 그룹/서명 키 생성 및 정책 연결
   - [ ] 4.1 배포 생성(S3 Origin+OAC), 기본 동작에 Range 허용 캐시 정책 연결

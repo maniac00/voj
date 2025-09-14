@@ -66,10 +66,10 @@
   - [x] 5.5 헬스/권한 점검(읽기/쓰기)
 
 - [ ] 6.0 백엔드 배포 전략 수립(API Gateway + Lambda)
-  - [ ] 6.1 Lambda 패키징 방식 확정(zip vs 컨테이너)
-  - [ ] 6.2 API Gateway(HTTP API) → Lambda 프록시 통합 설계
-  - [ ] 6.3 Stage/도메인/리소스 정책, CORS 정책 정의
-  - [ ] 6.4 경로 매핑 및 헬스/모니터링 엔드포인트 노출 전략
+  - [x] 6.1 Lambda 패키징 방식 확정(zip + Mangum 핸들러)
+  - [x] 6.2 API Gateway(HTTP API) → Lambda 프록시 통합 설계
+  - [x] 6.3 Stage/도메인/리소스 정책, CORS 정책 정의
+  - [x] 6.4 경로 매핑 및 헬스/모니터링 엔드포인트 노출 전략
 
 - [ ] 7.0 백엔드 패키징/배포 구성(환경 변수/시크릿/ALLOWED_HOSTS/CORS)
   - [ ] 7.1 의존성 빌드/번들(zip)에 포함(Python deps)

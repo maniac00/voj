@@ -37,7 +37,7 @@
 
 - [ ] 2.0 IAM/권한 준비 (역할/정책/키)
   - [x] 2.1 AWS CLI 프로파일/자격 확인 (`aws sts get-caller-identity`)
-  - [ ] 2.2 Lambda(API) 실행 역할 생성 및 신뢰 정책 연결
+  - [x] 2.2 Lambda(API) 실행 역할 생성 및 신뢰 정책 연결
   - [ ] 2.3 정책 연결: S3(read uploads/ put media/), DynamoDB(Books/AudioChapters CRUD), Logs
   - [ ] 2.4 CloudFront Key Group/Key Pair 준비(공개키/개인키), 키 관리 전략(Secrets Manager/SSM)
   - [ ] 2.5 스크립트 실행 검토: `scripts/setup-aws-permissions.sh`, `create-lambda-roles.sh`, `attach-lambda-policies.sh`, `add-cloudfront-permissions.sh`

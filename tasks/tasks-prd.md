@@ -1,3 +1,82 @@
+# MVP v2 Task Plan (Encoding OFF, MP4/M4A only, Simple Auth)
+
+본 섹션은 기존 계획에서의 변경점을 반영하여, 주니어 개발자가 그대로 따라 할 수 있도록 단계별로 정리된 작업 항목입니다. 인코딩은 비활성화(ENCODING_ENABLED=False) 상태로 진행하며, 업로드는 .mp4/.m4a만 허용합니다.
+
+## Ground Rules
+- 로컬 실행/중지는 프로젝트 스크립트 사용: `./scripts/stop-local.sh`, `./scripts/start-local.sh`.
+- 변경 시 문서 동기화: `docs/checklist.md`, `docs/design.md` 업데이트 후 커밋.
+- 테스트는 인코딩 관련 항목을 전역 skip(ENCODING_ENABLED=False) 처리.
+
+## Phase 1 — Backend (API) 변경
+1. 간단 인증(Simple Auth) 확정 및 보정
+   - `POST /api/v1/auth/login`: `admin` / `admin123`로 로그인 성공, username/email 중 하나 허용(없으면 400, 불일치 401).
+   - `GET /api/v1/auth/me`: 로컬 바이패스(ENV=local, LOCAL_BYPASS_ENABLED=True)에서 기본 클레임(admin) 반환.
+   - 테스트: `tests/test_auth_endpoints_simple.py` 기대값(400 포함) 정합.
+
+2. 업로드 정책 MP4/M4A 전용 및 즉시 ready 처리
+   - `POST /api/v1/files/upload/audio`: 확장자 `.mp4` 또는 `.m4a`만 허용, 100MB 제한.
+   - 업로드 성공 시 `AudioChapter` 생성 후 즉시 `ready` 처리(인코딩/ffprobe 미수행).
+   - 저장 경로: 로컬은 `settings.LOCAL_STORAGE_PATH + key`로 절대경로 저장.
+   - 테스트: `tests/test_audio_upload_api.py` 등에서 파일명을 `*.m4a`, content-type `audio/mp4`로 통일.
+
+3. 챕터 조회/상세/스트리밍 정합화
+   - `GET /api/v1/audio/{book_id}/chapters`: DB 기반 목록 반환(파일명/사이즈/상태/메타 간소화).
+   - `GET /api/v1/audio/{book_id}/chapters/{chapter_id}`: 더미 응답 제거, DB 기반 반환.
+   - `GET /api/v1/audio/{book_id}/chapters/{chapter_id}/stream`: 로컬은 Files 라우트 URL 생성, 파일 키 변환 및 Range 대응.
+   - 로컬 파일 키→절대경로 변환 로직 강화(uploads/media 상호 체크 포함).
+
+4. 인코딩/웹소켓 라우터 비활성화(조건부 로드)
+   - `settings.ENCODING_ENABLED=False` 시 인코딩/큐/웹소켓 관련 라우터 미포함.
+   - 해당 엔드포인트 접근 테스트는 전역 skip 처리.
+
+5. 헬스체크 확장(스모크 표준)
+   - `GET /api/v1/health/detailed`: DynamoDB(Local) 상태, 로컬 스토리지 경로, auth 구성 단서 노출.
+
+## Phase 2 — Frontend (Admin) 변경
+1. 인증(UI)
+   - `/login`: admin/admin123로 로그인 → 토큰 저장 → 보호 라우트 접근.
+   - 로그인 실패 케이스 메시지(400/401) 노출.
+
+2. 오디오 업로드 UI
+   - 파일 선택만 지원(드래그 앤 드롭 선택): `.mp4`, `.m4a`만 선택 허용.
+   - 업로드 성공 시 리스트 갱신, 실패 시 재시도/에러 알림.
+   - 클라이언트 검증: 한글/괄호/밑줄 허용된 파일명 밸리데이션.
+
+3. 스트리밍/플레이어 연동
+   - 챕터 행에서 재생 클릭 시 스트리밍 URL API 호출 → `<audio>`에 설정.
+   - Range 기반 탐색 확인(로컬 Files 라우트 사용).
+
+4. 대시보드
+   - Health, DynamoDB 테이블/아이템 수, 로컬 스토리지 경로 상태, 최근 업로드(10개) 표시.
+   - Loading/Error 상태 컴포넌트 활용, ARIA 보강.
+
+## Phase 3 — Tests 조정(실행 가능 상태 보장)
+1. 인코딩 비활성화에 따른 전역 skip
+   - `tests/test_auto_encoding_trigger.py`, `tests/test_encoding_queue.py`, `tests/test_encoding_file_management.py`, `tests/test_environment_config.py`에 skip 조건 추가.
+
+2. 업로드/스트리밍 경로 테스트 정합
+   - 업로드 성공/확장자/사이즈 초과/권한 실패 등 케이스 재정렬.
+   - 스트리밍 URL 생성 및 Files Range(206) 응답 테스트 유지.
+
+3. 실파일 테스트(선택)
+   - `tmp_test_media/sample_audiobooks/*.m4a` 존재 시에만 실행.
+
+## Phase 4 — QA & Smoke
+1. 백엔드 스모크
+   - 스크립트 재시작 → `GET /api/v1/health/detailed` healthy 확인.
+   - 책 생성 → `.m4a` 업로드 → 챕터 목록 → 스트리밍 URL → Range 206 확인.
+
+2. 프론트 스모크
+   - `/login` → admin/admin123 → 대시보드 로딩 확인.
+   - 책 상세 → 오디오 업로드 → 미리듣기 동작 확인.
+
+## Phase 5 — 문서/정책
+1. `docs/checklist.md`: 일일 변경 로그 및 진행률 반영.
+2. `docs/design.md`: MVP v2 정책(인코딩 OFF, MP4/M4A-only, 즉시 ready) 명시.
+3. 성공 기준: 업로드→목록→스트리밍 무오류 완료, 테스트 전부 통과(인코딩군은 SKIP).
+
+---
+
 ## Relevant Files
 
 - `docs/prd.md` - 제품 요구사항 문서(PRD) 원본.

@@ -48,6 +48,7 @@ class ProductionSettings(BaseAppSettings):
     CLOUDFRONT_DOMAIN: str = "d3o89byostp1xs.cloudfront.net"
     CLOUDFRONT_KEY_PAIR_ID: str = "K1MOHSPPL0L417"
     CLOUDFRONT_PRIVATE_KEY_PATH: str = "/opt/keys/voj-private-key.pem"
+    CLOUDFRONT_PRIVATE_KEY_SECRET_ID: Optional[str] = os.getenv("CLOUDFRONT_PRIVATE_KEY_SECRET_ID", "voj/prod/cloudfront/privateKey")
     
     # Cognito 설정 (프로덕션 - 환경 변수에서 읽기)
     COGNITO_USER_POOL_ID: Optional[str] = os.getenv("COGNITO_USER_POOL_ID")

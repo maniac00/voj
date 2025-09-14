@@ -58,12 +58,12 @@
   - [x] 4.4 배포 도메인 확보, 캐시 정책/오류 응답 정책 최적화
   - [x] 4.5 Invalidation 전략/스크립트 마련
 
-- [ ] 5.0 DynamoDB 프로덕션 테이블 준비(Books, AudioChapters)
-  - [ ] 5.1 테이블 생성(스루풋/온디맨드 결정), 파티션키/인덱스 정책 확정
-  - [ ] 5.2 Books 테이블 생성 및 인덱스(필요 시)
-  - [ ] 5.3 AudioChapters 테이블 생성 및 GSI 구성(문서 기준)
-  - [ ] 5.4 테이블 이름 환경별 접미사/프리픽스 규칙 반영
-  - [ ] 5.5 헬스/권한 점검(읽기/쓰기)
+- [x] 5.0 DynamoDB 프로덕션 테이블 준비(Books, AudioChapters)
+  - [x] 5.1 테이블 생성(온디맨드), 파티션키/인덱스 정책 확정
+  - [x] 5.2 Books 테이블 생성 및 인덱스(LSI: status-index, genre-index)
+  - [x] 5.3 AudioChapters 테이블 생성 및 GSI 구성(book-chapters-index, status-index)
+  - [x] 5.4 테이블 이름 환경별 접미사/프리픽스 규칙 반영
+  - [x] 5.5 헬스/권한 점검(읽기/쓰기)
 
 - [ ] 6.0 백엔드 배포 전략 수립(API Gateway + Lambda)
   - [ ] 6.1 Lambda 패키징 방식 확정(zip vs 컨테이너)

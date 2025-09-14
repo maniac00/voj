@@ -28,12 +28,12 @@
 
 ## Tasks
 
-- [ ] 1.0 배포 범위/전제 확정 (MVP v2, 리전/도메인/네트워크)
-  - [ ] 1.1 배포 리전 확정 및 공통 변수 수집 (예: ap-northeast-2)
-  - [ ] 1.2 도메인/엔드포인트 확정 (API Gateway 도메인, CloudFront 도메인)
-  - [ ] 1.3 버킷/테이블/스택 네이밍 규칙 확정 (`voj-audiobooks-prod`, `voj-books-prod`, `voj-audio-chapters-prod`)
-  - [ ] 1.4 프로덕션 설정에서 `ENCODING_ENABLED=False` 확인 및 문서화
-  - [ ] 1.5 배포용 시크릿 키 목록 정리 (CF KeyPair, 테이블/버킷명, API URL)
+- [x] 1.0 배포 범위/전제 확정 (MVP v2, 리전/도메인/네트워크)
+  - [x] 1.1 배포 리전 확정 및 공통 변수 수집 (예: ap-northeast-2)
+  - [x] 1.2 도메인/엔드포인트 확정 (API Gateway 도메인, CloudFront 도메인)
+  - [x] 1.3 버킷/테이블/스택 네이밍 규칙 확정 (`voj-audiobooks-prod`, `voj-books-prod`, `voj-audio-chapters-prod`)
+  - [x] 1.4 프로덕션 설정에서 `ENCODING_ENABLED=False` 확인 및 문서화
+  - [x] 1.5 배포용 시크릿 키 목록 정리 (CF KeyPair, 테이블/버킷명, API URL)
 
 - [ ] 2.0 IAM/권한 준비 (역할/정책/키)
   - [ ] 2.1 AWS CLI 프로파일/자격 확인 (`aws sts get-caller-identity`)

@@ -806,3 +806,20 @@ const adaptiveStreaming = {
 - 백필은 멱등성 보장(UPSERT), 체크포인트 저장(최종 처리 키)
 - 쓰기 경합 최소화: 야간 배치, 페이지네이션 + 지수 백오프
 - 데이터 검증: 샘플 검증 + 전수 검증 카운트 비교(건수/합계 필드)
+
+---
+
+## 15.6 파일명/키 정규화 정책 (MVP v2)
+
+- 표시용 파일명(sanitize): `backend/app/utils/audio_validation.py:sanitize_filename`
+  - 안전하지 않은 문자 `[<>:"/\\|?*]` → `_`
+  - 연속 공백 → 단일 공백으로 축약
+  - 연속 `_` → 단일 `_`
+  - 앞뒤의 `.`/공백 제거, 빈 값이면 `unnamed_audio`
+
+- 저장 키(generate_key): `backend/app/services/storage/base.py:BaseStorageService.generate_key`
+  - 공백은 `_`로 치환(키 표준화 목적)
+  - 경로 규칙: `book/<book_id>/<prefix>/<filename>`
+  - 예: `001 Intro.m4a` → `book/<book_id>/uploads/001_Intro.m4a`
+
+정책 요점: 사용자에게 보여주는 이름은 읽기 쉬운 형태(공백 유지), 저장 키는 일관된 경로/문자 집합(공백→언더스코어)으로 관리합니다.

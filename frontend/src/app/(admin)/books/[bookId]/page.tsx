@@ -188,6 +188,7 @@ export default function EditBookPage() {
     )
   }
 
+  const b = book as BookDto
   return (
     <div className="max-w-4xl mx-auto p-6">
       {/* 헤더 */}
@@ -437,31 +438,31 @@ export default function EditBookPage() {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">상태</span>
                 <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                  book.status === 'published' ? 'bg-green-100 text-green-800' :
-                  book.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
-                  book.status === 'error' ? 'bg-red-100 text-red-800' :
+                  b.status === 'published' ? 'bg-green-100 text-green-800' :
+                  b.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
+                  b.status === 'error' ? 'bg-red-100 text-red-800' :
                   'bg-gray-100 text-gray-800'
                 }`}>
-                  {book.status || 'draft'}
+                  {b.status || 'draft'}
                 </span>
               </div>
               
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">총 챕터</span>
-                <span className="text-sm font-medium">{book.total_chapters || 0}개</span>
+                <span className="text-sm font-medium">{b.total_chapters || 0}개</span>
               </div>
               
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">총 재생시간</span>
                 <span className="text-sm font-medium">
-                  {book.total_duration ? `${Math.floor(book.total_duration / 60)}분` : '0분'}
+                  {b.total_duration ? `${Math.floor(b.total_duration / 60)}분` : '0분'}
                 </span>
               </div>
               
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">등록일</span>
                 <span className="text-sm font-medium">
-                  {book.created_at ? new Date(book.created_at).toLocaleDateString('ko-KR') : '-'}
+                  {b.created_at ? new Date(b.created_at).toLocaleDateString('ko-KR') : '-'}
                 </span>
               </div>
             </div>

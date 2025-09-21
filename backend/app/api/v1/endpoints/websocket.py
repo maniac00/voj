@@ -143,8 +143,6 @@ async def send_current_chapter_status(connection_id: str, chapter_id: str) -> No
     """현재 챕터 상태 전송"""
     try:
         from app.models.audio_chapter import AudioChapter
-        from app.services.encoding.encoding_queue import encoding_queue
-        
         # 챕터 정보 조회
         chapter = AudioChapter.get_by_id(chapter_id)
         if not chapter:
@@ -155,12 +153,7 @@ async def send_current_chapter_status(connection_id: str, chapter_id: str) -> No
             return
         
         # 인코딩 작업 정보 조회
-        encoding_jobs = encoding_queue.get_jobs_by_chapter(chapter_id)
         current_job = None
-        
-        if encoding_jobs:
-            # 가장 최근 작업 찾기
-            current_job = max(encoding_jobs, key=lambda j: j.created_at)
         
         # 상태 정보 구성
         status_data = {
@@ -169,13 +162,7 @@ async def send_current_chapter_status(connection_id: str, chapter_id: str) -> No
             "chapter_status": chapter.status,
             "chapter_title": chapter.title,
             "file_name": chapter.file_info.original_name if chapter.file_info else None,
-            "encoding_job": {
-                "job_id": current_job.job_id,
-                "status": current_job.status.value,
-                "progress": current_job.progress,
-                "retry_count": current_job.retry_count,
-                "error_message": current_job.error_message
-            } if current_job else None,
+            "encoding_job": None,
             "metadata": {
                 "duration": chapter.audio_metadata.duration,
                 "bitrate": chapter.audio_metadata.bitrate,
@@ -214,42 +201,6 @@ def log_upload_complete(chapter_id: str, filename: str) -> None:
         category=LogCategory.UPLOAD,
         message=f"Upload completed: {filename}",
         chapter_id=chapter_id
-    )
-
-
-def log_encoding_start(chapter_id: str, job_id: str, input_file: str) -> None:
-    """인코딩 시작 로그"""
-    log_streamer.add_log(
-        level=LogLevel.INFO,
-        category=LogCategory.ENCODING,
-        message=f"Encoding started: {input_file}",
-        chapter_id=chapter_id,
-        job_id=job_id
-    )
-
-
-def log_encoding_progress(chapter_id: str, job_id: str, progress: float) -> None:
-    """인코딩 진행률 로그"""
-    log_streamer.add_log(
-        level=LogLevel.INFO,
-        category=LogCategory.ENCODING,
-        message=f"Encoding progress: {progress:.1%}",
-        details={"progress": progress},
-        chapter_id=chapter_id,
-        job_id=job_id
-    )
-
-
-def log_encoding_complete(chapter_id: str, job_id: str, output_file: str, 
-                         compression_ratio: float) -> None:
-    """인코딩 완료 로그"""
-    log_streamer.add_log(
-        level=LogLevel.INFO,
-        category=LogCategory.ENCODING,
-        message=f"Encoding completed: {output_file}",
-        details={"compression_ratio": compression_ratio},
-        chapter_id=chapter_id,
-        job_id=job_id
     )
 
 

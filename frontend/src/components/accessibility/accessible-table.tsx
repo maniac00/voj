@@ -88,15 +88,17 @@ export function AccessibleTable({
           </caption>
         )}
         {React.Children.map(children, (child, index) => {
-          if (React.isValidElement(child) && child.type === 'tbody') {
-            return React.cloneElement(child, {
-              children: React.Children.map(child.props.children, (row, rowIndex) => {
-                if (React.isValidElement(row) && row.type === 'tr') {
-                  return React.cloneElement(row, {
-                    ...row.props,
+          if (React.isValidElement(child) && (child.type as any) === 'tbody') {
+            const tbodyEl = child as React.ReactElement<any>
+            const tbodyChildren = (tbodyEl.props?.children ?? []) as React.ReactNode
+            return React.cloneElement(tbodyEl, undefined, React.Children.map(tbodyChildren, (row, rowIndex) => {
+                if (React.isValidElement(row) && (row.type as any) === 'tr') {
+                  const rowEl = row as React.ReactElement<any>
+                  return React.cloneElement(rowEl, {
+                    ...rowEl.props,
                     tabIndex: 0,
                     'aria-rowindex': rowIndex + 1,
-                    className: `${row.props.className || ''} table-row-focusable cursor-pointer`,
+                    className: `${rowEl.props?.className || ''} table-row-focusable cursor-pointer`,
                     onFocus: () => handleRowFocus(rowIndex),
                     onClick: () => handleRowClick(rowIndex),
                     onKeyDown: (e: React.KeyboardEvent) => {
@@ -108,8 +110,7 @@ export function AccessibleTable({
                   })
                 }
                 return row
-              })
-            })
+              }))
           }
           return child
         })}

@@ -1,0 +1,10 @@
+{
+  "AWS_ACCOUNT_ID": "529088277581",
+  "AWS_REGION": "ap-northeast-2",
+  "ECR_REPO": "voj-backend",
+  "ECS_CLUSTER": "voj-prod",
+  "ECS_SERVICE": "voj-backend-api",
+  "EXECUTION_ROLE_ARN": "arn:aws:iam::529088277581:role/voj-ecs-execution",
+  "TASK_ROLE_ARN": "arn:aws:iam::529088277581:role/voj-backend-task"
+}
+

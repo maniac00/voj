@@ -1,11 +1,19 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { login, storeToken, storeUser, getCurrentUser } from '@/lib/auth/simple-auth'
 import { useAuth } from '@/contexts/auth-context'
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<main className="flex min-h-screen items-center justify-center p-6">로딩 중...</main>}>
+      <LoginForm />
+    </Suspense>
+  )
+}
+
+function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { isAuthenticated, refreshUser } = useAuth()
@@ -129,5 +137,3 @@ export default function LoginPage() {
     </main>
   )
 }
-
-

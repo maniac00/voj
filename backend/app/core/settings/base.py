@@ -20,13 +20,44 @@ class BaseAppSettings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     
-    # CORS 설정
-    ALLOWED_HOSTS: List[str] = ["*"]
+    # CORS/Hosts 설정
+    ALLOWED_HOSTS: List[str] = ["*"]  # TrustedHostMiddleware 용 (호스트만, 스킴 없음)
+    CORS_ORIGINS: List[str] = ["*"]   # CORSMiddleware 용 (Origin, 스킴 포함)
     
     @field_validator("ALLOWED_HOSTS", mode="before")
-    def assemble_cors_origins(cls, v) -> List[str]:
+    def parse_allowed_hosts(cls, v) -> List[str]:
+        # 지원 형식: 콤마 구분 문자열, JSON 배열 문자열, 리스트
+        if isinstance(v, list):
+            return v
         if isinstance(v, str):
-            return [host.strip() for host in v.split(",")]
+            s = v.strip()
+            if s.startswith("[") and s.endswith("]"):
+                try:
+                    import json
+                    arr = json.loads(s)
+                    if isinstance(arr, list):
+                        return [str(item).strip() for item in arr]
+                except Exception:
+                    pass
+            return [host.strip() for host in s.split(",") if host.strip()]
+        return v
+    
+    @field_validator("CORS_ORIGINS", mode="before")
+    def parse_cors_origins(cls, v) -> List[str]:
+        # 지원 형식: 콤마 구분 문자열, JSON 배열 문자열, 리스트
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            s = v.strip()
+            if s.startswith("[") and s.endswith("]"):
+                try:
+                    import json
+                    arr = json.loads(s)
+                    if isinstance(arr, list):
+                        return [str(item).strip() for item in arr]
+                except Exception:
+                    pass
+            return [origin.strip() for origin in s.split(",") if origin.strip()]
         return v
     
     # AWS 기본 설정
@@ -54,16 +85,9 @@ class BaseAppSettings(BaseSettings):
     LOCAL_BYPASS_SCOPE: str = "admin"
     LOCAL_BYPASS_GROUPS: List[str] = []
     
-    # FFmpeg 설정
-    FFMPEG_PATH: str = "ffmpeg"
-    FFPROBE_PATH: str = "ffprobe"
-    
     # 로깅 설정
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-
-    # 인코딩 기능 플래그 (MVP에서는 비활성화)
-    ENCODING_ENABLED: bool = False
     
     model_config = ConfigDict(case_sensitive=True)
         
@@ -74,4 +98,3 @@ class BaseAppSettings(BaseSettings):
         elif self.ENVIRONMENT == "production":
             return f"{base_name}-prod"
         return base_name
-

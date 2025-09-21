@@ -45,3 +45,45 @@ def test_upload_too_large_returns_413():
     assert "File size exceeds limit" in resp.json().get("detail", "")
 
 
+def test_upload_transient_error_then_retry_success(monkeypatch):
+    client = TestClient(app)
+    book = _ensure_book()
+
+    # 준비: 정상 작은 m4a 페이로드
+    payload = b"0" * (64 * 1024)  # 64KB
+    files = {
+        "file": ("retry.m4a", payload, "audio/mp4"),
+    }
+
+    call_count = {"n": 0}
+
+    # storage_service.upload_file에 일시 실패 → 성공 시뮬레이션
+    from app.api.v1.endpoints import files as files_endpoint
+
+    async def fake_upload_file(*args, **kwargs):
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            raise Exception("simulated transient storage failure")
+
+        class Result:
+            success = True
+            key = "book/test/uploads/retry_retry.m4a"
+            size = len(payload)
+            url = None
+
+        return Result()
+
+    monkeypatch.setattr(files_endpoint.storage_service, "upload_file", fake_upload_file, raising=True)
+
+    # 1차 요청: 500 (일시 오류)
+    r1 = client.post(f"/api/v1/files/upload/audio?book_id={book.book_id}", files=files)
+    assert r1.status_code == 500
+
+    # 2차 재시도: 200
+    r2 = client.post(f"/api/v1/files/upload/audio?book_id={book.book_id}", files=files)
+    assert r2.status_code == 200
+    data = r2.json()
+    assert data.get("success") is True
+    assert data.get("chapter_id")
+
+

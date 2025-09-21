@@ -362,7 +362,7 @@ export function useGlobalPlaybackState() {
 
   useEffect(() => {
     const unsubscribe = globalPlaybackManager.subscribe(setGlobalState)
-    return unsubscribe
+    return () => { unsubscribe(); }
   }, [])
 
   const setGlobalPlaybackState = useCallback((state: PlaybackState | null) => {

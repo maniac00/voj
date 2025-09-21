@@ -1,0 +1,1 @@
+// Removed SST type dependency for OpenNext standalone build

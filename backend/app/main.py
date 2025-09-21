@@ -7,10 +7,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.v1.api import api_router
 from app.core.config import settings
-from app.services.encoding.encoding_queue import initialize_encoding_system, cleanup_encoding_system
-from app.services.encoding.retry_manager import initialize_retry_system, shutdown_retry_system
 from app.services.websocket.log_streamer import setup_websocket_logging
-from app.core.config import settings
 
 # FastAPI 애플리케이션 인스턴스 생성
 app = FastAPI(
@@ -25,7 +22,7 @@ app = FastAPI(
 # CORS 미들웨어 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_HOSTS,
+    allow_origins=getattr(settings, "CORS_ORIGINS", ["*"]),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -46,22 +43,17 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 async def startup_event():
     """애플리케이션 시작 시 실행"""
     try:
-        if settings.ENCODING_ENABLED:
-            initialize_encoding_system()
-            initialize_retry_system()
         setup_websocket_logging()
     except Exception as e:
-        print(f"Warning: Failed to initialize encoding system: {e}")
+        print(f"Warning: Failed to initialize application components: {e}")
 
 @app.on_event("shutdown") 
 async def shutdown_event():
     """애플리케이션 종료 시 실행"""
     try:
-        if settings.ENCODING_ENABLED:
-            shutdown_retry_system()
-            cleanup_encoding_system()
+        pass
     except Exception as e:
-        print(f"Warning: Failed to cleanup encoding system: {e}")
+        print(f"Warning: Failed to cleanup application components: {e}")
 
 
 @app.get("/")
@@ -91,4 +83,3 @@ if __name__ == "__main__":
         reload=settings.ENVIRONMENT == "local",
         log_level="info"
     )
-

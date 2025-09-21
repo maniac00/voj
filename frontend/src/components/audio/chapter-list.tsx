@@ -176,7 +176,7 @@ export function ChapterList({
                   <div>
                     <span className="font-medium">업로드일</span>
                     <br />
-                    <span>{new Date(chapter.created_at).toLocaleDateString('ko-KR')}</span>
+                    <span>{chapter.created_at ? new Date(chapter.created_at as any).toLocaleDateString('ko-KR') : '-'}</span>
                   </div>
                 </div>
                 

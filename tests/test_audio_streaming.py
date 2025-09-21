@@ -157,10 +157,10 @@ class TestAudioStreaming:
             title="Test Streaming Chapter",
             status="ready",
             file_info=FileInfo(
-                original_name="test.mp3",
+                original_name="test.m4a",
                 file_size=1000000,
-                mime_type="audio/mpeg",
-                local_path="/fake/path/test.mp3"  # 가짜 경로
+                mime_type="audio/mp4",
+                local_path="/fake/path/test.m4a"  # 가짜 경로
             )
         )
         chapter.save()

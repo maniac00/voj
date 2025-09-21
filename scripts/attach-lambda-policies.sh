@@ -1,4 +1,5 @@
 #!/bin/bash
+# DEPRECATED: Lambda 배포 경로는 ECR/ECS/ALB로 전환되었습니다. 유지보수 중단.
 # 기존 Lambda 역할에 정책 연결 스크립트 (관리자 권한 필요)
 
 set -e

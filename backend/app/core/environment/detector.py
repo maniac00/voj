@@ -47,13 +47,9 @@ class EnvironmentDetector:
                     "DynamoDB Local",
                     "로컬 파일 시스템 스토리지",
                     "즉시 메타데이터 처리",
-                    "상세 디버깅 로그",
-                    "개발용 빠른 인코딩"
+                    "상세 디버깅 로그"
                 ],
-                required_vars=[
-                    "FFMPEG_PATH",
-                    "FFPROBE_PATH"
-                ],
+                required_vars=[],
                 optional_vars=[
                     "DYNAMODB_ENDPOINT",
                     "LOCAL_STORAGE_PATH",
@@ -75,8 +71,8 @@ class EnvironmentDetector:
                 required_vars=[
                     "AWS_REGION",
                     "S3_BUCKET_NAME",
-                    "DYNAMODB_BOOKS_TABLE",
-                    "DYNAMODB_AUDIO_TABLE"
+                    "BOOKS_TABLE_NAME",
+                    "AUDIO_CHAPTERS_TABLE_NAME"
                 ],
                 optional_vars=[
                     "CLOUDFRONT_DISTRIBUTION_ID",
@@ -98,8 +94,8 @@ class EnvironmentDetector:
                 required_vars=[
                     "AWS_REGION",
                     "S3_BUCKET_NAME",
-                    "DYNAMODB_BOOKS_TABLE",
-                    "DYNAMODB_AUDIO_TABLE",
+                    "BOOKS_TABLE_NAME",
+                    "AUDIO_CHAPTERS_TABLE_NAME",
                     "CLOUDFRONT_DISTRIBUTION_ID"
                 ],
                 optional_vars=[
@@ -122,9 +118,8 @@ class EnvironmentDetector:
                 required_vars=[
                     "AWS_REGION",
                     "S3_BUCKET_NAME",
-                    "DYNAMODB_BOOKS_TABLE",
-                    "DYNAMODB_AUDIO_TABLE",
-                    "CLOUDFRONT_DISTRIBUTION_ID",
+                    "BOOKS_TABLE_NAME",
+                    "AUDIO_CHAPTERS_TABLE_NAME",
                     "CLOUDFRONT_KEY_PAIR_ID"
                 ],
                 optional_vars=[
@@ -180,7 +175,7 @@ class EnvironmentDetector:
         
         # 버킷명이나 테이블명에 스테이징 패턴이 있는지 확인
         bucket_name = getattr(settings, 'S3_BUCKET_NAME', '').lower()
-        table_name = getattr(settings, 'DYNAMODB_BOOKS_TABLE', '').lower()
+        table_name = getattr(settings, 'BOOKS_TABLE_NAME', '').lower()
         
         return any(
             pattern in bucket_name or pattern in table_name
@@ -238,22 +233,13 @@ class EnvironmentDetector:
         """로컬 환경 특수 검증"""
         local_validation = {"errors": [], "warnings": []}
         
-        # FFmpeg 설치 확인
-        ffmpeg_path = getattr(settings, 'FFMPEG_PATH', 'ffmpeg')
-        try:
-            import subprocess
-            subprocess.run([ffmpeg_path, '-version'], 
-                         capture_output=True, check=True, timeout=5)
-        except Exception:
-            local_validation["errors"].append(f"FFmpeg not found at {ffmpeg_path}")
-        
         # 로컬 스토리지 디렉토리 확인
         storage_path = getattr(settings, 'LOCAL_STORAGE_PATH', './storage')
         if not os.path.exists(storage_path):
             local_validation["warnings"].append(f"Storage directory {storage_path} does not exist")
         
         # DynamoDB Local 확인
-        dynamodb_endpoint = getattr(settings, 'DYNAMODB_ENDPOINT', None)
+        dynamodb_endpoint = getattr(settings, 'DYNAMODB_ENDPOINT_URL', None)
         if dynamodb_endpoint:
             try:
                 import requests
@@ -269,9 +255,9 @@ class EnvironmentDetector:
         """프로덕션 환경 특수 검증"""
         prod_validation = {"errors": [], "warnings": []}
         
-        # AWS 자격증명 확인
-        if not (os.environ.get('AWS_ACCESS_KEY_ID') or os.environ.get('AWS_PROFILE')):
-            prod_validation["errors"].append("AWS credentials not configured")
+        # AWS 자격증명 확인 (Lambda 환경이면 실행 역할에 위임)
+        if not (os.environ.get('AWS_ACCESS_KEY_ID') or os.environ.get('AWS_PROFILE') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME')):
+            prod_validation["warnings"].append("AWS credentials not found in env; assuming role-based auth on platform")
         
         # CloudFront 키 파일 확인
         key_path = getattr(settings, 'CLOUDFRONT_PRIVATE_KEY_PATH', None)
@@ -292,7 +278,6 @@ class EnvironmentDetector:
             recommendations.extend([
                 "개발 편의를 위해 상세 로깅을 활성화하세요",
                 "DynamoDB Local을 사용하여 AWS 비용을 절약하세요",
-                "FFmpeg를 최신 버전으로 유지하세요",
                 "로컬 스토리지 디렉토리를 정기적으로 정리하세요"
             ])
         
@@ -379,8 +364,6 @@ def _get_next_steps(validation: Dict[str, Any], env_type: EnvironmentType) -> Li
         steps.append(f"필수 환경 변수 설정: {', '.join(validation['missing_required'])}")
     
     if env_type == EnvironmentType.LOCAL:
-        if "FFMPEG_PATH" in validation["missing_required"]:
-            steps.append("FFmpeg 설치: brew install ffmpeg")
         if "DynamoDB Local" in str(validation.get("warnings", [])):
             steps.append("DynamoDB Local 시작: docker-compose up -d dynamodb-local")
     
@@ -412,8 +395,6 @@ def generate_environment_config(env_type: EnvironmentType) -> Dict[str, str]:
             "DYNAMODB_ENDPOINT": "http://localhost:8001",
             "STORAGE_TYPE": "local",
             "LOCAL_STORAGE_PATH": "./storage",
-            "FFMPEG_PATH": "/opt/homebrew/bin/ffmpeg",
-            "FFPROBE_PATH": "/opt/homebrew/bin/ffprobe",
             "LOCAL_BYPASS_ENABLED": "true",
             "DYNAMODB_BOOKS_TABLE": "voj-books-local",
             "DYNAMODB_AUDIO_TABLE": "voj-audio-chapters-local"

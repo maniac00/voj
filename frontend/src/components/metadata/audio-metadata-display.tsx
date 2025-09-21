@@ -44,7 +44,7 @@ export function AudioMetadataDisplay({
     })
   }
 
-  const formatDuration = (seconds: number) => {
+  const formatDurationText = (seconds: number) => {
     const hours = Math.floor(seconds / 3600)
     const minutes = Math.floor((seconds % 3600) / 60)
     const secs = seconds % 60
@@ -122,7 +122,7 @@ export function AudioMetadataDisplay({
           <div className="bg-gray-50 rounded-lg p-3">
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-900">
-                {formatDuration(metadata.duration)}
+                {formatDurationText(metadata.duration)}
               </div>
               <div className="text-sm text-gray-600">재생시간</div>
             </div>
@@ -468,6 +468,14 @@ export function MetadataProgress({
   estimatedMetadata,
   className = '' 
 }: MetadataProgressProps) {
+  const formatDurationTextLocal = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const secs = Math.floor(seconds % 60)
+    if (hours > 0) return `${hours}시간 ${minutes}분 ${secs}초`
+    if (minutes > 0) return `${minutes}분 ${secs}초`
+    return `${secs}초`
+  }
   return (
     <div className={`bg-blue-50 border border-blue-200 rounded-lg p-4 ${className}`}>
       <div className="flex items-center space-x-3 mb-3">
@@ -495,7 +503,7 @@ export function MetadataProgress({
           <div className="font-medium mb-1">예상 정보:</div>
           <div className="space-y-1">
             {estimatedMetadata.duration && (
-              <div>재생시간: ~{formatDuration(estimatedMetadata.duration)}</div>
+              <div>재생시간: ~{formatDurationTextLocal(estimatedMetadata.duration)}</div>
             )}
             {estimatedMetadata.bitrate && (
               <div>비트레이트: ~{estimatedMetadata.bitrate}kbps</div>

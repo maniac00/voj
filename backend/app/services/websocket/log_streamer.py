@@ -28,7 +28,6 @@ class LogLevel(Enum):
 class LogCategory(Enum):
     """로그 카테고리"""
     UPLOAD = "upload"
-    ENCODING = "encoding"
     PROCESSING = "processing"
     SYSTEM = "system"
     ERROR = "error"
@@ -247,9 +246,7 @@ class WebSocketLogHandler(logging.Handler):
             
             # 카테고리 추출 (로거 이름에서)
             category = LogCategory.SYSTEM
-            if "encoding" in record.name:
-                category = LogCategory.ENCODING
-            elif "upload" in record.name:
+            if "upload" in record.name:
                 category = LogCategory.UPLOAD
             elif "processing" in record.name:
                 category = LogCategory.PROCESSING
@@ -293,31 +290,14 @@ def setup_websocket_logging() -> None:
     
     # 특정 로거들에 WebSocket 핸들러 추가
     loggers_to_stream = [
-        "app.services.encoding",
         "app.api.v1.endpoints.files",
-        "app.api.v1.endpoints.audio",
-        "app.services.encoding.encoding_queue",
-        "app.services.encoding.retry_manager"
+        "app.api.v1.endpoints.audio"
     ]
     
     for logger_name in loggers_to_stream:
         logger = logging.getLogger(logger_name)
         logger.addHandler(log_streamer.log_handler)
         logger.setLevel(logging.INFO)
-
-
-def add_encoding_log(message: str, level: LogLevel = LogLevel.INFO, 
-                    chapter_id: Optional[str] = None, job_id: Optional[str] = None,
-                    details: Optional[Dict[str, Any]] = None) -> None:
-    """인코딩 로그 추가 (편의 함수)"""
-    log_streamer.add_log(
-        level=level,
-        category=LogCategory.ENCODING,
-        message=message,
-        details=details,
-        chapter_id=chapter_id,
-        job_id=job_id
-    )
 
 
 def add_upload_log(message: str, level: LogLevel = LogLevel.INFO,

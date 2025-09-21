@@ -1,0 +1,112 @@
+{
+  "CallerReference": "voj-frontend-$(date)",
+  "Comment": "voj-frontend",
+  "Enabled": true,
+  "Origins": {
+    "Quantity": 3,
+    "Items": [
+      {
+        "Id": "S3Assets",
+        "DomainName": "voj-frontend-assets-prod.s3.ap-northeast-2.amazonaws.com",
+        "OriginPath": "/assets",
+        "CustomOriginConfig": {
+          "HTTPPort": 80,
+          "HTTPSPort": 443,
+          "OriginProtocolPolicy": "https-only"
+        }
+      },
+      {
+        "Id": "ApiGateway",
+        "DomainName": "4ikn5talyg.execute-api.ap-northeast-2.amazonaws.com",
+        "OriginPath": "/prod",
+        "CustomOriginConfig": {
+          "HTTPPort": 80,
+          "HTTPSPort": 443,
+          "OriginProtocolPolicy": "https-only"
+        }
+      },
+      {
+        "Id": "ImgFunc",
+        "DomainName": "fyg7fcgq7u2k7uewrdgxy5zrta0rmnnq.lambda-url.ap-northeast-2.on.aws",
+        "CustomOriginConfig": {
+          "HTTPPort": 80,
+          "HTTPSPort": 443,
+          "OriginProtocolPolicy": "https-only"
+        }
+      }
+    ]
+  },
+  "DefaultCacheBehavior": {
+    "TargetOriginId": "ApiGateway",
+    "ViewerProtocolPolicy": "redirect-to-https",
+    "AllowedMethods": {
+      "Quantity": 7,
+      "Items": ["GET", "HEAD", "OPTIONS", "PUT", "PATCH", "POST", "DELETE"],
+      "CachedMethods": {
+        "Quantity": 2,
+        "Items": ["GET", "HEAD"]
+      }
+    },
+    "Compress": true,
+    "MinTTL": 0,
+    "DefaultTTL": 300,
+    "MaxTTL": 86400,
+    "ForwardedValues": {
+      "QueryString": true,
+      "Cookies": { "Forward": "all" }
+    }
+  },
+  "CacheBehaviors": {
+    "Quantity": 4,
+    "Items": [
+      {
+        "PathPattern": "_next/*",
+        "TargetOriginId": "S3Assets",
+        "ViewerProtocolPolicy": "redirect-to-https",
+        "AllowedMethods": { "Quantity": 2, "Items": ["GET", "HEAD"] },
+        "Compress": true,
+        "MinTTL": 0,
+        "DefaultTTL": 300,
+        "MaxTTL": 86400,
+        "ForwardedValues": { "QueryString": false, "Cookies": { "Forward": "none" } }
+      },
+      {
+        "PathPattern": "favicon.ico",
+        "TargetOriginId": "S3Assets",
+        "ViewerProtocolPolicy": "redirect-to-https",
+        "AllowedMethods": { "Quantity": 2, "Items": ["GET", "HEAD"] },
+        "Compress": true,
+        "MinTTL": 0,
+        "DefaultTTL": 300,
+        "MaxTTL": 86400,
+        "ForwardedValues": { "QueryString": false, "Cookies": { "Forward": "none" } }
+      },
+      {
+        "PathPattern": "BUILD_ID",
+        "TargetOriginId": "S3Assets",
+        "ViewerProtocolPolicy": "redirect-to-https",
+        "AllowedMethods": { "Quantity": 2, "Items": ["GET", "HEAD"] },
+        "Compress": true,
+        "MinTTL": 0,
+        "DefaultTTL": 300,
+        "MaxTTL": 86400,
+        "ForwardedValues": { "QueryString": false, "Cookies": { "Forward": "none" } }
+      },
+      {
+        "PathPattern": "_next/image*",
+        "TargetOriginId": "ImgFunc",
+        "ViewerProtocolPolicy": "redirect-to-https",
+        "AllowedMethods": { "Quantity": 2, "Items": ["GET", "HEAD"] },
+        "Compress": true,
+        "MinTTL": 0,
+        "DefaultTTL": 60,
+        "MaxTTL": 86400,
+        "ForwardedValues": { "QueryString": true, "Cookies": { "Forward": "none" } }
+      }
+    ]
+  }
+  ,
+  "ViewerCertificate": {
+    "CloudFrontDefaultCertificate": true
+  }
+}

@@ -26,6 +26,7 @@ export function PlaylistManager({
 
   const {
     state,
+    playOrder,
     setPlaylist,
     getCurrentChapter,
     nextChapter,
@@ -93,11 +94,11 @@ export function PlaylistManager({
       )
 
       if (validItems.length > 0) {
-        setState(prev => ({
-          ...prev,
-          ...savedState,
-          items: validItems
-        }))
+        // 현재 chapters 중에서 유효 아이템 순서로 원복
+        const restoreChapters = validItems
+          .map(saved => chapters.find(c => c.chapter_id === saved.chapter_id))
+          .filter(Boolean) as typeof chapters
+        setPlaylist(restoreChapters)
       }
     }
   }, [bookId, chapters])

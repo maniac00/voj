@@ -149,35 +149,44 @@ class AudioFileValidator:
         errors = []
         warnings = []
         
-        duration = metadata.get('duration', 0)
-        bitrate = metadata.get('bitrate', 0)
-        sample_rate = metadata.get('sample_rate', 0)
-        channels = metadata.get('channels', 0)
+        duration = metadata.get('duration')
+        bitrate = metadata.get('bitrate')
+        sample_rate = metadata.get('sample_rate')
+        channels = metadata.get('channels')
         
         # 재생시간 검증
-        if duration < self.min_duration:
-            errors.append(f"재생시간이 너무 짧습니다: {duration}초 < {self.min_duration}초")
-        
-        if duration > self.max_duration:
-            max_hours = self.max_duration / 3600
-            current_hours = duration / 3600
-            errors.append(f"재생시간이 너무 깁니다: {current_hours:.1f}시간 > {max_hours:.1f}시간")
-        
+        if duration is None or duration <= 0:
+            warnings.append("오디오 재생시간 정보를 확인할 수 없습니다.")
+        else:
+            if duration < self.min_duration:
+                errors.append(f"재생시간이 너무 짧습니다: {duration}초 < {self.min_duration}초")
+
+            if duration > self.max_duration:
+                max_hours = self.max_duration / 3600
+                current_hours = duration / 3600
+                errors.append(f"재생시간이 너무 깁니다: {current_hours:.1f}시간 > {max_hours:.1f}시간")
+
         # 비트레이트 검증
         if bitrate and (bitrate < 32 or bitrate > 320):
             if bitrate < 32:
                 warnings.append(f"비트레이트가 낮습니다: {bitrate}kbps (권장: 64kbps 이상)")
             else:
                 warnings.append(f"비트레이트가 높습니다: {bitrate}kbps (권장: 192kbps 이하)")
-        
+
         # 샘플레이트 검증
         standard_rates = [8000, 11025, 16000, 22050, 44100, 48000]
-        if sample_rate and sample_rate not in standard_rates:
-            warnings.append(f"비표준 샘플레이트입니다: {sample_rate}Hz")
-        
+        if sample_rate:
+            if sample_rate not in standard_rates:
+                warnings.append(f"비표준 샘플레이트입니다: {sample_rate}Hz")
+        else:
+            warnings.append("샘플레이트 정보를 확인할 수 없습니다.")
+
         # 채널 검증
-        if channels > 2:
-            warnings.append(f"다채널 오디오입니다: {channels}채널 (스테레오로 변환됩니다)")
+        if channels:
+            if channels > 2:
+                warnings.append(f"다채널 오디오입니다: {channels}채널 (스테레오로 변환됩니다)")
+        else:
+            warnings.append("채널 정보를 확인할 수 없습니다.")
         
         return AudioValidationResult(
             is_valid=len(errors) == 0,

@@ -17,6 +17,7 @@ from app.core.auth.simple import get_current_user_claims, require_any_scope
 from app.models.audio_chapter import AudioChapter, FileInfo
 from app.services.books import BookService
 from app.utils.audio_validation import extract_chapter_info, sanitize_filename
+from app.utils.ffprobe import extract_audio_metadata
 
 router = APIRouter()
 

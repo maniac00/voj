@@ -18,10 +18,22 @@ class ProductionSettings(BaseAppSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     
-    # CORS 설정 (프로덕션용 - 엄격한 설정)
+    # Hosts (TrustedHostMiddleware)
+    # 주의: 스킴 없이 호스트명만 지정
     ALLOWED_HOSTS: list = [
-        "https://voj-audiobooks.vercel.app",  # 프론트엔드 도메인
-        "https://d3o89byostp1xs.cloudfront.net",  # CloudFront 도메인
+        "voj-audiobooks.vercel.app",            # 프론트엔드 도메인
+        "d3o89byostp1xs.cloudfront.net",       # CloudFront 도메인
+        "*.execute-api.ap-northeast-2.amazonaws.com",  # API Gateway 기본 도메인
+        "*.lambda-url.ap-northeast-2.on.aws",  # Lambda Function URL 도메인 (테스트/우회)
+        "api.voj-audiobook.com",               # 커스텀 API 도메인(있을 경우)
+    ]
+
+    # CORS Origins (CORSMiddleware)
+    # 주의: 스킴 포함 Origin 지정
+    CORS_ORIGINS: list = [
+        "https://voj-audiobooks.vercel.app",
+        "https://d3o89byostp1xs.cloudfront.net",
+        "https://api.voj-audiobook.com",
     ]
     
     # AWS 설정 (프로덕션 - 환경 변수에서 읽기)
@@ -57,13 +69,8 @@ class ProductionSettings(BaseAppSettings):
     COGNITO_REGION: str = "ap-northeast-2"
     COGNITO_DOMAIN: Optional[str] = os.getenv("COGNITO_DOMAIN")
     
-    # FFmpeg 설정 (Lambda Layer 또는 컨테이너 내 경로)
-    FFMPEG_PATH: str = "/opt/bin/ffmpeg"
-    FFPROBE_PATH: str = "/opt/bin/ffprobe"
-    
     # 로깅 설정 (프로덕션용)
     LOG_LEVEL: str = "INFO"
     
     # Pydantic v2
     model_config = ConfigDict(case_sensitive=True)
-

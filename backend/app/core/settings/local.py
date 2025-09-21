@@ -17,8 +17,14 @@ class LocalSettings(BaseAppSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     
-    # CORS 설정 (로컬 개발용 - 더 관대한 설정)
+    # Hosts (TrustedHostMiddleware)
     ALLOWED_HOSTS: list = [
+        "localhost",
+        "127.0.0.1"
+    ]
+    
+    # CORS Origins (CORSMiddleware)
+    CORS_ORIGINS: list = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:8000",
@@ -53,10 +59,6 @@ class LocalSettings(BaseAppSettings):
     # Cognito 설정 (환경 변수에서 로드)
     # 주의: 로컬 환경에서는 설정이 없을 경우 인증 디펜던시가 BYPASS 모드로 동작합니다.
     # 필요한 경우 .env.local에 COGNITO_* 값을 설정하세요.
-    
-    # FFmpeg 설정 (macOS Homebrew 기본 경로)
-    FFMPEG_PATH: str = "/opt/homebrew/bin/ffmpeg"
-    FFPROBE_PATH: str = "/opt/homebrew/bin/ffprobe"
     
     # 로깅 설정 (개발용 - 더 상세한 로그)
     LOG_LEVEL: str = "DEBUG"

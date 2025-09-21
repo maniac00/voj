@@ -1,0 +1,14 @@
+{
+  "name": "voj",
+  "private": true,
+  "workspaces": ["frontend"],
+  "type": "module",
+  "scripts": {
+    "dev": "sst dev",
+    "deploy": "sst deploy"
+  },
+  "dependencies": {
+    "sst": "^2.43.5"
+  }
+}
+

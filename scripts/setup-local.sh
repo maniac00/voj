@@ -51,20 +51,6 @@ fi
 PYTHON_VERSION=$(python3 --version | cut -d' ' -f2)
 success_msg "Python $PYTHON_VERSION 확인됨"
 
-# FFmpeg 확인 및 설치
-if ! command -v ffmpeg &> /dev/null; then
-    warning_msg "FFmpeg가 설치되지 않았습니다. Homebrew로 설치 중..."
-    if command -v brew &> /dev/null; then
-        brew install ffmpeg
-        success_msg "FFmpeg 설치 완료"
-    else
-        error_exit "Homebrew가 설치되지 않았습니다. FFmpeg를 수동으로 설치해주세요."
-    fi
-else
-    FFMPEG_VERSION=$(ffmpeg -version | head -n1 | cut -d' ' -f3)
-    success_msg "FFmpeg $FFMPEG_VERSION 확인됨"
-fi
-
 # Docker 확인
 if ! command -v docker &> /dev/null; then
     error_exit "Docker가 설치되지 않았습니다. Docker Desktop을 설치해주세요."

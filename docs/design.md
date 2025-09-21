@@ -16,7 +16,7 @@
 ## 1. 아키텍처 개요
 
 * **프론트(어드민)**: Next.js (App Router)
-* **백엔드 API**: API Gateway + Lambda(FastAPI or Lambda Powertools)
+* **백엔드 API**: ECS(Fargate) + ALB (FastAPI container)
 * **DB**: DynamoDB (Books/AudioChapters)
 * **스토리지**: S3 (비공개 버킷, 서울 `ap-northeast-2`)
 * **CDN/보안**: CloudFront + Origin Access Control(OAC) + Signed URL/쿠키

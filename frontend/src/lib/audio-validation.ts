@@ -236,27 +236,29 @@ export async function validateAudioFile(
         channels: metadata.channels
       }
       
-      // 재생시간 검증
-      if (opts.minDuration && metadata.duration < opts.minDuration) {
-        errors.push(`재생시간이 너무 짧습니다. 최소: ${opts.minDuration}초, 현재: ${Math.round(metadata.duration)}초`)
+      // 재생시간 검증 (안전 가드)
+      if (typeof metadata.duration === 'number') {
+        if (opts.minDuration && metadata.duration < opts.minDuration) {
+          errors.push(`재생시간이 너무 짧습니다. 최소: ${opts.minDuration}초, 현재: ${Math.round(metadata.duration)}초`)
+        }
+        
+        if (opts.maxDuration && metadata.duration > opts.maxDuration) {
+          errors.push(`재생시간이 너무 깁니다. 최대: ${Math.round((opts.maxDuration || 0) / 60)}분, 현재: ${Math.round(metadata.duration / 60)}분`)
+        }
       }
       
-      if (opts.maxDuration && metadata.duration > opts.maxDuration) {
-        errors.push(`재생시간이 너무 깁니다. 최대: ${Math.round(opts.maxDuration / 60)}분, 현재: ${Math.round(metadata.duration / 60)}분`)
-      }
-      
-      // 샘플레이트 검증
-      if (opts.allowedSampleRates && !opts.allowedSampleRates.includes(metadata.sampleRate)) {
+      // 샘플레이트 검증 (안전 가드)
+      if (opts.allowedSampleRates && typeof metadata.sampleRate === 'number' && !opts.allowedSampleRates.includes(metadata.sampleRate)) {
         warnings.push(`비표준 샘플레이트입니다: ${metadata.sampleRate}Hz`)
       }
       
       // 채널 검증
-      if (opts.requireMono && metadata.channels > 1) {
+      if (opts.requireMono && typeof metadata.channels === 'number' && metadata.channels > 1) {
         warnings.push('스테레오 파일입니다. 모노로 변환됩니다.')
       }
       
       // 품질 경고
-      if (metadata.duration > 60 * 60) { // 1시간 이상
+      if (typeof metadata.duration === 'number' && metadata.duration > 60 * 60) { // 1시간 이상
         warnings.push('긴 오디오 파일입니다. 업로드에 시간이 오래 걸릴 수 있습니다.')
       }
     }

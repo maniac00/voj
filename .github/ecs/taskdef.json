@@ -1,0 +1,50 @@
+{
+  "family": "voj-backend-prod",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::<account>:role/voj-ecs-execution",
+  "taskRoleArn": "arn:aws:iam::<account>:role/voj-backend-task",
+  "containerDefinitions": [
+    {
+      "name": "api",
+      "image": "<to-be-replaced>",
+      "portMappings": [{"containerPort": 8000, "protocol": "tcp"}],
+      "command": [
+        "gunicorn","app.main:app","-k","uvicorn.workers.UvicornWorker",
+        "-b","0.0.0.0:8000","--workers","2","--timeout","60"
+      ],
+      "essential": true,
+      "environment": [
+        {"name": "ENVIRONMENT", "value": "production"},
+        {"name": "AWS_REGION", "value": "ap-northeast-2"}
+      ],
+      "secrets": [
+        {"name": "S3_BUCKET_NAME", "valueFrom": "arn:aws:ssm:ap-northeast-2:<account>:parameter/voj/prod/S3_BUCKET_NAME"},
+        {"name": "BOOKS_TABLE_NAME", "valueFrom": "arn:aws:ssm:ap-northeast-2:<account>:parameter/voj/prod/BOOKS_TABLE_NAME"},
+        {"name": "AUDIO_CHAPTERS_TABLE_NAME", "valueFrom": "arn:aws:ssm:ap-northeast-2:<account>:parameter/voj/prod/AUDIO_CHAPTERS_TABLE_NAME"}
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/voj-backend",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "api"
+        }
+      },
+      "healthCheck": {
+        "retries": 3,
+        "command": [
+          "CMD-SHELL",
+          "python - <<'PY' || exit 1\nimport sys,urllib.request\ntry:\n  with urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=2) as r:\n    sys.exit(0 if r.status==200 else 1)\nexcept Exception:\n  sys.exit(1)\nPY"
+        ],
+        "timeout": 5,
+        "interval": 30,
+        "startPeriod": 20
+      }
+    }
+  ]
+}
+
+

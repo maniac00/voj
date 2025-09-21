@@ -225,7 +225,6 @@ export function AudioPlayer({
         onError={handleError}
         loop={loop}
         muted={isMuted}
-        volume={audioVolume}
         style={{ display: 'none' }}
       />
 

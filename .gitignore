@@ -71,6 +71,21 @@ jspm_packages/
 # Local storage
 storage/
 
+# SST & OpenNext build artifacts
+.sst/
+frontend/.open-next/
+.last_image_uri
+
+# Local envs
+.local-dev/
+
+# CDK (infra)
+infra/cdk/node_modules/
+infra/cdk/cdk.out/
+
+# Locks at root (use workspace-specific)
+package-lock.json
+
 # IDE
 .vscode/
 .idea/

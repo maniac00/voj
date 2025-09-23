@@ -79,7 +79,7 @@
   - [ ] 7.5 `GET /api/v1/health/detailed` 프로덕션 응답 확인
 
 - [ ] 8.0 프론트엔드 배포(Amplify 또는 Vercel) 및 환경 변수 주입
-  - [ ] 8.1 배포 대상 선택(Vercel 권장 or Amplify)
+- [x] 8.1 배포 대상 선택(Vercel 권장 or Amplify)
   - [ ] 8.2 환경 변수 설정: `NEXT_PUBLIC_API_URL`(API Gateway URL)
   - [ ] 8.3 프로덕션 빌드 및 배포, 도메인 연결(선택)
   - [ ] 8.4 인증/리다이렉트 정상 동작 확인(`/login → /dashboard`)

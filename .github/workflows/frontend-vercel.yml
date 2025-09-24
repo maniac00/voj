@@ -29,6 +29,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Write Vercel project config
+        run: |
+          mkdir -p .vercel
+          cat > .vercel/project.json << 'EOF'
+          {
+            "orgId": "${{ env.VERCEL_ORG_ID }}",
+            "projectId": "${{ env.VERCEL_PROJECT_ID }}"
+          }
+          EOF
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -39,15 +49,15 @@ jobs:
           npm ci || npm install --legacy-peer-deps
 
       - name: Pull Vercel environment information
-        run: npx vercel pull --yes --environment=production --token=${{ env.VERCEL_TOKEN }} --scope=${{ env.VERCEL_ORG_ID }} --project=${{ env.VERCEL_PROJECT_ID }}
+        run: npx vercel pull --yes --environment=production --token=${{ env.VERCEL_TOKEN }}
 
       - name: Build
         env:
           NEXT_PUBLIC_API_URL: ${{ github.event.inputs.apiUrl || secrets.NEXT_PUBLIC_API_URL }}
           NEXT_PUBLIC_API_BASE: ${{ github.event.inputs.apiBase || secrets.NEXT_PUBLIC_API_BASE }}
-        run: npx vercel build --prod --token=${{ env.VERCEL_TOKEN }} --scope=${{ env.VERCEL_ORG_ID }} --project=${{ env.VERCEL_PROJECT_ID }}
+        run: npx vercel build --prod --token=${{ env.VERCEL_TOKEN }}
 
       - name: Deploy
-        run: npx vercel deploy --prebuilt --prod --token=${{ env.VERCEL_TOKEN }} --scope=${{ env.VERCEL_ORG_ID }} --project=${{ env.VERCEL_PROJECT_ID }}
+        run: npx vercel deploy --prebuilt --prod --token=${{ env.VERCEL_TOKEN }}
 
 

@@ -31,7 +31,8 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci || npm install --legacy-peer-deps
 
       - name: Pull Vercel environment information
         run: npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}

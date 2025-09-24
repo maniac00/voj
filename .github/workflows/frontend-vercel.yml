@@ -39,15 +39,15 @@ jobs:
           npm ci || npm install --legacy-peer-deps
 
       - name: Pull Vercel environment information
-        run: npx vercel pull --yes --environment=production
+        run: npx vercel pull --yes --environment=production --token=${{ env.VERCEL_TOKEN }} --scope=${{ env.VERCEL_ORG_ID }} --project=${{ env.VERCEL_PROJECT_ID }}
 
       - name: Build
         env:
           NEXT_PUBLIC_API_URL: ${{ github.event.inputs.apiUrl || secrets.NEXT_PUBLIC_API_URL }}
           NEXT_PUBLIC_API_BASE: ${{ github.event.inputs.apiBase || secrets.NEXT_PUBLIC_API_BASE }}
-        run: npx vercel build --prod
+        run: npx vercel build --prod --token=${{ env.VERCEL_TOKEN }} --scope=${{ env.VERCEL_ORG_ID }} --project=${{ env.VERCEL_PROJECT_ID }}
 
       - name: Deploy
-        run: npx vercel deploy --prebuilt --prod
+        run: npx vercel deploy --prebuilt --prod --token=${{ env.VERCEL_TOKEN }} --scope=${{ env.VERCEL_ORG_ID }} --project=${{ env.VERCEL_PROJECT_ID }}
 
 

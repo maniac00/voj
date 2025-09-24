@@ -84,7 +84,8 @@ infra/cdk/node_modules/
 infra/cdk/cdk.out/
 
 # Locks at root (use workspace-specific)
-package-lock.json
+/# package lock only at repo root; allow nested workspace locks
+/package-lock.json
 
 # IDE
 .vscode/

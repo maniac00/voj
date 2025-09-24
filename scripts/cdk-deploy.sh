@@ -14,21 +14,32 @@ REGION="${AWS_REGION:-ap-northeast-2}"
 HOSTED_ZONE_NAME="${HOSTED_ZONE_NAME:-voj-audiobook.com}"
 DOMAIN_NAME="${DOMAIN_NAME:-api.voj-audiobook.com}"
 ECR_REPO="${ECR_REPO:-voj-backend}"
+ENABLE_DOMAIN="${ENABLE_DOMAIN:-false}"
 
 cd "${REPO_ROOT}/infra/cdk"
 
 if [[ ! -d node_modules ]]; then
-  npm ci
+  if [[ -f package-lock.json ]]; then
+    npm ci
+  else
+    npm install
+  fi
 fi
 
+# unique cdk.out to avoid contention
+OUT_DIR="cdk.out.$(date +%s)"
+
+export CDK_OUTDIR="$OUT_DIR"
+
 echo "Synthesizing CDK app..."
-npx cdk synth -c hostedZoneName="${HOSTED_ZONE_NAME}" -c domainName="${DOMAIN_NAME}" -c ecrRepo="${ECR_REPO}" >/dev/null
+npx cdk synth -c hostedZoneName="${HOSTED_ZONE_NAME}" -c domainName="${DOMAIN_NAME}" -c ecrRepo="${ECR_REPO}" -c enableDomain="${ENABLE_DOMAIN}" >/dev/null
 
 echo "Deploying CDK stacks..."
 npx cdk deploy --all --require-approval never \
   -c hostedZoneName="${HOSTED_ZONE_NAME}" \
   -c domainName="${DOMAIN_NAME}" \
-  -c ecrRepo="${ECR_REPO}"
+  -c ecrRepo="${ECR_REPO}" \
+  -c enableDomain="${ENABLE_DOMAIN}"
 
 echo "✅ CDK deploy completed"
 

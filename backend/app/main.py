@@ -29,10 +29,12 @@ app.add_middleware(
 )
 
 # Trusted Host 미들웨어 설정 (프로덕션 환경)
-if settings.ENVIRONMENT == "production":
+# ALLOWED_HOSTS에 '*'가 포함되면 신뢰 호스트 검사 비활성화 (ALB 헬스체크/내부 트래픽 허용)
+allowed_hosts = getattr(settings, "ALLOWED_HOSTS", [])
+if settings.ENVIRONMENT == "production" and allowed_hosts and "*" not in allowed_hosts:
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=settings.ALLOWED_HOSTS
+        allowed_hosts=allowed_hosts
     )
 
 # API 라우터 등록

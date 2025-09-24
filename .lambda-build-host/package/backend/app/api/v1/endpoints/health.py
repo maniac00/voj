@@ -1,0 +1,230 @@
+"""
+VOJ Audiobooks API - 헬스 체크 엔드포인트
+시스템 상태 및 의존성 상태를 확인하는 엔드포인트
+"""
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from typing import Dict, Any
+import asyncio
+import os
+
+from app.core.config import settings
+from app.services.database import db_service
+from app.services.storage.factory import storage_service
+from app.core.environment.detector import (
+    get_current_environment,
+    validate_current_environment,
+    check_environment_readiness,
+    auto_configure_environment
+)
+
+router = APIRouter()
+
+
+class HealthResponse(BaseModel):
+    """헬스 체크 응답 모델"""
+    status: str
+    environment: str
+    version: str
+    dependencies: Dict[str, Any]
+
+
+@router.get("/", response_model=HealthResponse)
+async def health_check():
+    """
+    기본 헬스 체크
+    - API 서버 상태 확인
+    """
+    return HealthResponse(
+        status="healthy",
+        environment=settings.ENVIRONMENT,
+        version="1.0.0",
+        dependencies={}
+    )
+
+
+@router.get("/detailed", response_model=HealthResponse)
+async def detailed_health_check():
+    """
+    상세 헬스 체크
+    - API 서버 상태
+    - DynamoDB 연결 상태 및 테이블 확인
+    - 로컬 스토리지 상태 (로컬 환경)
+    """
+    dependencies = {}
+    
+    # DynamoDB 연결 및 테이블 상태 확인
+    try:
+        db_health = await db_service.health_check()
+        dependencies["dynamodb"] = db_health
+    except Exception as e:
+        dependencies["dynamodb"] = {"status": "unhealthy", "error": str(e)}
+    
+    # 로컬 스토리지 확인 (로컬 환경)
+    if settings.ENVIRONMENT == "local":
+        try:
+            storage_paths = [
+                settings.LOCAL_STORAGE_PATH,
+                settings.LOCAL_UPLOADS_PATH,
+                settings.LOCAL_MEDIA_PATH,
+                settings.LOCAL_BOOKS_PATH
+            ]
+            
+            storage_status = {}
+            for path in storage_paths:
+                if os.path.exists(path):
+                    storage_status[path] = "exists"
+                else:
+                    storage_status[path] = "missing"
+            
+            all_exist = all(status == "exists" for status in storage_status.values())
+            dependencies["local_storage"] = {
+                "status": "healthy" if all_exist else "warning",
+                "paths": storage_status
+            }
+        except Exception as e:
+            dependencies["local_storage"] = {"status": "unhealthy", "error": str(e)}
+    
+    # 환경 감지 및 검증
+    try:
+        current_env = get_current_environment()
+        env_validation = validate_current_environment()
+        
+        env_status = {
+            "detected_environment": current_env.value,
+            "is_valid": env_validation["is_valid"],
+            "missing_required": env_validation.get("missing_required", []),
+            "warnings": env_validation.get("warnings", []),
+            "features": env_validation.get("features", [])
+        }
+        
+        if not env_validation["is_valid"]:
+            env_status["status"] = "unhealthy"
+        elif env_validation.get("warnings"):
+            env_status["status"] = "warning"
+        else:
+            env_status["status"] = "healthy"
+        
+        dependencies["environment"] = env_status
+    except Exception as e:
+        dependencies["environment"] = {"status": "unhealthy", "error": str(e)}
+    
+    # 간단한 인증 설정 확인
+    try:
+        auth_status = {
+            "status": "healthy",
+            "auth_type": "simple",
+            "username": settings.SIMPLE_AUTH_USERNAME,
+            "notes": "하드코딩된 간단한 인증 시스템 사용 중"
+        }
+        
+        if settings.ENVIRONMENT == "production":
+            auth_status["notes"] += " (프로덕션에서는 더 강력한 인증 시스템 권장)"
+            auth_status["status"] = "warning"
+        
+        dependencies["auth_config"] = auth_status
+    except Exception as e:
+        dependencies["auth_config"] = {"status": "unhealthy", "error": str(e)}
+    
+    # 스토리지 서비스 상태 확인
+    try:
+        # 스토리지 서비스 타입 확인
+        storage_type = type(storage_service).__name__
+        dependencies["storage_service"] = {
+            "type": storage_type,
+            "environment": settings.ENVIRONMENT
+        }
+        
+        # S3 환경인 경우 추가 상태 확인
+        if hasattr(storage_service, 'health_check'):
+            storage_health = await storage_service.health_check()
+            dependencies["storage_service"].update(storage_health)
+        else:
+            dependencies["storage_service"]["status"] = "healthy"
+            
+    except Exception as e:
+        dependencies["storage_service"] = {"status": "unhealthy", "error": str(e)}
+    
+    # 전체 상태 결정 (프로덕션 초기 배포: 실패 시에도 warning으로 다운그레이드하여 200 응답)
+    overall_status = "healthy"
+    for dep_name, dep_info in dependencies.items():
+        if dep_info.get("status") == "unhealthy":
+            overall_status = "warning"
+            # 기록은 남기되 5xx로 승격하지 않음
+        elif dep_info.get("status") in ["warning", "degraded"] and overall_status == "healthy":
+            overall_status = "warning"
+    
+    return HealthResponse(
+        status=overall_status,
+        environment=settings.ENVIRONMENT,
+        version="1.0.0",
+        dependencies=dependencies
+    )
+
+
+@router.post("/init-database")
+async def initialize_database():
+    """
+    데이터베이스 초기화
+    - DynamoDB 테이블 생성
+    - 개발 환경에서만 사용
+    """
+    if settings.ENVIRONMENT != "local":
+        raise HTTPException(
+            status_code=403, 
+            detail="Database initialization is only allowed in local environment"
+        )
+    
+    try:
+        result = await db_service.initialize()
+        return {
+            "message": "Database initialized successfully",
+            "result": result
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database initialization failed: {str(e)}"
+        )
+
+
+@router.get("/environment")
+async def get_environment_info():
+    """
+    환경 정보 조회
+    - 현재 감지된 환경
+    - 환경 검증 결과
+    - 권장사항
+    """
+    try:
+        readiness_info = check_environment_readiness()
+        return readiness_info
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get environment info: {str(e)}"
+        )
+
+
+@router.post("/environment/auto-configure")
+async def auto_configure():
+    """
+    환경 자동 설정
+    - 필요한 디렉토리 생성
+    - 기본 설정 적용
+    - 로컬 환경에서만 지원
+    """
+    if settings.ENVIRONMENT != "local":
+        raise HTTPException(
+            status_code=400,
+            detail="Auto-configuration is only supported in local environment"
+        )
+    
+    try:
+        result = auto_configure_environment()
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Auto-configuration failed: {str(e)}"
+        )

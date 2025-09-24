@@ -28,7 +28,11 @@ fi
 cd "${REPO_ROOT}/infra/cdk"
 
 if [[ ! -d node_modules ]]; then
-  npm ci
+  if [[ -f package-lock.json ]]; then
+    npm ci
+  else
+    npm install
+  fi
 fi
 
 echo "Bootstrapping CDK for ${ACCOUNT_ID}/${REGION}..."

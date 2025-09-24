@@ -1,0 +1,21 @@
+{
+  "version": "48.0.0",
+  "files": {
+    "7d2ed462125e7e6b2f47ceb0aa57a8270cec44c690418a2b7f5eb20d83e74767": {
+      "displayName": "VojBackendStack Template",
+      "source": {
+        "path": "VojBackendStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "529088277581-ap-northeast-2-10fb7460": {
+          "bucketName": "cdk-hnb659fds-assets-529088277581-ap-northeast-2",
+          "objectKey": "7d2ed462125e7e6b2f47ceb0aa57a8270cec44c690418a2b7f5eb20d83e74767.json",
+          "region": "ap-northeast-2",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::529088277581:role/cdk-hnb659fds-file-publishing-role-529088277581-ap-northeast-2"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

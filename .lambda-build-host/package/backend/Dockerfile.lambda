@@ -1,0 +1,22 @@
+# AWS Lambda Python runtime base image
+FROM public.ecr.aws/lambda/python:3.12
+
+# Workdir for Lambda code
+WORKDIR /var/task
+
+# Copy backend code and pyproject for dependency resolution
+COPY backend/ ./backend/
+COPY pyproject.toml ./
+
+# Install dependencies into /var/task (Lambda looks here)
+RUN python -m pip install --upgrade pip && \
+    pip install "poetry==1.8.3" && \
+    poetry export -f requirements.txt --output requirements.txt --without-hashes && \
+    pip install -r requirements.txt --no-cache-dir
+
+# Set Python path for module resolution
+ENV PYTHONPATH=/var/task
+
+# Set Lambda handler (Mangum wraps FastAPI app)
+# Use Python module path, not filesystem path
+CMD ["app.handler.handler"]

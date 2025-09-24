@@ -43,7 +43,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm --prefix frontend ci || npm --prefix frontend install --legacy-peer-deps
+          npm --prefix frontend install --legacy-peer-deps
 
       - name: Pull Vercel environment information
         run: npx vercel pull --cwd frontend --yes --environment=production --token=${{ env.VERCEL_TOKEN }}
@@ -52,9 +52,9 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: ${{ github.event.inputs.apiUrl || secrets.NEXT_PUBLIC_API_URL }}
           NEXT_PUBLIC_API_BASE: ${{ github.event.inputs.apiBase || secrets.NEXT_PUBLIC_API_BASE }}
-        run: npx vercel build --cwd frontend --prod --token=${{ env.VERCEL_TOKEN }}
+        run: npx vercel build --prod --token=${{ env.VERCEL_TOKEN }}
 
       - name: Deploy
-        run: npx vercel deploy --cwd frontend --prebuilt --prod --token=${{ env.VERCEL_TOKEN }}
+        run: npx vercel deploy --prebuilt --prod --token=${{ env.VERCEL_TOKEN }}
 
 

@@ -33,6 +33,10 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
+# Allow frontend UI log components
+!frontend/src/components/logs/
+!frontend/src/components/logs/**
+
 # Runtime data
 pids
 *.pid

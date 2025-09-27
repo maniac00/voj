@@ -277,6 +277,11 @@
 
 ## 📝 업데이트 로그
 
+### 2025-09-27
+- 프론트엔드: React 18.2.0 / Next 14.2.12 기준 로컬 프로덕션 빌드 통과
+- 타입체크: 테스트 파일을 TS 타입체크 대상에서 제외(tsconfig.json)하여 빌드 차단 이슈 해소
+- 배포: 변경사항 커밋/푸시로 Vercel 빌드 트리거 (로그 확인 예정)
+
 ### 2025-09-21
 - 배포 경로 ECR/ECS/ALB로 전환: 문서(deploy-backend, deployment-automation, rollout-plan) 갱신
 - backend/Dockerfile 추가, GitHub Actions 워크플로우/태스크 정의 추가

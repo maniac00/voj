@@ -58,18 +58,12 @@ export function useWebSocketLogs({
 
   const getWebSocketUrl = useCallback(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    // 우선순위: NEXT_PUBLIC_API_URL -> NEXT_PUBLIC_API_BASE -> localhost:8000
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
-    let host = 'localhost:8000'
-    try {
-      const parsed = new URL(apiUrl)
-      host = `${parsed.hostname}${parsed.port ? `:${parsed.port}` : (parsed.protocol === 'https:' ? '' : ':8000')}`
-    } catch {
-      // 문자열에서 프로토콜 제거 및 경로 제거
-      host = apiUrl.replace(/^https?:\/\//, '').replace(/\/.*/, '') || 'localhost:8000'
-    }
+    // 동일 출처 기반 WebSocket 경로 사용
+    const base = (process.env.NEXT_PUBLIC_API_BASE && process.env.NEXT_PUBLIC_API_BASE.startsWith('/'))
+      ? process.env.NEXT_PUBLIC_API_BASE
+      : '/api/v1'
     const chapterParam = chapterId ? `?chapter_id=${encodeURIComponent(chapterId)}` : ''
-    return `${protocol}//${host}/api/v1/ws/logs${chapterParam}`
+    return `${protocol}//${window.location.host}${base}/ws/logs${chapterParam}`
   }, [chapterId])
 
   const connect = useCallback(() => {
@@ -262,15 +256,10 @@ export function useChapterStatus({
 
   const getWebSocketUrl = useCallback(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
-    let host = 'localhost:8000'
-    try {
-      const parsed = new URL(apiUrl)
-      host = `${parsed.hostname}${parsed.port ? `:${parsed.port}` : (parsed.protocol === 'https:' ? '' : ':8000')}`
-    } catch {
-      host = apiUrl.replace(/^https?:\/\//, '').replace(/\/.*/, '') || 'localhost:8000'
-    }
-    return `${protocol}//${host}/api/v1/ws/status/${encodeURIComponent(chapterId)}`
+    const base = (process.env.NEXT_PUBLIC_API_BASE && process.env.NEXT_PUBLIC_API_BASE.startsWith('/'))
+      ? process.env.NEXT_PUBLIC_API_BASE
+      : '/api/v1'
+    return `${protocol}//${window.location.host}${base}/ws/status/${encodeURIComponent(chapterId)}`
   }, [chapterId])
 
   const connect = useCallback(() => {

@@ -1,8 +1,9 @@
 import { getAuthHeaders } from '@/lib/auth/simple-auth'
 
-// API 베이스 URL: 환경변수 없으면 로컬 백엔드로 절대 경로 사용
-const apiOrigin = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || `${apiOrigin}/api/v1`
+// 브라우저에서는 동일 출처 경로 사용
+const API_BASE = typeof window !== 'undefined'
+  ? (process.env.NEXT_PUBLIC_API_BASE || '/api/v1')
+  : (process.env.NEXT_PUBLIC_API_BASE || `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1`)
 
 export type ChapterDto = {
   chapter_id: string

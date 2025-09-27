@@ -1,6 +1,9 @@
 import { getAuthHeaders } from '@/lib/auth/simple-auth'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1`
+// 브라우저에서는 항상 동일 출처 경로로 호출하여 Mixed Content를 방지
+const API_BASE = typeof window !== 'undefined'
+  ? (process.env.NEXT_PUBLIC_API_BASE || '/api/v1')
+  : (process.env.NEXT_PUBLIC_API_BASE || `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1`)
 
 export type BookDto = {
   book_id: string

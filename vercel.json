@@ -1,8 +1,8 @@
 {
   "framework": "nextjs",
-  "buildCommand": "cd frontend && npm run build",
-  "outputDirectory": "frontend/.next",
-  "installCommand": "cd frontend && npm ci",
+  "rootDirectory": "frontend",
+  "buildCommand": "npm run build",
+  "installCommand": "npm ci",
   "env": {
     "NEXT_PUBLIC_API_URL": "https://VojBac-Servi-hjiWLfezIKV1-104186311.ap-northeast-2.elb.amazonaws.com",
     "NEXT_PUBLIC_API_BASE": "https://VojBac-Servi-hjiWLfezIKV1-104186311.ap-northeast-2.elb.amazonaws.com/api/v1"

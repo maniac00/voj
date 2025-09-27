@@ -1,6 +1,6 @@
 {
   "framework": "nextjs",
   "installCommand": "cd frontend && npm ci || npm i --legacy-peer-deps",
-  "buildCommand": "cd frontend && NEXT_PUBLIC_API_URL=https://placeholder-api-url.com NEXT_PUBLIC_API_BASE=https://placeholder-api-url.com/api/v1 npm run build",
+  "buildCommand": "cd frontend && NEXT_PUBLIC_API_URL=https://VojBac-Servi-hjiWLfezIKV1-104186311.ap-northeast-2.elb.amazonaws.com NEXT_PUBLIC_API_BASE=https://VojBac-Servi-hjiWLfezIKV1-104186311.ap-northeast-2.elb.amazonaws.com/api/v1 npm run build",
   "outputDirectory": "frontend/.next"
 }

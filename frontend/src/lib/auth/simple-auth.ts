@@ -3,7 +3,12 @@
  * PRD v2.0 요구사항에 따른 하드코딩 인증 (admin/admin123)
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+// 프론트엔드 전역 API 베이스 규칙 통일
+// 1) NEXT_PUBLIC_API_BASE가 있으면 그대로 사용 (예: https://api.example.com/api/v1)
+// 2) 없으면 NEXT_PUBLIC_API_URL + /api/v1 로 구성 (예: https://api.example.com/api/v1)
+// 3) 둘 다 없으면 상대 경로 /api/v1 로 폴백 (Vercel 프록시/로컬 프록시가 있는 경우 대비)
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE
+  || (process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api/v1` : '/api/v1')
 
 export interface LoginCredentials {
   username: string
@@ -31,7 +36,7 @@ const USER_KEY = 'voj_user_info'
  * 로그인 API 호출
  */
 export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
-  const response = await fetch(`${API_BASE}/api/v1/auth/login`, {
+  const response = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -55,7 +60,7 @@ export async function logout(): Promise<void> {
   
   if (token) {
     try {
-      await fetch(`${API_BASE}/api/v1/auth/logout`, {
+      await fetch(`${API_BASE}/auth/logout`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -80,7 +85,7 @@ export async function getCurrentUser(): Promise<User> {
     throw new Error('No access token')
   }
 
-  const response = await fetch(`${API_BASE}/api/v1/auth/me`, {
+  const response = await fetch(`${API_BASE}/auth/me`, {
     headers: {
       'Authorization': `Bearer ${token}`,
     },

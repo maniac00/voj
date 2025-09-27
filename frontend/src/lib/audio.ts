@@ -2,7 +2,9 @@ import { getAuthHeaders } from '@/lib/auth/simple-auth'
 
 // 브라우저에서는 동일 출처 경로 사용
 const API_BASE = typeof window !== 'undefined'
-  ? (process.env.NEXT_PUBLIC_API_BASE || '/api/v1')
+  ? ((process.env.NEXT_PUBLIC_API_BASE && !/^https?:/i.test(process.env.NEXT_PUBLIC_API_BASE))
+      ? process.env.NEXT_PUBLIC_API_BASE
+      : '/api/v1')
   : (process.env.NEXT_PUBLIC_API_BASE || `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1`)
 
 export type ChapterDto = {

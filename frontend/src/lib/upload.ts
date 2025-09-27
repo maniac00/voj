@@ -1,7 +1,9 @@
 export type UploadProgressHandler = (loaded: number, total: number) => void
 
 const API_BASE = typeof window !== 'undefined'
-  ? (process.env.NEXT_PUBLIC_API_BASE || '/api/v1')
+  ? ((process.env.NEXT_PUBLIC_API_BASE && !/^https?:/i.test(process.env.NEXT_PUBLIC_API_BASE))
+      ? process.env.NEXT_PUBLIC_API_BASE
+      : '/api/v1')
   : (process.env.NEXT_PUBLIC_API_BASE || `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1`)
 
 export async function uploadAudio(

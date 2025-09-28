@@ -117,6 +117,7 @@ export class VojBackendStack extends cdk.Stack {
         memoryLimitMiB: 1024,
         desiredCount: 2,
         publicLoadBalancer: true,
+        listenerPort: 8000,
         taskImageOptions: {
           image: ecs.ContainerImage.fromEcrRepository(repo),
           containerPort: 8000,

@@ -3,6 +3,7 @@ import { Construct } from 'constructs';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as ecsPatterns from 'aws-cdk-lib/aws-ecs-patterns';
+import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as targets from 'aws-cdk-lib/aws-route53-targets';
 import * as certificatemanager from 'aws-cdk-lib/aws-certificatemanager';
@@ -136,8 +137,16 @@ export class VojBackendStack extends cdk.Stack {
       });
     }
 
-    // Health check path (use /health which returns 200)
-    fargate.targetGroup.configureHealthCheck({ path: '/health' });
+    // Configure target group to use port 8000 instead of default 80
+    const targetGroup = fargate.targetGroup;
+    targetGroup.configureHealthCheck({ 
+      path: '/health',
+      port: '8000'
+    });
+    
+    // Override target group port using escape hatch
+    const cfnTargetGroup = targetGroup.node.defaultChild as elbv2.CfnTargetGroup;
+    cfnTargetGroup.addPropertyOverride('Port', 8000);
 
     // Outputs
     if (enableDomain) {

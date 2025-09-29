@@ -4,11 +4,14 @@
  */
 
 // 프론트엔드 전역 API 베이스 규칙 통일
-// 1) NEXT_PUBLIC_API_BASE가 있으면 그대로 사용 (예: https://api.example.com/api/v1)
-// 2) 없으면 NEXT_PUBLIC_API_URL + /api/v1 로 구성 (예: https://api.example.com/api/v1)
-// 3) 둘 다 없으면 상대 경로 /api/v1 로 폴백 (Vercel 프록시/로컬 프록시가 있는 경우 대비)
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE
-  || (process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api/v1` : '/api/v1')
+// 1) 브라우저에서는 상대 경로 우선 (/api/v1) - Mixed Content 방지
+// 2) NEXT_PUBLIC_API_BASE가 있고 http(s) 아닌 경우 그대로 사용
+// 3) 서버(SSR/서버 함수)에서는 절대 경로 구성 허용
+const API_BASE = (typeof window !== 'undefined')
+  ? ((process.env.NEXT_PUBLIC_API_BASE && !/^https?:/i.test(process.env.NEXT_PUBLIC_API_BASE))
+      ? process.env.NEXT_PUBLIC_API_BASE
+      : '/api/v1')
+  : (process.env.NEXT_PUBLIC_API_BASE || `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1`)
 
 export interface LoginCredentials {
   username: string

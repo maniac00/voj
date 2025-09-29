@@ -278,9 +278,11 @@
 ## 📝 업데이트 로그
 
 ### 2025-09-27
-- 프론트엔드: React 18.2.0 / Next 14.2.12 기준 로컬 프로덕션 빌드 통과
-- 타입체크: 테스트 파일을 TS 타입체크 대상에서 제외(tsconfig.json)하여 빌드 차단 이슈 해소
-- 배포: 변경사항 커밋/푸시로 Vercel 빌드 트리거 (로그 확인 예정)
+- Vercel 배포: vercel.json 스키마 오류 해결 (rootDirectory 속성 제거, frontend 디렉토리에서 실행하도록 명령어 수정)
+- Vercel 빌드: 환경 변수 문제 해결 (빌드 시 NEXT_PUBLIC_API_URL, NEXT_PUBLIC_API_BASE 설정)
+- 보안 업데이트: Next.js 14.2.12 → 14.2.33 업데이트로 8개 취약점 해결 (DoS, SSRF, 인증 우회 등)
+- eslint-config-next: Next.js 버전과 호환되도록 14.2.33으로 업데이트
+- ECS 백엔드 연동: 실제 로드밸런서 DNS(VojBac-Servi-hjiWLfezIKV1-104186311.ap-northeast-2.elb.amazonaws.com)로 API URL 설정 완료
 
 ### 2025-09-21
 - 배포 경로 ECR/ECS/ALB로 전환: 문서(deploy-backend, deployment-automation, rollout-plan) 갱신

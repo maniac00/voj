@@ -4,8 +4,8 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "env": {
-    "NEXT_PUBLIC_API_URL": "https://VojBac-Servi-hjiWLfezIKV1-104186311.ap-northeast-2.elb.amazonaws.com",
-    "NEXT_PUBLIC_API_BASE": "https://VojBac-Servi-hjiWLfezIKV1-104186311.ap-northeast-2.elb.amazonaws.com/api/v1"
+    "NEXT_PUBLIC_API_URL": "http://VojBac-Servi-hjiWLfezIKV1-104186311.ap-northeast-2.elb.amazonaws.com",
+    "NEXT_PUBLIC_API_BASE": "http://VojBac-Servi-hjiWLfezIKV1-104186311.ap-northeast-2.elb.amazonaws.com/api/v1"
   },
   "functions": {
     "app/**": {

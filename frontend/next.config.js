@@ -7,7 +7,7 @@ const nextConfig = {
     ]
   },
   async rewrites() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://VojBac-Servi-hjiWLfezIKV1-104186311.ap-northeast-2.elb.amazonaws.com'
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
     return [
       {
         source: '/api/:path*',
@@ -18,7 +18,9 @@ const nextConfig = {
         destination: `${apiUrl.replace(/\/$/, '')}/ws/:path*`
       }
     ]
-  }
+  },
+  // Railway 배포 설정
+  output: 'standalone'
 }
 
 module.exports = nextConfig

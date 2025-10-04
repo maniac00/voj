@@ -22,12 +22,12 @@ WORKDIR /app
 COPY pyproject.toml poetry.lock* ./
 RUN pip install --no-cache-dir "poetry==${POETRY_VERSION}" && \
     poetry config virtualenvs.create false && \
-    poetry install --no-dev --no-interaction --no-ansi
+    poetry install --no-dev --no-interaction --no-ansi --no-root
 
 # 애플리케이션 코드 복사
-COPY app ./app
-COPY alembic ./alembic
-COPY alembic.ini ./alembic.ini
+COPY backend/app ./app
+COPY backend/alembic ./alembic
+COPY backend/alembic.ini ./alembic.ini
 
 # 비root 사용자 생성
 RUN addgroup --system app && adduser --system --ingroup app app && \

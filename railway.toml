@@ -3,6 +3,6 @@ builder = "DOCKERFILE"
 dockerfilePath = "backend/Dockerfile"
 
 [deploy]
-# Dockerfile CMD를 사용하므로 startCommand 제거
+startCommand = "gunicorn app.main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:${PORT:-8000} --workers ${GUNICORN_WORKERS:-2} --timeout ${GUNICORN_TIMEOUT:-60}"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3

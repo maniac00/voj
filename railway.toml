@@ -1,7 +1,7 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "backend/Dockerfile"
-watchPatterns = ["backend/**"]
+watchPatterns = ["backend/app/**", "backend/alembic/**"]
 
 [deploy]
 startCommand = "/opt/venv/bin/gunicorn app.main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:$PORT --workers 2 --timeout 60"

@@ -3,6 +3,9 @@
 # --- Builder ---
 FROM python:3.12-slim AS builder
 
+# Force cache invalidation
+ARG CACHEBUST=1
+
 ENV POETRY_VERSION=1.8.3 \
     PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1 \

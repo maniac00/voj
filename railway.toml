@@ -1,7 +1,6 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "backend/Dockerfile"
-watchPatterns = ["backend/app/**", "backend/alembic/**"]
 
 [deploy]
 # Dockerfile CMD를 사용하므로 startCommand 제거

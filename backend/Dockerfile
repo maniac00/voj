@@ -28,9 +28,11 @@ RUN pip install --no-cache-dir "poetry==${POETRY_VERSION}" && \
 COPY app ./app
 COPY alembic ./alembic
 COPY alembic.ini ./alembic.ini
+COPY entrypoint.sh ./entrypoint.sh
 
-# 비root 사용자 생성
+# 비root 사용자 생성 및 entrypoint 실행 권한
 RUN addgroup --system app && adduser --system --ingroup app app && \
+    chmod +x /app/entrypoint.sh && \
     chown -R app:app /app
 
 USER app
@@ -40,4 +42,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=20s --retries=3 \
   CMD curl -fsS http://127.0.0.1:${PORT:-8000}/health || exit 1
 
-CMD ["sh", "-c", "exec gunicorn app.main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:${PORT:-8000} --workers ${GUNICORN_WORKERS:-2} --timeout ${GUNICORN_TIMEOUT:-60}"]
+CMD ["/app/entrypoint.sh"]

@@ -19,15 +19,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Poetry 및 의존성 설치
-COPY backend/pyproject.toml backend/poetry.lock* ./
+COPY pyproject.toml poetry.lock* ./
 RUN pip install --no-cache-dir "poetry==${POETRY_VERSION}" && \
     poetry config virtualenvs.create false && \
     poetry install --no-dev --no-interaction --no-ansi
 
 # 애플리케이션 코드 복사
-COPY backend/app ./app
-COPY backend/alembic ./alembic
-COPY backend/alembic.ini ./alembic.ini
+COPY app ./app
+COPY alembic ./alembic
+COPY alembic.ini ./alembic.ini
 
 # 비root 사용자 생성
 RUN addgroup --system app && adduser --system --ingroup app app && \

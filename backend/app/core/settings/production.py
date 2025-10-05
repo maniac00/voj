@@ -19,56 +19,50 @@ class ProductionSettings(BaseAppSettings):
     PORT: int = 8000
     
     # Hosts (TrustedHostMiddleware)
-    # 주의: 스킴 없이 호스트명만 지정
+    # 주의: 스킴 없이 호스트명만 지정 (Railway + Vercel)
     ALLOWED_HOSTS: list = [
-        "voj-audiobooks.vercel.app",            # 프론트엔드 도메인
-        "dnvd1ecfi0fj7.cloudfront.net",        # 현재 CloudFront 도메인
-        "*.execute-api.ap-northeast-2.amazonaws.com",  # API Gateway 기본 도메인
-        "*.lambda-url.ap-northeast-2.on.aws",  # Lambda Function URL 도메인 (테스트/우회)
-        "3u6p7gqsbrwipyxlrwcbzzi2re0ieian.lambda-url.ap-northeast-2.on.aws",  # 정확 매칭 추가
-        "api.voj-audiobook.com",               # 커스텀 API 도메인(있을 경우)
+        "voj-audiobooks.vercel.app",
+        "*.railway.app",
+        "api.voj-audiobook.com",
     ]
 
     # CORS Origins (CORSMiddleware)
     # 주의: 스킴 포함 Origin 지정
     CORS_ORIGINS: list = [
         "https://voj-audiobooks.vercel.app",
-        "https://d3o89byostp1xs.cloudfront.net",
         "https://api.voj-audiobook.com",
     ]
     
-    # AWS 설정 (프로덕션 - 환경 변수에서 읽기)
-    AWS_REGION: str = "ap-northeast-2"
-    AWS_ACCESS_KEY_ID: Optional[str] = os.getenv("AWS_ACCESS_KEY_ID")
-    AWS_SECRET_ACCESS_KEY: Optional[str] = os.getenv("AWS_SECRET_ACCESS_KEY")
-    
-    # DynamoDB 설정 (프로덕션)
-    DYNAMODB_ENDPOINT_URL: Optional[str] = None  # AWS DynamoDB 사용
-    BOOKS_TABLE_NAME: str = "voj-books-prod"
-    AUDIO_CHAPTERS_TABLE_NAME: str = "voj-audio-chapters-prod"
-    
-    # S3 설정 (프로덕션)
-    S3_ENDPOINT_URL: Optional[str] = None  # AWS S3 사용
-    S3_BUCKET_NAME: str = "voj-audiobooks-prod"
-    
-    # 로컬 스토리지 설정 (프로덕션에서는 사용하지 않음)
-    LOCAL_STORAGE_PATH: str = "/tmp/storage"  # Lambda 임시 디렉토리
-    LOCAL_UPLOADS_PATH: str = "/tmp/uploads"
-    LOCAL_MEDIA_PATH: str = "/tmp/media"
-    LOCAL_BOOKS_PATH: str = "/tmp/books"
-    
-    # CloudFront 설정 (프로덕션)
-    CLOUDFRONT_DOMAIN: str = "d3o89byostp1xs.cloudfront.net"
-    CLOUDFRONT_KEY_PAIR_ID: str = "K1MOHSPPL0L417"
-    CLOUDFRONT_PRIVATE_KEY_PATH: str = "/opt/keys/voj-private-key.pem"
-    CLOUDFRONT_PRIVATE_KEY_SECRET_ID: Optional[str] = os.getenv("CLOUDFRONT_PRIVATE_KEY_SECRET_ID", "voj/prod/cloudfront/privateKey")
-    
-    # Cognito 설정 (프로덕션 - 환경 변수에서 읽기)
-    COGNITO_USER_POOL_ID: Optional[str] = os.getenv("COGNITO_USER_POOL_ID")
-    COGNITO_CLIENT_ID: Optional[str] = os.getenv("COGNITO_CLIENT_ID")
-    COGNITO_CLIENT_SECRET: Optional[str] = os.getenv("COGNITO_CLIENT_SECRET")
-    COGNITO_REGION: str = "ap-northeast-2"
-    COGNITO_DOMAIN: Optional[str] = os.getenv("COGNITO_DOMAIN")
+    # AWS 관련 설정 제거 (Railway + 로컬 볼륨 사용)
+    AWS_REGION: Optional[str] = None
+    AWS_ACCESS_KEY_ID: Optional[str] = None
+    AWS_SECRET_ACCESS_KEY: Optional[str] = None
+
+    # DynamoDB/S3 미사용, 로컬 볼륨 경로 사용
+    DYNAMODB_ENDPOINT_URL: Optional[str] = None
+    BOOKS_TABLE_NAME: str = ""
+    AUDIO_CHAPTERS_TABLE_NAME: str = ""
+
+    S3_ENDPOINT_URL: Optional[str] = None
+    S3_BUCKET_NAME: str = ""
+
+    # Railway 퍼시스턴트 볼륨 경로
+    LOCAL_STORAGE_PATH: str = "/data/storage"
+    LOCAL_UPLOADS_PATH: str = "/data/uploads"
+    LOCAL_MEDIA_PATH: str = "/data/media"
+    LOCAL_BOOKS_PATH: str = "/data/books"
+
+    # CloudFront/Cognito 미사용
+    CLOUDFRONT_DOMAIN: Optional[str] = None
+    CLOUDFRONT_KEY_PAIR_ID: Optional[str] = None
+    CLOUDFRONT_PRIVATE_KEY_PATH: Optional[str] = None
+    CLOUDFRONT_PRIVATE_KEY_SECRET_ID: Optional[str] = None
+
+    COGNITO_USER_POOL_ID: Optional[str] = None
+    COGNITO_CLIENT_ID: Optional[str] = None
+    COGNITO_CLIENT_SECRET: Optional[str] = None
+    COGNITO_REGION: Optional[str] = None
+    COGNITO_DOMAIN: Optional[str] = None
     
     # 로깅 설정 (프로덕션용)
     LOG_LEVEL: str = "INFO"

@@ -402,11 +402,8 @@ def generate_environment_config(env_type: EnvironmentType) -> Dict[str, str]:
     
     elif env_type == EnvironmentType.PRODUCTION:
         base_config.update({
-            "STORAGE_TYPE": "s3",
-            "S3_BUCKET_NAME": "voj-audiobooks-prod",
-            "CLOUDFRONT_DISTRIBUTION_ID": "E1234567890ABC",
-            "DYNAMODB_BOOKS_TABLE": "voj-books-prod",
-            "DYNAMODB_AUDIO_TABLE": "voj-audio-chapters-prod",
+            "STORAGE_TYPE": "local",
+            "LOCAL_STORAGE_PATH": "/data/storage",
             "LOCAL_BYPASS_ENABLED": "false"
         })
     

@@ -66,6 +66,10 @@ PY
 esac
 export ALLOWED_HOSTS
 
+# Safety: avoid pydantic JSON parsing from env for list fields; use code defaults
+unset CORS_ORIGINS || true
+unset ALLOWED_HOSTS || true
+
 # Start gunicorn
 exec gunicorn app.main:app \
     -k uvicorn.workers.UvicornWorker \

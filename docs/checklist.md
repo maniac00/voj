@@ -82,7 +82,7 @@
   - [x] **3.1.1.4** API 라우터 구조 설정 (api/v1/)
   - [x] **3.1.1.5** 기본 엔드포인트 구현 (health, auth, books, audio)
   - [x] **3.1.1.6** Poetry 의존성 관리 (pyproject.toml, email-validator 추가)
-  - [x] **3.1.1.7** 로컬 개발 서버 실행 확인 (http://localhost:8000)
+  - [x] **3.1.1.7** 로컬 개발 서버 실행 확인 (http://localhost:8080)
 - [x] **3.1.2** 환경별 설정 관리 (local/production)
   - [x] **3.1.2.1** 기본 설정 클래스 구조 설계 (BaseAppSettings)
   - [x] **3.1.2.2** 로컬 개발 환경 설정 (LocalSettings)
@@ -283,6 +283,7 @@
 - 체크리스트 업데이트 후 커밋/푸시로 CI 빌드 트리거
 
 ### 2025-10-05
+- Railway 배포 헬스체크 이슈 해결: 백엔드 기본 포트를 8080으로 통일하고 배포 스크립트/문서를 최신화
 - Railway 런타임 권한 오류 해결: PermissionError: [Errno 13] Permission denied: '/data'
 - backend/Dockerfile에 `/data` 디렉토리 생성 및 `chown app:app` 추가
 - Railway Volumes가 `/data`에 마운트되어 있는지 확인 가이드 반영

@@ -78,11 +78,11 @@ mkdir -p /tmp/{uploads,media,books}
 # FastAPI 프로덕션 서버 시작
 success_msg "FastAPI 프로덕션 서버 시작 중..."
 info_msg "환경: Production"
-info_msg "포트: 8000"
+info_msg "포트: 8080"
 
 poetry run uvicorn app.main:app \
     --host 0.0.0.0 \
-    --port 8000 \
+    --port 8080 \
     --workers 4 \
     --log-level info \
     --access-log

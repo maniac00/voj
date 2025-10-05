@@ -18,7 +18,7 @@ class BaseAppSettings(BaseSettings):
     
     # 서버 설정
     HOST: str = "0.0.0.0"
-    PORT: int = 8000
+    PORT: int = 8080
     
     # CORS/Hosts 설정
     ALLOWED_HOSTS: List[str] = ["*"]  # TrustedHostMiddleware 용 (호스트만, 스킴 없음)

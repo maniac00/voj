@@ -15,7 +15,7 @@ class LocalSettings(BaseAppSettings):
     
     # 개발 서버 설정
     HOST: str = "0.0.0.0"
-    PORT: int = 8000
+    PORT: int = 8080
     
     # Hosts (TrustedHostMiddleware)
     ALLOWED_HOSTS: list = [
@@ -27,8 +27,8 @@ class LocalSettings(BaseAppSettings):
     CORS_ORIGINS: list = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-        "http://localhost:8000",
-        "http://127.0.0.1:8000"
+        "http://localhost:8080",
+        "http://127.0.0.1:8080"
     ]
     
     # AWS 설정 (로컬)

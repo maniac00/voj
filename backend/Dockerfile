@@ -21,7 +21,8 @@ WORKDIR /app
 # Poetry 및 의존성 설치
 COPY pyproject.toml poetry.lock* ./
 RUN pip install --no-cache-dir "poetry==${POETRY_VERSION}" && \
-    poetry config virtualenvs.create false && \
+    poetry config virtualenvs.create true && \
+    poetry config virtualenvs.in-project true && \
     poetry install --only main --no-interaction --no-ansi
 
 # 애플리케이션 코드 복사
@@ -34,13 +35,16 @@ COPY entrypoint.sh ./entrypoint.sh
 RUN addgroup --system app && adduser --system --ingroup app app && \
     chmod +x /app/entrypoint.sh && \
     chown -R app:app /app && \
+    mkdir -p /app/.venv && chown -R app:app /app/.venv && \
     mkdir -p /data && chown -R app:app /data
 
 USER app
 
-EXPOSE 8000
+ENV PATH="/app/.venv/bin:$PATH"
+
+EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=20s --retries=3 \
-  CMD curl -fsS http://127.0.0.1:${PORT:-8000}/health || exit 1
+  CMD curl -fsS http://127.0.0.1:${PORT:-8080}/health || exit 1
 
 CMD ["/app/entrypoint.sh"]

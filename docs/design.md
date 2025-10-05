@@ -16,7 +16,7 @@
 ## 1. 아키텍처 개요
 
 * **프론트(어드민)**: Next.js (App Router)
-* **백엔드 API**: ECS(Fargate) + ALB (FastAPI container)
+* **백엔드 API**: ECS(Fargate) + ALB (FastAPI container, 포트 8080 표준)
 * **DB**: DynamoDB (Books/AudioChapters)
 * **스토리지**: S3 (비공개 버킷, 서울 `ap-northeast-2`)
 * **CDN/보안**: CloudFront + Origin Access Control(OAC) + Signed URL/쿠키
@@ -28,7 +28,7 @@
 ### 로컬 개발 환경 (MacBook)
 
 * **프론트엔드**: Next.js 개발 서버 (`localhost:3000`)
-* **백엔드**: FastAPI 로컬 서버 (`localhost:8000`)
+* **백엔드**: FastAPI 로컬 서버 (`localhost:8080`)
 * **DB**: DynamoDB Local (Docker 또는 Java 기반)
 * **스토리지**: 로컬 파일 시스템 (`./storage/audio/`)
 * **인증**: Mock 인증 또는 로컬 JWT
@@ -440,8 +440,8 @@ NODE_ENV=development
 ENVIRONMENT=local
 
 # 로컬 서버 설정
-NEXT_PUBLIC_API_URL=http://localhost:8000
-API_PORT=8000
+NEXT_PUBLIC_API_URL=http://localhost:8080
+API_PORT=8080
 
 # 로컬 DynamoDB
 DYNAMODB_ENDPOINT=http://localhost:8001
@@ -452,7 +452,7 @@ AWS_SECRET_ACCESS_KEY=local
 # 로컬 스토리지
 STORAGE_TYPE=local
 LOCAL_STORAGE_PATH=./storage/audio
-LOCAL_STORAGE_BASE_URL=http://localhost:8000/storage
+LOCAL_STORAGE_BASE_URL=http://localhost:8080/storage
 
 # FFmpeg 경로
 FFMPEG_PATH=/opt/homebrew/bin/ffmpeg

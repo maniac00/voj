@@ -390,8 +390,8 @@ def generate_environment_config(env_type: EnvironmentType) -> Dict[str, str]:
     
     if env_type == EnvironmentType.LOCAL:
         base_config.update({
-            "NEXT_PUBLIC_API_URL": "http://localhost:8000",
-            "API_PORT": "8000",
+            "NEXT_PUBLIC_API_URL": "http://localhost:8080",
+            "API_PORT": "8080",
             "DYNAMODB_ENDPOINT": "http://localhost:8001",
             "STORAGE_TYPE": "local",
             "LOCAL_STORAGE_PATH": "./storage",

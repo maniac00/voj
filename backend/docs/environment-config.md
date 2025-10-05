@@ -25,7 +25,7 @@ cd backend
 - `ENVIRONMENT=local`
 - `DYNAMODB_ENDPOINT_URL=http://localhost:8001`
 - `LOG_LEVEL=DEBUG`
-- API 문서: http://localhost:8000/docs
+- API 문서: http://localhost:8080/docs
 
 ### 2. 프로덕션 환경 (production)
 
@@ -94,12 +94,12 @@ app/core/settings/
 
 ### 1. 기본 상태 확인
 ```bash
-curl http://localhost:8000/
+curl http://localhost:8080/
 ```
 
 ### 2. 상세 헬스 체크
 ```bash
-curl http://localhost:8000/api/v1/health/detailed
+curl http://localhost:8080/api/v1/health/detailed
 ```
 
 ### 3. 환경별 설정 확인

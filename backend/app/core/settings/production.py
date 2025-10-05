@@ -16,7 +16,7 @@ class ProductionSettings(BaseAppSettings):
     
     # 프로덕션 서버 설정
     HOST: str = "0.0.0.0"
-    PORT: int = 8000
+    PORT: int = 8080
     
     # Hosts (TrustedHostMiddleware)
     # 주의: 스킴 없이 호스트명만 지정

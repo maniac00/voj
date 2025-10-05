@@ -98,10 +98,10 @@ jobs:
     {
       "name": "api",
       "image": "<to-be-replaced>",
-      "portMappings": [{"containerPort": 8000, "protocol": "tcp"}],
+      "portMappings": [{"containerPort": 8080, "protocol": "tcp"}],
       "command": [
         "gunicorn","app.main:app","-k","uvicorn.workers.UvicornWorker",
-        "-b","0.0.0.0:8000","--workers","2","--timeout","60"
+        "-b","0.0.0.0:8080","--workers","2","--timeout","60"
       ],
       "essential": true,
       "environment": [

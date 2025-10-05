@@ -6,7 +6,7 @@
 
 - **ECR**: `voj-backend` 리포지토리. 이미지 태그: `sha-<short>` 또는 릴리즈 태그
 - **ECS(Fargate)**: 2개 AZ, Desired=2, CPU 0.5vCPU / Mem 1GB(초기)
-- **ALB**: Listener 443(ACM), Target Group HTTP 8000, 헬스체크 `/api/v1/health`
+- **ALB**: Listener 443(ACM), Target Group HTTP 8080, 헬스체크 `/api/v1/health`
 - **Route53**: `api.voj-audiobook.com` → ALB
 - **Secrets/Params**: SSM Parameter Store / Secrets Manager로 환경변수 관리
 - **Logs**: CloudWatch Logs로 앱 로그 수집
@@ -36,8 +36,8 @@ docker push ${REPO}:${TAG}
 
 ## 3. ECS 태스크 정의 (요점)
 
-- 컨테이너 포트: 8000
-- 명령: `gunicorn app.main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 --workers 2 --timeout 60`
+- 컨테이너 포트: 8080
+- 명령: `gunicorn app.main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8080 --workers 2 --timeout 60`
 - Env: SSM/Secrets에서 주입(예: `ENVIRONMENT=production`, `AWS_REGION=ap-northeast-2`, `BOOKS_TABLE_NAME`, `AUDIO_CHAPTERS_TABLE_NAME`, `S3_BUCKET_NAME` 등)
 - 로그 드라이버: awslogs
 
@@ -54,10 +54,10 @@ docker push ${REPO}:${TAG}
     {
       "name": "api",
       "image": "<account>.dkr.ecr.ap-northeast-2.amazonaws.com/voj-backend:sha-<short>",
-      "portMappings": [{"containerPort": 8000, "protocol": "tcp"}],
+      "portMappings": [{"containerPort": 8080, "protocol": "tcp"}],
       "command": [
         "gunicorn","app.main:app","-k","uvicorn.workers.UvicornWorker",
-        "-b","0.0.0.0:8000","--workers","2","--timeout","60"
+        "-b","0.0.0.0:8080","--workers","2","--timeout","60"
       ],
       "environment": [],
       "secrets": [
@@ -78,9 +78,9 @@ docker push ${REPO}:${TAG}
 
 ## 4. ALB/타깃그룹 설정
 
-- Target Group 프로토콜 HTTP, Port 8000, 헬스체크 Path: `/api/v1/health`
+- Target Group 프로토콜 HTTP, Port 8080, 헬스체크 Path: `/api/v1/health`
 - Listener 443(ACM 인증서 연결) → TG 포워드
-- 보안그룹: ALB(0.0.0.0/0 :443), ECS(소스 ALB SG만 인바운드 8000 허용)
+- 보안그룹: ALB(0.0.0.0/0 :443), ECS(소스 ALB SG만 인바운드 8080 허용)
 
 ## 5. Route53
 

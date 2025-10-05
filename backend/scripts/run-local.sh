@@ -58,12 +58,12 @@ fi
 
 # FastAPI 서버 시작
 success_msg "FastAPI 로컬 개발 서버 시작 중..."
-info_msg "서버 주소: http://localhost:8000"
-info_msg "API 문서: http://localhost:8000/docs"
+info_msg "서버 주소: http://localhost:8080"
+info_msg "API 문서: http://localhost:8080/docs"
 info_msg "종료하려면 Ctrl+C를 누르세요"
 
 poetry run uvicorn app.main:app \
     --host 0.0.0.0 \
-    --port 8000 \
+    --port 8080 \
     --reload \
     --log-level info

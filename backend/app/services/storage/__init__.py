@@ -2,11 +2,10 @@
 
 from .factory import StorageServiceFactory, storage_service
 from .local import LocalStorageService
-from .s3 import S3StorageService
 
 __all__ = [
     "StorageServiceFactory",
     "storage_service",
     "LocalStorageService",
-    "S3StorageService",
+    # "S3StorageService",
 ]

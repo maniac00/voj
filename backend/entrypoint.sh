@@ -7,14 +7,22 @@ GUNICORN_WORKERS=${GUNICORN_WORKERS:-2}
 GUNICORN_TIMEOUT=${GUNICORN_TIMEOUT:-60}
 
 # Normalize list-type env vars (pydantic v2 EnvSettingsSource expects JSON for lists)
+# - If env var is present but empty, default to ["*"] to avoid JSONDecodeError
 # - If set to '*', wrap as JSON array ["*"]
 # - If comma-separated, convert to JSON array
-if [ -n "${CORS_ORIGINS:-}" ]; then
+
+# Helper to detect presence of var even if empty
+has_var() {
+    # returns 0 if var is defined (including empty), 1 otherwise
+    eval "[ \"\${$1+x}\" = x ]"
+}
+
+if has_var CORS_ORIGINS; then
     case "${CORS_ORIGINS}" in
         \[*\])
             : # already JSON array
             ;;
-        "*")
+        ""|"*")
             CORS_ORIGINS='["*"]'
             ;;
         *)
@@ -30,12 +38,12 @@ PY
     export CORS_ORIGINS
 fi
 
-if [ -n "${ALLOWED_HOSTS:-}" ]; then
+if has_var ALLOWED_HOSTS; then
     case "${ALLOWED_HOSTS}" in
         \[*\])
             : # already JSON array
             ;;
-        "*")
+        ""|"*")
             ALLOWED_HOSTS='["*"]'
             ;;
         *)

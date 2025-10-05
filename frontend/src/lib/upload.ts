@@ -1,17 +1,21 @@
 export type UploadProgressHandler = (loaded: number, total: number) => void
 
-const API_BASE = typeof window !== 'undefined'
-  ? ((process.env.NEXT_PUBLIC_API_BASE && !/^https?:/i.test(process.env.NEXT_PUBLIC_API_BASE))
-      ? process.env.NEXT_PUBLIC_API_BASE
-      : '/api/v1')
-  : (process.env.NEXT_PUBLIC_API_BASE || `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1`)
+function apiBase(): string {
+  if (typeof window !== 'undefined') {
+    if (process.env.NEXT_PUBLIC_API_BASE && !/^https?:/i.test(process.env.NEXT_PUBLIC_API_BASE)) {
+      return process.env.NEXT_PUBLIC_API_BASE
+    }
+    return '/api/v1'
+  }
+  return process.env.NEXT_PUBLIC_API_BASE || `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1`
+}
 
 export async function uploadAudio(
   bookId: string,
   file: File,
   onProgress?: UploadProgressHandler
 ): Promise<{ message: string } | any> {
-  const url = `${API_BASE}/files/upload?book_id=${encodeURIComponent(bookId)}&file_type=uploads`
+  const url = `${apiBase()}/files/upload?book_id=${encodeURIComponent(bookId)}&file_type=uploads`
   const form = new FormData()
   form.append('file', file, file.name)
 

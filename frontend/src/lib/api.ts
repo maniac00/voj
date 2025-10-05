@@ -1,11 +1,15 @@
 import { getAuthHeaders } from '@/lib/auth/simple-auth'
 
-// 브라우저에서는 항상 동일 출처 경로로 호출하여 Mixed Content를 방지
-const API_BASE = typeof window !== 'undefined'
-  ? ((process.env.NEXT_PUBLIC_API_BASE && !/^https?:/i.test(process.env.NEXT_PUBLIC_API_BASE))
-      ? process.env.NEXT_PUBLIC_API_BASE
-      : '/api/v1')
-  : (process.env.NEXT_PUBLIC_API_BASE || `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1`)
+// 런타임 시점에 API Base를 계산하여 SSR 시 절대경로가 고정되는 문제를 회피
+function apiBase(): string {
+  if (typeof window !== 'undefined') {
+    if (process.env.NEXT_PUBLIC_API_BASE && !/^https?:/i.test(process.env.NEXT_PUBLIC_API_BASE)) {
+      return process.env.NEXT_PUBLIC_API_BASE
+    }
+    return '/api/v1'
+  }
+  return process.env.NEXT_PUBLIC_API_BASE || `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1`
+}
 
 export type BookDto = {
   book_id: string
@@ -41,7 +45,7 @@ export async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit)
 }
 
 export async function getBooks(): Promise<BookDto[]> {
-  const data = await fetchJson<any>(`${API_BASE}/books`)
+  const data = await fetchJson<any>(`${apiBase()}/books`)
   if (Array.isArray(data)) return data as BookDto[]
   if (Array.isArray(data?.books)) return data.books as BookDto[]
   if (Array.isArray(data?.items)) return data.items as BookDto[]
@@ -51,7 +55,7 @@ export async function getBooks(): Promise<BookDto[]> {
 }
 
 export async function getBook(bookId: string): Promise<BookDto> {
-  return fetchJson<BookDto>(`${API_BASE}/books/${bookId}`)
+  return fetchJson<BookDto>(`${apiBase()}/books/${bookId}`)
 }
 
 export interface CreateBookPayload {
@@ -64,7 +68,7 @@ export interface CreateBookPayload {
 }
 
 export async function createBook(payload: CreateBookPayload): Promise<BookDto> {
-  return fetchJson<BookDto>(`${API_BASE}/books`, {
+  return fetchJson<BookDto>(`${apiBase()}/books`, {
     method: 'POST',
     body: JSON.stringify(payload)
   })
@@ -73,14 +77,14 @@ export async function createBook(payload: CreateBookPayload): Promise<BookDto> {
 export type UpdateBookPayload = Partial<CreateBookPayload>
 
 export async function updateBook(bookId: string, payload: UpdateBookPayload): Promise<BookDto> {
-  return fetchJson<BookDto>(`${API_BASE}/books/${bookId}`, {
+  return fetchJson<BookDto>(`${apiBase()}/books/${bookId}`, {
     method: 'PUT',
     body: JSON.stringify(payload)
   })
 }
 
 export async function deleteBook(bookId: string): Promise<{ message: string }> {
-  return fetchJson<{ message: string }>(`${API_BASE}/books/${bookId}`, { method: 'DELETE' })
+  return fetchJson<{ message: string }>(`${apiBase()}/books/${bookId}`, { method: 'DELETE' })
 }
 
 // Health
@@ -97,7 +101,7 @@ export interface HealthDetailedResponse {
 }
 
 export async function getHealthDetailed(): Promise<HealthDetailedResponse> {
-  return fetchJson<HealthDetailedResponse>(`${API_BASE}/health/detailed`)
+  return fetchJson<HealthDetailedResponse>(`${apiBase()}/health/detailed`)
 }
 
 

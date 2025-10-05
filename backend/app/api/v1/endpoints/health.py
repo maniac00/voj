@@ -63,11 +63,14 @@ async def detailed_health_check():
     # 로컬 스토리지 확인 (로컬 환경)
     if settings.ENVIRONMENT == "local":
         try:
+            # 실제 런타임에서 LocalStorageService가 선택한 base_path를 기준으로 체크
+            from app.services.storage.factory import storage_service
+            base_path = getattr(storage_service, "base_path", getattr(settings, "LOCAL_STORAGE_PATH", "./storage"))
             storage_paths = [
-                settings.LOCAL_STORAGE_PATH,
-                settings.LOCAL_UPLOADS_PATH,
-                settings.LOCAL_MEDIA_PATH,
-                settings.LOCAL_BOOKS_PATH
+                base_path,
+                os.path.join(base_path, "uploads"),
+                os.path.join(base_path, "media"),
+                os.path.join(base_path, "books"),
             ]
             
             storage_status = {}

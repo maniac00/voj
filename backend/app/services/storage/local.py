@@ -20,7 +20,13 @@ class LocalStorageService(BaseStorageService):
     """로컬 파일 시스템을 사용한 스토리지 서비스."""
 
     def __init__(self) -> None:
-        self.base_path = settings.LOCAL_STORAGE_PATH
+        # 설정된 기본 경로가 쓰기 불가한 경우를 대비하여 안전한 경로로 폴백
+        configured_base = getattr(settings, "LOCAL_STORAGE_PATH", "./storage")
+        self.base_path = self._choose_base_path([
+            configured_base,
+            "/app/storage",
+            "/tmp/storage",
+        ])
         port = getattr(settings, "PORT", 8000) or 8000
         self.base_url = getattr(settings, "PUBLIC_STORAGE_URL", None) or f"http://localhost:{port}/storage"
         self._ensure_directories()
@@ -35,14 +41,37 @@ class LocalStorageService(BaseStorageService):
         return self._full_path(key) + ".metadata"
 
     def _ensure_directories(self) -> None:
+        # 설정상의 하위 경로가 /data 기반으로 지정되어 있더라도, 실제 쓰기 가능한 base_path 하위로 생성
         directories = [
             self.base_path,
-            getattr(settings, "LOCAL_UPLOADS_PATH", os.path.join(self.base_path, "uploads")),
-            getattr(settings, "LOCAL_MEDIA_PATH", os.path.join(self.base_path, "media")),
-            getattr(settings, "LOCAL_BOOKS_PATH", os.path.join(self.base_path, "books")),
+            os.path.join(self.base_path, "uploads"),
+            os.path.join(self.base_path, "media"),
+            os.path.join(self.base_path, "books"),
         ]
         for directory in directories:
             os.makedirs(directory, exist_ok=True)
+
+    def _is_writable_dir(self, path: str) -> bool:
+        try:
+            os.makedirs(path, exist_ok=True)
+            test_file = os.path.join(path, ".write_test")
+            with open(test_file, "w") as fp:
+                fp.write("ok")
+            os.remove(test_file)
+            return True
+        except Exception:
+            return False
+
+    def _choose_base_path(self, candidates: List[str]) -> str:
+        for p in candidates:
+            if not p:
+                continue
+            if self._is_writable_dir(p):
+                return p
+        # 최후 수단: 저장소 디렉토리 생성 (상대 경로)
+        fallback = "./storage"
+        os.makedirs(fallback, exist_ok=True)
+        return fallback
 
     def _cleanup_empty_dirs(self, start_dir: str) -> None:
         current = start_dir

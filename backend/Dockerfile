@@ -33,7 +33,8 @@ COPY entrypoint.sh ./entrypoint.sh
 # 비root 사용자 생성 및 entrypoint 실행 권한
 RUN addgroup --system app && adduser --system --ingroup app app && \
     chmod +x /app/entrypoint.sh && \
-    chown -R app:app /app
+    chown -R app:app /app && \
+    mkdir -p /data && chown -R app:app /data
 
 USER app
 

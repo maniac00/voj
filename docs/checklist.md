@@ -283,9 +283,9 @@
 - 체크리스트 업데이트 후 커밋/푸시로 CI 빌드 트리거
 
 ### 2025-10-05
-- Railway 런타임 크래시 원인 파악: ModuleNotFoundError: boto3
-- Dockerfile에 Poetry extras 설치 추가(`poetry install ... -E aws`)로 boto3 포함
-- 재빌드/재배포로 헬스체크 통과 예정, 대시보드로 로그 확인 요청
+- Railway 런타임 권한 오류 해결: PermissionError: [Errno 13] Permission denied: '/data'
+- backend/Dockerfile에 `/data` 디렉토리 생성 및 `chown app:app` 추가
+- Railway Volumes가 `/data`에 마운트되어 있는지 확인 가이드 반영
 
 ### 2025-09-27
 - Vercel 배포: vercel.json 스키마 오류 해결 (rootDirectory 속성 제거, frontend 디렉토리에서 실행하도록 명령어 수정)

@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Poetry 및 의존성 설치
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml ./
 RUN pip install --no-cache-dir "poetry==${POETRY_VERSION}" && \
     poetry config virtualenvs.create true && \
     poetry config virtualenvs.in-project true && \

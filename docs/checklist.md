@@ -277,6 +277,11 @@
 
 ## 📝 업데이트 로그
 
+### 2025-10-04
+- Railway 배포 안정화를 위해 스토리지 서비스 모듈 확인 및 복구 플로우 점검
+- `backend/app/services/storage/{__init__,base,factory,local}.py` 존재/내용 검증 완료
+- 체크리스트 업데이트 후 커밋/푸시로 CI 빌드 트리거
+
 ### 2025-09-27
 - Vercel 배포: vercel.json 스키마 오류 해결 (rootDirectory 속성 제거, frontend 디렉토리에서 실행하도록 명령어 수정)
 - Vercel 빌드: 환경 변수 문제 해결 (빌드 시 NEXT_PUBLIC_API_URL, NEXT_PUBLIC_API_BASE 설정)

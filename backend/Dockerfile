@@ -19,17 +19,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Poetry 및 의존성 설치
-COPY pyproject.toml poetry.lock* ./
+COPY pyproject.toml poetry.lock ./
 RUN pip install --no-cache-dir "poetry==${POETRY_VERSION}" && \
     poetry config virtualenvs.create true && \
     poetry config virtualenvs.in-project true && \
     poetry install --only main --no-interaction --no-ansi
 
 # 애플리케이션 코드 복사
-COPY app ./app
-COPY alembic ./alembic
-COPY alembic.ini ./alembic.ini
-COPY entrypoint.sh ./entrypoint.sh
+COPY backend/app ./app
+COPY backend/alembic ./alembic
+COPY backend/alembic.ini ./alembic.ini
+COPY backend/entrypoint.sh ./entrypoint.sh
 
 # 비root 사용자 생성 및 entrypoint 실행 권한
 RUN addgroup --system app && adduser --system --ingroup app app && \

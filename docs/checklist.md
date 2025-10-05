@@ -277,10 +277,9 @@
 
 ## 📝 업데이트 로그
 
-### 2025-10-04
-- Railway 배포 안정화를 위해 스토리지 서비스 모듈 확인 및 복구 플로우 점검
-- `backend/app/services/storage/{__init__,base,factory,local}.py` 존재/내용 검증 완료
-- 체크리스트 업데이트 후 커밋/푸시로 CI 빌드 트리거
+### 2025-10-06
+- Railway 빌드 실패 재현 후 Docker 컨텍스트/경로 통일 및 포트 8000 유지 결정
+- 로컬 테스트(`poetry run pytest`) 실행을 위해 `pynamodb`를 기본 의존성으로 승격하고 잠재 누락 모듈 오류 해결
 
 ### 2025-10-05
 - Railway 배포 헬스체크 이슈 해결: 백엔드 기본 포트를 8080으로 통일하고 배포 스크립트/문서를 최신화
@@ -288,7 +287,12 @@
 - backend/Dockerfile에 `/data` 디렉토리 생성 및 `chown app:app` 추가
 - Railway Volumes가 `/data`에 마운트되어 있는지 확인 가이드 반영
 
-### 2025-09-27
+### 2025-10-04
+- Railway 배포 안정화를 위해 스토리지 서비스 모듈 확인 및 복구 플로우 점검
+- `backend/app/services/storage/{__init__,base,factory,local}.py` 존재/내용 검증 완료
+- 체크리스트 업데이트 후 커밋/푸시로 CI 빌드 트리거
+
+### 2025-10-04
 - Vercel 배포: vercel.json 스키마 오류 해결 (rootDirectory 속성 제거, frontend 디렉토리에서 실행하도록 명령어 수정)
 - Vercel 빌드: 환경 변수 문제 해결 (빌드 시 NEXT_PUBLIC_API_URL, NEXT_PUBLIC_API_BASE 설정)
 - 보안 업데이트: Next.js 14.2.12 → 14.2.33 업데이트로 8개 취약점 해결 (DoS, SSRF, 인증 우회 등)

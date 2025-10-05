@@ -20,7 +20,7 @@ botocore = {version = "^1.34.0", optional = true}
 mangum = {version = "^0.17.0", optional = true}
 
 # 데이터베이스
-pynamodb = "^5.5.0"
+pynamodb = "^6.1.0"
 sqlalchemy = "^2.0.23"  # PostgreSQL/SQLite
 alembic = "^1.12.1"     # 마이그레이션
 psycopg2-binary = "^2.9.9"  # PostgreSQL 드라이버

@@ -22,7 +22,7 @@ WORKDIR /app
 COPY pyproject.toml poetry.lock* ./
 RUN pip install --no-cache-dir "poetry==${POETRY_VERSION}" && \
     poetry config virtualenvs.create false && \
-    poetry install --no-dev --no-interaction --no-ansi --no-root
+    poetry install --no-dev --no-interaction --no-ansi --no-root -E aws
 
 # 애플리케이션 코드 복사
 COPY backend/app ./app

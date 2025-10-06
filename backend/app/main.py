@@ -17,6 +17,8 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json" if settings.ENVIRONMENT == "local" else None,
     docs_url="/docs" if settings.ENVIRONMENT == "local" else None,
     redoc_url="/redoc" if settings.ENVIRONMENT == "local" else None,
+    # Railway HTTPS 리다이렉트 문제 해결
+    redirect_slashes=False,
 )
 
 # CORS 미들웨어 설정

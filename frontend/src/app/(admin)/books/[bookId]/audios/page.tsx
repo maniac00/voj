@@ -7,9 +7,10 @@ import { getChapters, reorderChapter, deleteChapter, type ChapterDto, getStreami
 import { getBook, BookDto } from '@/lib/api'
 import { FileUploadForm } from '@/components/audio/file-upload-form'
 import { ChapterList, ChapterStats, ChapterSearch } from '@/components/audio/chapter-list'
-import { RealTimeLogs } from '@/components/logs/real-time-logs'
-import { RealTimeStatus } from '@/components/status/real-time-status'
-import { LogManager } from '@/components/logs/log-manager'
+// Remove realtime logs/status imports
+// import { RealTimeLogs } from '@/components/logs/real-time-logs'
+// import { RealTimeStatus } from '@/components/status/real-time-status'
+// import { LogManager } from '@/components/logs/log-manager'
 import { AudioPlayer } from '@/components/audio/audio-player'
 import { ContinuousPlayer } from '@/components/audio/playlist-manager'
 import { PlaybackStateManager, PlaybackStats } from '@/components/audio/playback-state-manager'
@@ -23,14 +24,15 @@ export default function BookAudiosPage() {
   const [chapters, setChapters] = useState<ChapterDto[]>([])
   const [filteredChapters, setFilteredChapters] = useState<ChapterDto[]>([])
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null)
-  const [showLogs, setShowLogs] = useState(true)
-  const [showLogManager, setShowLogManager] = useState(false)
+  // remove logs/state toggles
+  // const [showLogs, setShowLogs] = useState(true)
+  // const [showLogManager, setShowLogManager] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const { success, error: showError } = useNotification()
   
-  // 현재 로그를 위한 상태 (LogManager에서 사용)
-  const [currentLogs, setCurrentLogs] = useState<any[]>([])
+  // remove currentLogs state
+  // const [currentLogs, setCurrentLogs] = useState<any[]>([])
 
   useEffect(() => {
     const loadData = async () => {
@@ -141,7 +143,6 @@ export default function BookAudiosPage() {
   }
 
   const handleChapterEdit = (chapterId: string) => {
-    // TODO: 챕터 편집 기능
     console.log(`Editing chapter: ${chapterId}`)
     showError('챕터 편집 기능은 향후 구현 예정입니다.')
   }
@@ -253,9 +254,9 @@ export default function BookAudiosPage() {
           </div>
         </div>
 
-        {/* 오른쪽: 실시간 모니터링 */}
+        {/* 오른쪽: 보조 패널 */}
         <div className="space-y-6">
-          {/* 모니터링 컨트롤 */}
+          {/* 모니터링 컨트롤: 로그/상태 버튼 제거, 플레이리스트만 유지 */}
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-medium text-gray-900">모니터링</h3>
@@ -269,28 +270,6 @@ export default function BookAudiosPage() {
                   } hover:opacity-80`}
                 >
                   {showPlaylist ? '플레이리스트 숨기기' : '연속 재생'}
-                </button>
-                
-                <button
-                  onClick={() => setShowLogManager(!showLogManager)}
-                  className={`px-3 py-1 text-sm rounded-md ${
-                    showLogManager 
-                      ? 'bg-purple-100 text-purple-700' 
-                      : 'bg-gray-100 text-gray-700'
-                  } hover:opacity-80`}
-                >
-                  {showLogManager ? '관리 숨기기' : '로그 관리'}
-                </button>
-                
-                <button
-                  onClick={() => setShowLogs(!showLogs)}
-                  className={`px-3 py-1 text-sm rounded-md ${
-                    showLogs 
-                      ? 'bg-blue-100 text-blue-700' 
-                      : 'bg-gray-100 text-gray-700'
-                  } hover:opacity-80`}
-                >
-                  {showLogs ? '로그 숨기기' : '로그 보기'}
                 </button>
               </div>
             </div>
@@ -318,7 +297,6 @@ export default function BookAudiosPage() {
                   onPause={() => console.log('Audio paused')}
                   onEnded={() => {
                     console.log('Audio ended')
-                    // 다음 챕터 자동 재생 (향후 구현)
                   }}
                   onError={(error) => {
                     showError(`재생 오류: ${error}`)
@@ -329,20 +307,12 @@ export default function BookAudiosPage() {
             </div>
           )}
 
-          {/* 선택된 챕터 실시간 상태 */}
-          {selectedChapterId && (
-            <RealTimeStatus 
-              chapterId={selectedChapterId}
-            />
-          )}
-
           {/* 재생 기록 및 상태 */}
           <PlaybackStateManager
             bookId={bookId}
             chapterId={selectedChapterId || undefined}
             onResumePlayback={async (chapterId, position) => {
               await handleChapterPlay(chapterId)
-              // TODO: 재생 위치 설정 (AudioPlayer에서 지원 필요)
             }}
           />
 
@@ -353,37 +323,6 @@ export default function BookAudiosPage() {
               bookId={bookId}
               onGetStreamingUrl={getStreamingUrl}
             />
-          )}
-
-          {/* 로그 관리자 */}
-          {showLogManager && (
-            <LogManager
-              currentLogs={currentLogs}
-              chapterId={selectedChapterId || undefined}
-            />
-          )}
-
-          {/* 실시간 로그 */}
-          {showLogs && (
-            <RealTimeLogs
-              chapterId={selectedChapterId || undefined}
-              maxHeight="500px"
-              autoScroll={true}
-              showFilters={true}
-              onLogsUpdate={setCurrentLogs}
-            />
-          )}
-
-          {/* 전체 책 로그 (챕터 선택 안된 경우) */}
-          {showLogs && !selectedChapterId && (
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h4 className="text-md font-medium text-gray-900 mb-3">전체 활동 로그</h4>
-              <RealTimeLogs
-                maxHeight="400px"
-                autoScroll={true}
-                showFilters={false}
-              />
-            </div>
           )}
         </div>
       </div>

@@ -70,6 +70,18 @@ export ALLOWED_HOSTS
 unset CORS_ORIGINS || true
 unset ALLOWED_HOSTS || true
 
+# Run DB migrations (idempotent)
+echo "[entrypoint] Running database migrations (alembic upgrade head)"
+if command -v poetry >/dev/null 2>&1; then
+    poetry run alembic upgrade head || true
+elif command -v alembic >/dev/null 2>&1; then
+    alembic upgrade head || true
+elif [ -x "/app/.venv/bin/alembic" ]; then
+    /app/.venv/bin/alembic upgrade head || true
+else
+    echo "[entrypoint] WARNING: alembic not found in PATH; skipping migrations"
+fi
+
 # Start gunicorn
 exec gunicorn app.main:app \
     -k uvicorn.workers.UvicornWorker \

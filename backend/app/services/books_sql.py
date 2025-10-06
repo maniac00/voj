@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
 from app.models.book_sql import BookSQL
-from app.services.database import get_db
+from app.models.database import get_db
 
 
 class BookServiceSQL:

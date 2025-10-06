@@ -14,7 +14,7 @@ from app.core.auth.simple import get_current_user_claims
 # Environment-based service selection
 if settings.ENVIRONMENT in ["railway", "production"]:
     from app.services.books_sql import BookServiceSQL as BookService
-    from app.services.database import get_db
+    from app.models.database import get_db
     from sqlalchemy.orm import Session
     USE_SQL = True
 else:

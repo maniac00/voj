@@ -70,6 +70,7 @@ class BookList(BaseModel):
     has_next: bool
 
 
+@router.post("", response_model=Book, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=Book, status_code=status.HTTP_201_CREATED)
 async def create_book(book_data: BookCreate, claims = Depends(get_current_user_claims)):
     """
@@ -116,6 +117,7 @@ async def create_book(book_data: BookCreate, claims = Depends(get_current_user_c
         raise HTTPException(status_code=500, detail=f"Failed to create book: {str(e)}")
 
 
+@router.get("", response_model=BookList)
 @router.get("/", response_model=BookList)
 async def get_books(
     page: int = Query(1, ge=1, description="페이지 번호"),

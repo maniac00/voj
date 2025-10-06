@@ -20,6 +20,8 @@ if settings.ENVIRONMENT in ["railway", "production"]:
     from app.services.books_sql import BookServiceSQL as BookService
     from app.models.database import get_db
     from sqlalchemy.orm import Session
+    from sqlalchemy import func
+    from app.models.audio_chapter_sql import AudioChapterSQL
     USE_SQL = True
 else:
     from app.models.audio_chapter import AudioChapter, FileInfo
@@ -219,38 +221,37 @@ async def upload_audio_file(
     - 파일 크기 제한: 100MB
     - 자동 메타데이터 추출 (로컬 환경)
     """
-    # 로컬 환경 전용
-    if settings.ENVIRONMENT != "local" or USE_SQL:
-        raise HTTPException(status_code=400, detail="Audio upload is only supported in local environment")
-
     # 파일 크기 제한 확인
     max_size = 100 * 1024 * 1024  # 100MB
     file_content = await file.read()
-    
+
     if len(file_content) > max_size:
         raise HTTPException(
             status_code=413,
             detail=f"File size exceeds limit. Maximum allowed: {max_size / (1024*1024):.1f}MB"
         )
-    
+
     # MVP: mp4/m4a만 허용 (간단 검증)
     filename = (file.filename or "").lower()
     if not (filename.endswith('.mp4') or filename.endswith('.m4a')):
         raise HTTPException(status_code=400, detail="Only .mp4/.m4a files are allowed in MVP")
-    
-    # 간소화 모드: 추가 검증/경고 로깅 없음 (확장자만 확인)
 
     try:
         # 사용자 권한 확인 (책 소유권)
         user_id = str(claims.get("sub") or claims.get("username") or "")
-        book = BookService.get_book(user_id=user_id, book_id=book_id) if not USE_SQL else BookService.get_book(db, user_id=user_id, book_id=book_id)
+        if USE_SQL:
+            if db is None:
+                raise HTTPException(status_code=500, detail="Database session unavailable")
+            book = BookService.get_book(db, user_id=user_id, book_id=book_id)
+        else:
+            book = BookService.get_book(user_id=user_id, book_id=book_id)
         if not book:
             raise HTTPException(status_code=404, detail="Book not found or access denied")
 
         # 파일 ID 및 키 생성
         file_id = str(uuid.uuid4())
         key = storage_service.generate_key(user_id, book_id, f"{file_id}_{file.filename}", "uploads")
-        
+
         # 메타데이터 준비
         metadata = {
             "original_filename": file.filename,
@@ -260,7 +261,7 @@ async def upload_audio_file(
             "file_type": "upload",
             "content_type": file.content_type,
         }
-        
+
         # 파일 업로드
         upload_result = await storage_service.upload_file(
             file_data=io.BytesIO(file_content),
@@ -268,7 +269,7 @@ async def upload_audio_file(
             content_type=file.content_type,
             metadata=metadata
         )
-        
+
         if not upload_result.success:
             raise HTTPException(
                 status_code=500,
@@ -278,70 +279,91 @@ async def upload_audio_file(
         # 파일명에서 챕터 정보 추출
         chapter_info = extract_chapter_info(file.filename or "unknown.mp3")
         sanitized_filename = sanitize_filename(file.filename or "unknown.mp3")
-        
-        # 챕터 번호 결정 (파일명에서 추출한 번호 우선, 없으면 자동 할당)
-        suggested_number = chapter_info.get('chapter_number')
-        next_chapter_number = suggested_number or AudioChapter.get_next_chapter_number(book_id)
-        
-        # 챕터 제목 결정 (매개변수 > 파일명 추출 > 기본값)
-        final_title = (
-            chapter_title or 
-            chapter_info.get('suggested_title') or 
-            f"Chapter {next_chapter_number}"
-        )
-        
-        # AudioChapter 생성
-        chapter = AudioChapter(
-            chapter_id=file_id,
-            book_id=book_id,
-            chapter_number=next_chapter_number,
-            title=final_title,
-            status="processing",
-            file_info=FileInfo(
-                original_name=sanitized_filename,
+
+        if USE_SQL:
+            # SQL: 현재 최대 chapter_number + 1
+            max_num = db.query(func.max(AudioChapterSQL.chapter_number)).filter(AudioChapterSQL.book_id == book_id).scalar()
+            next_chapter_number = (max_num or 0) + 1
+            final_title = chapter_title or chapter_info.get('suggested_title') or f"Chapter {next_chapter_number}"
+
+            chapter_sql = AudioChapterSQL(
+                book_id=book_id,
+                user_id=user_id,
+                chapter_id=file_id,
+                chapter_number=next_chapter_number,
+                chapter_title=final_title,
+                audio_key=key,
+                audio_url=None,
+                duration=0,
                 file_size=len(file_content),
-                mime_type=file.content_type,
-                s3_key=key if settings.ENVIRONMENT == "production" else None,
-                local_path=(os.path.join(settings.LOCAL_STORAGE_PATH, key) if settings.ENVIRONMENT == "local" else None)
+                content_type=file.content_type,
+                bitrate=None,
+                sample_rate=44100,
+                channels=1,
             )
-        )
-        chapter.save()
+            db.add(chapter_sql)
+            db.commit()
 
-        # 응답 정보 초기화
-        processing_info = {}
+            processing_info: Dict[str, Any] = {"encoding_skipped": True, "skip_reason": "encoding disabled in MVP"}
+            return AudioUploadResponseDto(
+                success=True,
+                chapter_id=file_id,
+                file_id=file_id,
+                chapter_number=next_chapter_number,
+                title=final_title,
+                status="ready",
+                message=f"Audio file '{file.filename}' uploaded successfully",
+                warnings=None,
+                processing_info=processing_info
+            )
+        else:
+            # 로컬 Dynamo 경로 유지
+            suggested_number = chapter_info.get('chapter_number')
+            next_chapter_number = suggested_number or AudioChapter.get_next_chapter_number(book_id)
+            final_title = (
+                chapter_title or 
+                chapter_info.get('suggested_title') or 
+                f"Chapter {next_chapter_number}"
+            )
 
-        # 인코딩 비활성화: 즉시 ready 처리, processing_info 단순화
-        chapter.mark_processing_completed({
-            "duration": 0,
-            "bitrate": None,
-            "sample_rate": 44100,
-            "channels": 1,
-            "format": "mp4"
-        })
-        processing_info["encoding_skipped"] = True
-        processing_info["skip_reason"] = "encoding disabled in MVP"
+            chapter = AudioChapter(
+                chapter_id=file_id,
+                book_id=book_id,
+                chapter_number=next_chapter_number,
+                title=final_title,
+                status="processing",
+                file_info=FileInfo(
+                    original_name=sanitized_filename,
+                    file_size=len(file_content),
+                    mime_type=file.content_type,
+                    s3_key=key if settings.ENVIRONMENT == "production" else None,
+                    local_path=(os.path.join(settings.LOCAL_STORAGE_PATH, key) if settings.ENVIRONMENT == "local" else None)
+                )
+            )
+            chapter.save()
 
-        # 메타데이터 정보 추가 (있는 경우)
-        if settings.ENVIRONMENT == "local" and chapter.audio_metadata:
-            processing_info.update({
-                "duration": chapter.audio_metadata.duration,
-                "bitrate": chapter.audio_metadata.bitrate,
-                "sample_rate": chapter.audio_metadata.sample_rate,
-                "channels": chapter.audio_metadata.channels,
-                "format": chapter.audio_metadata.format
+            processing_info: Dict[str, Any] = {}
+            chapter.mark_processing_completed({
+                "duration": 0,
+                "bitrate": None,
+                "sample_rate": 44100,
+                "channels": 1,
+                "format": "mp4"
             })
+            processing_info["encoding_skipped"] = True
+            processing_info["skip_reason"] = "encoding disabled in MVP"
 
-        return AudioUploadResponseDto(
-            success=True,
-            chapter_id=chapter.chapter_id,
-            file_id=file_id,
-            chapter_number=chapter.chapter_number,
-            title=chapter.title,
-            status=chapter.status,
-            message=f"Audio file '{file.filename}' uploaded successfully",
-            warnings=None,
-            processing_info=processing_info if processing_info else None
-        )
+            return AudioUploadResponseDto(
+                success=True,
+                chapter_id=chapter.chapter_id,
+                file_id=file_id,
+                chapter_number=chapter.chapter_number,
+                title=chapter.title,
+                status=chapter.status,
+                message=f"Audio file '{file.filename}' uploaded successfully",
+                warnings=None,
+                processing_info=processing_info if processing_info else None
+            )
 
     except HTTPException:
         raise

@@ -251,6 +251,23 @@
   - [ ] Files API 업로드/다운로드/권한/에러 경로 테스트 추가
   - [ ] 상세 헬스체크(`GET /api/v1/health/detailed`) 테스트 추가
 
+## 8. 데이터베이스 마이그레이션 (DynamoDB → PostgreSQL)
+
+Railway/Vercel 환경을 기준으로 AWS 의존을 제거하고 데이터베이스를 PostgreSQL로 전환합니다.
+
+### 8.1 작업 항목
+- [x] 8.1.1 체크리스트 섹션 추가 및 계획 확정
+- [x] 8.1.2 헬스 체크를 PostgreSQL 상태 보고로 전환
+- [x] 8.1.3 설정/환경변수 정리 (DATABASE_URL 추가, Dynamo 변수 제거, detector 업데이트)
+- [x] 8.1.4 데이터 계층/서비스 SQL 전환 (`BookService` 등)
+- [x] 8.1.5 Alembic 마이그레이션 작성 및 로컬 적용
+- [x] 8.1.6 테스트 전환 (Dynamo 테스트 제거, SQL 테스트 추가)
+- [x] 8.1.7 로컬 검증 (pytest, API smoke, FE smoke)
+- [ ] 8.1.8 프로덕션 적용 (Railway env 설정, 마이그레이션 실행, 헬스 확인)
+
+### Relevant Files
+- docs/checklist.md: 마이그레이션 작업 목록 및 진행 추적 추가
+
 ## 📊 진행률 추적
 
 ### 현재 진행 상황

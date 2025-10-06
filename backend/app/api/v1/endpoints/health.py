@@ -49,17 +49,17 @@ async def detailed_health_check():
     """
     상세 헬스 체크
     - API 서버 상태
-    - DynamoDB 연결 상태 및 테이블 확인
+    - 데이터베이스(PostgreSQL/SQLite) 연결 상태 및 테이블 확인
     - 로컬 스토리지 상태 (로컬 환경)
     """
     dependencies = {}
     
-    # DynamoDB 연결 및 테이블 상태 확인
+    # 데이터베이스 연결 및 테이블 상태 확인
     try:
         db_health = await db_service.health_check()
-        dependencies["dynamodb"] = db_health
+        dependencies["database"] = db_health
     except Exception as e:
-        dependencies["dynamodb"] = {"status": "unhealthy", "error": str(e)}
+        dependencies["database"] = {"status": "unhealthy", "error": str(e)}
     
     # 로컬 스토리지 확인 (로컬 환경)
     if settings.ENVIRONMENT == "local":

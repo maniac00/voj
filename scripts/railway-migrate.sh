@@ -37,17 +37,29 @@ if [[ $DATABASE_URL == postgres://* ]]; then
 fi
 
 echo "🔍 현재 마이그레이션 상태 확인..."
-alembic current || echo "마이그레이션 히스토리 없음"
+if command -v poetry >/dev/null 2>&1; then
+  poetry run alembic current || echo "마이그레이션 히스토리 없음"
+else
+  alembic current || echo "마이그레이션 히스토리 없음"
+fi
 
 echo ""
 echo "⬆️  마이그레이션 실행..."
-alembic upgrade head
+if command -v poetry >/dev/null 2>&1; then
+  poetry run alembic upgrade head
+else
+  alembic upgrade head
+fi
 
 echo ""
 echo "✅ 마이그레이션 완료!"
 echo ""
 echo "🔍 최종 상태:"
-alembic current
+if command -v poetry >/dev/null 2>&1; then
+  poetry run alembic current
+else
+  alembic current
+fi
 
 echo ""
 echo "📊 테이블 확인 (psql 사용):"

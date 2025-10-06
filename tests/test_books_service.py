@@ -12,38 +12,46 @@ if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
 from app.core.config import settings  # noqa: E402
-from app.services.books import BookService  # noqa: E402
-from app.models.book import Book  # noqa: E402
+from app.services.books_sql import BookServiceSQL as BookService  # noqa: E402
+from app.models.database import Base, engine, SessionLocal  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
-def _configure_local_dynamodb(tmp_path):
-    # Ensure local mode for tests (DynamoDB Local)
+def _setup_sqlite_db(tmp_path):
+    # 로컬 모드 + 간단 인증 바이패스
     settings.ENVIRONMENT = "local"
-    settings.DYNAMODB_ENDPOINT_URL = os.getenv("DYNAMODB_ENDPOINT", "http://localhost:8001")
-    # Create tables if not exists
-    if not Book.exists():
-        Book.create_table(read_capacity_units=5, write_capacity_units=5, wait=True)
+    settings.LOCAL_BYPASS_ENABLED = True
+    # SQL 테이블 생성 (SQLite 파일 기반)
+    Base.metadata.create_all(bind=engine)
     yield
 
 
-def test_create_get_update_delete_book():
+@pytest.fixture
+def db_session():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def test_create_get_update_delete_book(db_session):
     user_id = "u-" + _uuid.uuid4().hex[:8]
     # create
-    b = BookService.create_book(user_id=user_id, title="t1", author="a1")
+    b = BookService.create_book(db_session, user_id=user_id, title="t1", author="a1")
     assert b.user_id == user_id
     # get
-    g = BookService.get_book(user_id=user_id, book_id=b.book_id)
+    g = BookService.get_book(db_session, user_id=user_id, book_id=b.book_id)
     assert g is not None and g.book_id == b.book_id
     # update
-    u = BookService.update_book(user_id=user_id, book_id=b.book_id, title="t2")
+    u = BookService.update_book(db_session, user_id=user_id, book_id=b.book_id, title="t2")
     assert u is not None and u.title == "t2"
     # list
-    page = BookService.list_books(user_id=user_id, limit=5)
-    assert any(it.book_id == b.book_id for it in page.items)
+    items = BookService.list_all_books(db_session, user_id=user_id)
+    assert any(it.book_id == b.book_id for it in items)
     # delete
-    ok = BookService.delete_book(user_id=user_id, book_id=b.book_id)
+    ok = BookService.delete_book(db_session, user_id=user_id, book_id=b.book_id)
     assert ok is True
-    assert BookService.get_book(user_id=user_id, book_id=b.book_id) is None
+    assert BookService.get_book(db_session, user_id=user_id, book_id=b.book_id) is None
 
 

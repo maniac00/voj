@@ -33,16 +33,16 @@ class ProductionSettings(BaseAppSettings):
         "https://api.voj-audiobook.com",
     ]
     
-    # AWS 관련 설정 제거 (Railway + 로컬 볼륨 사용)
+    # 데이터베이스 (Railway: DATABASE_URL 제공)
+    DATABASE_URL: Optional[str] = os.getenv("DATABASE_URL")
+
+    # AWS/S3/DynamoDB 미사용
     AWS_REGION: Optional[str] = None
     AWS_ACCESS_KEY_ID: Optional[str] = None
     AWS_SECRET_ACCESS_KEY: Optional[str] = None
-
-    # DynamoDB/S3 미사용, 로컬 볼륨 경로 사용
     DYNAMODB_ENDPOINT_URL: Optional[str] = None
     BOOKS_TABLE_NAME: str = ""
     AUDIO_CHAPTERS_TABLE_NAME: str = ""
-
     S3_ENDPOINT_URL: Optional[str] = None
     S3_BUCKET_NAME: str = ""
 

@@ -14,11 +14,12 @@ class BaseModel(Model):
     """DynamoDB 모델 기본 클래스"""
     
     class Meta:
-        region = settings.AWS_REGION
+        region = getattr(settings, "AWS_REGION", "ap-northeast-2")
         
-        # 환경별 엔드포인트 설정
-        if settings.ENVIRONMENT == "local" and settings.DYNAMODB_ENDPOINT_URL:
-            host = settings.DYNAMODB_ENDPOINT_URL
+        # 환경별 엔드포인트 설정 (Dynamo 사용 중단 대비 가드)
+        _endpoint = getattr(settings, "DYNAMODB_ENDPOINT_URL", None)
+        if getattr(settings, "ENVIRONMENT", "local") == "local" and _endpoint:
+            host = _endpoint
             # DynamoDB Local용 더미 자격증명
             aws_access_key_id = "dummy"
             aws_secret_access_key = "dummy"

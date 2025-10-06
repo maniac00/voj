@@ -62,12 +62,13 @@ class AudioChapter(BaseModel):
     """오디오 챕터 모델"""
     
     class Meta:
-        table_name = settings.AUDIO_CHAPTERS_TABLE_NAME
-        region = settings.AWS_REGION
+        table_name = getattr(settings, "AUDIO_CHAPTERS_TABLE_NAME", "voj-audio-chapters")
+        region = getattr(settings, "AWS_REGION", "ap-northeast-2")
         
-        # 환경별 엔드포인트 설정
-        if settings.ENVIRONMENT == "local" and settings.DYNAMODB_ENDPOINT_URL:
-            host = settings.DYNAMODB_ENDPOINT_URL
+        # 환경별 엔드포인트 설정 (가드)
+        _endpoint = getattr(settings, "DYNAMODB_ENDPOINT_URL", None)
+        if getattr(settings, "ENVIRONMENT", "local") == "local" and _endpoint:
+            host = _endpoint
             aws_access_key_id = "dummy"
             aws_secret_access_key = "dummy"
     

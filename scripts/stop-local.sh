@@ -36,4 +36,35 @@ fi
 
 echo "[stop-local] Done. Logs remain in $STATE_DIR."
 
+# 4) Ensure port 3000 is free (Next dev default)
+echo "[stop-local] Ensuring port 3000 is free..."
+if command -v lsof >/dev/null 2>&1; then
+  PIDS=$(lsof -ti tcp:3000 || true)
+  if [[ -n "${PIDS}" ]]; then
+    echo "[stop-local] Killing processes on :3000 -> ${PIDS}"
+    kill ${PIDS} || true
+    sleep 1
+    LEFT=$(lsof -ti tcp:3000 || true)
+    if [[ -n "${LEFT}" ]]; then
+      echo "[stop-local] Force killing processes on :3000 -> ${LEFT}"
+      kill -9 ${LEFT} || true
+    fi
+  fi
+else
+  # Fallback using netstat for systems without lsof
+  if command -v netstat >/dev/null 2>&1; then
+    PID=$(netstat -anv | awk '/\.3000 .*LISTEN/ {print $9}' | head -n1 || true)
+    if [[ -n "${PID}" ]]; then
+      echo "[stop-local] Killing process on :3000 -> ${PID}"
+      kill ${PID} || true
+      sleep 1
+      if netstat -anv | grep -q "\.3000 .*LISTEN"; then
+        echo "[stop-local] Force killing process on :3000 -> ${PID}"
+        kill -9 ${PID} || true
+      fi
+    fi
+  fi
+fi
+
+
 

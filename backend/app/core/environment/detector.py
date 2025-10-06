@@ -44,14 +44,14 @@ class EnvironmentDetector:
                 name="로컬 개발",
                 description="개발자 로컬 머신에서 실행",
                 features=[
-                    "DynamoDB Local",
+                    "SQLite/로컬 PostgreSQL",
                     "로컬 파일 시스템 스토리지",
                     "즉시 메타데이터 처리",
                     "상세 디버깅 로그"
                 ],
                 required_vars=[],
                 optional_vars=[
-                    "DYNAMODB_ENDPOINT",
+                    "DATABASE_URL",
                     "LOCAL_STORAGE_PATH",
                     "LOCAL_BYPASS_ENABLED"
                 ]
@@ -62,22 +62,14 @@ class EnvironmentDetector:
                 name="개발 서버",
                 description="개발팀 공유 개발 서버",
                 features=[
-                    "실제 DynamoDB",
-                    "S3 개발 버킷",
-                    "CloudFront 개발 배포",
+                    "PostgreSQL",
                     "상세 로깅",
                     "테스트 데이터 허용"
                 ],
                 required_vars=[
-                    "AWS_REGION",
-                    "S3_BUCKET_NAME",
-                    "BOOKS_TABLE_NAME",
-                    "AUDIO_CHAPTERS_TABLE_NAME"
+                    "DATABASE_URL"
                 ],
-                optional_vars=[
-                    "CLOUDFRONT_DISTRIBUTION_ID",
-                    "CLOUDFRONT_DOMAIN"
-                ]
+                optional_vars=[]
             ),
             
             EnvironmentType.STAGING: EnvironmentInfo(
@@ -86,22 +78,15 @@ class EnvironmentDetector:
                 description="프로덕션과 유사한 테스트 환경",
                 features=[
                     "프로덕션 유사 설정",
-                    "실제 AWS 서비스",
+                    "PostgreSQL",
                     "성능 테스트",
                     "보안 테스트",
                     "통합 테스트"
                 ],
                 required_vars=[
-                    "AWS_REGION",
-                    "S3_BUCKET_NAME",
-                    "BOOKS_TABLE_NAME",
-                    "AUDIO_CHAPTERS_TABLE_NAME",
-                    "CLOUDFRONT_DISTRIBUTION_ID"
+                    "DATABASE_URL"
                 ],
-                optional_vars=[
-                    "CLOUDFRONT_KEY_PAIR_ID",
-                    "CLOUDFRONT_PRIVATE_KEY_PATH"
-                ]
+                optional_vars=[]
             ),
             
             EnvironmentType.PRODUCTION: EnvironmentInfo(
@@ -113,19 +98,13 @@ class EnvironmentDetector:
                     "보안 강화",
                     "모니터링 활성화",
                     "자동 스케일링",
-                    "백업 및 복구"
+                    "백업 및 복구",
+                    "PostgreSQL"
                 ],
                 required_vars=[
-                    "AWS_REGION",
-                    "S3_BUCKET_NAME",
-                    "BOOKS_TABLE_NAME",
-                    "AUDIO_CHAPTERS_TABLE_NAME",
-                    "CLOUDFRONT_KEY_PAIR_ID"
+                    "DATABASE_URL"
                 ],
-                optional_vars=[
-                    "CLOUDFRONT_PRIVATE_KEY_PATH",
-                    "CLOUDWATCH_LOG_GROUP"
-                ]
+                optional_vars=[]
             )
         }
     
@@ -166,27 +145,12 @@ class EnvironmentDetector:
     
     def _has_staging_indicators(self) -> bool:
         """스테이징 환경 지표 확인"""
-        staging_patterns = [
-            'staging',
-            'stage',
-            'test',
-            'qa'
-        ]
-        
-        # 버킷명이나 테이블명에 스테이징 패턴이 있는지 확인
-        bucket_name = getattr(settings, 'S3_BUCKET_NAME', '').lower()
-        table_name = getattr(settings, 'BOOKS_TABLE_NAME', '').lower()
-        
-        return any(
-            pattern in bucket_name or pattern in table_name
-            for pattern in staging_patterns
-        )
+        return 'staging' in os.getenv('ENVIRONMENT', '').lower()
     
     def _has_development_indicators(self) -> bool:
         """개발 환경 지표 확인"""
         return bool(
-            getattr(settings, 'AWS_REGION', None) and
-            getattr(settings, 'S3_BUCKET_NAME', None) and
+            os.getenv('DATABASE_URL') and
             not self._has_production_indicators() and
             not self._has_staging_indicators()
         )
@@ -238,31 +202,15 @@ class EnvironmentDetector:
         if not os.path.exists(storage_path):
             local_validation["warnings"].append(f"Storage directory {storage_path} does not exist")
         
-        # DynamoDB Local 확인
-        dynamodb_endpoint = getattr(settings, 'DYNAMODB_ENDPOINT_URL', None)
-        if dynamodb_endpoint:
-            try:
-                import requests
-                response = requests.get(f"{dynamodb_endpoint}/", timeout=5)
-                if response.status_code != 400:  # DynamoDB Local returns 400 for root path
-                    local_validation["warnings"].append("DynamoDB Local may not be running")
-            except Exception:
-                local_validation["warnings"].append("Cannot connect to DynamoDB Local")
+        # DB URL 확인
+        if not getattr(settings, 'DATABASE_URL', None):
+            local_validation["warnings"].append("DATABASE_URL not set; using default sqlite")
         
         return local_validation
     
     def _validate_production_environment(self) -> Dict[str, Any]:
         """프로덕션 환경 특수 검증"""
         prod_validation = {"errors": [], "warnings": []}
-        
-        # AWS 자격증명 확인 (Lambda 환경이면 실행 역할에 위임)
-        if not (os.environ.get('AWS_ACCESS_KEY_ID') or os.environ.get('AWS_PROFILE') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME')):
-            prod_validation["warnings"].append("AWS credentials not found in env; assuming role-based auth on platform")
-        
-        # CloudFront 키 파일 확인
-        key_path = getattr(settings, 'CLOUDFRONT_PRIVATE_KEY_PATH', None)
-        if key_path and not os.path.exists(key_path):
-            prod_validation["errors"].append(f"CloudFront private key not found: {key_path}")
         
         # 보안 설정 확인
         if getattr(settings, 'LOCAL_BYPASS_ENABLED', False):
@@ -385,19 +333,16 @@ def generate_environment_config(env_type: EnvironmentType) -> Dict[str, str]:
     base_config = {
         "NODE_ENV": "development" if env_type == EnvironmentType.LOCAL else "production",
         "ENVIRONMENT": env_type.value,
-        "AWS_REGION": "ap-northeast-2",
     }
     
     if env_type == EnvironmentType.LOCAL:
         base_config.update({
             "NEXT_PUBLIC_API_URL": "http://localhost:8080",
             "API_PORT": "8080",
-            "DYNAMODB_ENDPOINT": "http://localhost:8001",
+            "DATABASE_URL": "sqlite:///./voj_dev.db",
             "STORAGE_TYPE": "local",
             "LOCAL_STORAGE_PATH": "./storage",
-            "LOCAL_BYPASS_ENABLED": "true",
-            "DYNAMODB_BOOKS_TABLE": "voj-books-local",
-            "DYNAMODB_AUDIO_TABLE": "voj-audio-chapters-local"
+            "LOCAL_BYPASS_ENABLED": "true"
         })
     
     elif env_type == EnvironmentType.PRODUCTION:

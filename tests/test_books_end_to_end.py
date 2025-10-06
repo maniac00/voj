@@ -11,15 +11,14 @@ if BACKEND_DIR not in sys.path:
 
 from app.main import app  # noqa: E402
 from app.core.config import settings  # noqa: E402
-from app.models.book import Book  # noqa: E402
+from app.models.database import Base, engine  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
 def _local_setup():
     settings.ENVIRONMENT = "local"
     settings.LOCAL_BYPASS_ENABLED = True
-    if not Book.exists():
-        Book.create_table(read_capacity_units=5, write_capacity_units=5, wait=True)
+    Base.metadata.create_all(bind=engine)
     yield
 
 

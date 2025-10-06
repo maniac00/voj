@@ -11,23 +11,23 @@ if BACKEND_DIR not in sys.path:
 
 from app.main import app  # noqa: E402
 from app.core.config import settings  # noqa: E402
-from app.services.books import BookService  # noqa: E402
-from app.models.book import Book  # noqa: E402
+from app.services.books_sql import BookServiceSQL as BookService  # noqa: E402
+from app.models.database import Base, engine, SessionLocal  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
 def _local_setup():
     settings.ENVIRONMENT = "local"
     settings.LOCAL_BYPASS_ENABLED = True
-    if not Book.exists():
-        Book.create_table(read_capacity_units=5, write_capacity_units=5, wait=True)
+    Base.metadata.create_all(bind=engine)
     yield
 
 
 def test_get_book_owned_by_user_returns_200():
     client = TestClient(app)
     # create under local bypass user
-    created = BookService.create_book(user_id=settings.LOCAL_BYPASS_SUB, title="Owned", author="Me")
+    with SessionLocal() as db:
+        created = BookService.create_book(db, user_id=settings.LOCAL_BYPASS_SUB, title="Owned", author="Me")
     resp = client.get(f"/api/v1/books/{created.book_id}")
     assert resp.status_code == 200, resp.text
     assert resp.json()["book_id"] == created.book_id
@@ -36,7 +36,8 @@ def test_get_book_owned_by_user_returns_200():
 def test_get_book_not_owned_returns_404():
     client = TestClient(app)
     # create under another user
-    created = BookService.create_book(user_id="someone-else", title="Other", author="Them")
+    with SessionLocal() as db:
+        created = BookService.create_book(db, user_id="someone-else", title="Other", author="Them")
     resp = client.get(f"/api/v1/books/{created.book_id}")
     assert resp.status_code == 404
 

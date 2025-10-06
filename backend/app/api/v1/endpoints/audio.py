@@ -10,7 +10,9 @@ import uuid
 
 from app.core.config import settings
 from app.core.auth.simple import get_current_user_claims
-from app.services.books import BookService
+from app.services.books_sql import BookServiceSQL as BookService
+from app.models.database import get_db
+from sqlalchemy.orm import Session
 from app.models.audio_chapter import AudioChapter as AudioChapterModel
 from app.services.storage.factory import storage_service
 import os
@@ -112,7 +114,8 @@ async def upload_audio_chapter(
 async def get_audio_chapters(
     book_id: str = Path(..., description="책 ID"),
     status: Optional[str] = Query(None, description="챕터 상태 필터"),
-    claims = Depends(get_current_user_claims)
+    claims = Depends(get_current_user_claims),
+    db: Session = Depends(get_db)
 ):
     """
     책의 오디오 챕터 목록 조회
@@ -123,8 +126,8 @@ async def get_audio_chapters(
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
 
-    # 책 소유권 확인
-    if not BookService.get_book(user_id=user_id, book_id=book_id):
+    # 책 소유권 확인 (SQL)
+    if not BookService.get_book(db, user_id=user_id, book_id=book_id):
         raise HTTPException(status_code=404, detail="Book not found")
 
     try:
@@ -224,7 +227,8 @@ async def update_chapter_order(
 async def get_audio_chapter(
     book_id: str = Path(..., description="책 ID"),
     chapter_id: str = Path(..., description="챕터 ID"),
-    claims = Depends(get_current_user_claims)
+    claims = Depends(get_current_user_claims),
+    db: Session = Depends(get_db)
 ):
     """
     특정 오디오 챕터 상세 조회 (DB 기반)
@@ -234,7 +238,7 @@ async def get_audio_chapter(
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
 
-    if not BookService.get_book(user_id=user_id, book_id=book_id):
+    if not BookService.get_book(db, user_id=user_id, book_id=book_id):
         raise HTTPException(status_code=404, detail="Book not found")
 
     # 챕터 조회 및 검증
@@ -271,7 +275,8 @@ async def get_audio_chapter(
 async def get_streaming_url(
     book_id: str = Path(..., description="책 ID"),
     chapter_id: str = Path(..., description="챕터 ID"),
-    claims = Depends(get_current_user_claims)
+    claims = Depends(get_current_user_claims),
+    db: Session = Depends(get_db)
 ):
     """
     오디오 챕터 스트리밍 URL 생성
@@ -282,7 +287,7 @@ async def get_streaming_url(
     user_id = str(claims.get("sub") or claims.get("username") or "")
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
-    if not BookService.get_book(user_id=user_id, book_id=book_id):
+    if not BookService.get_book(db, user_id=user_id, book_id=book_id):
         raise HTTPException(status_code=404, detail="Book not found")
 
     # 챕터 조회 및 상태 확인

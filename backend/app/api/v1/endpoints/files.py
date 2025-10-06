@@ -14,8 +14,17 @@ from pathlib import Path
 from app.core.config import settings
 from app.services.storage.factory import storage_service
 from app.core.auth.simple import get_current_user_claims, require_any_scope
-from app.models.audio_chapter import AudioChapter, FileInfo
-from app.services.books import BookService
+
+# 환경별 서비스/모델 로딩 (프로덕션에서는 Dynamo 의존 모듈 미로딩)
+if settings.ENVIRONMENT in ["railway", "production"]:
+    from app.services.books_sql import BookServiceSQL as BookService
+    from app.models.database import get_db
+    from sqlalchemy.orm import Session
+    USE_SQL = True
+else:
+    from app.models.audio_chapter import AudioChapter, FileInfo
+    from app.services.books import BookService
+    USE_SQL = False
 from app.utils.audio_validation import extract_chapter_info, sanitize_filename
 from app.utils.ffprobe import extract_audio_metadata
 
@@ -68,7 +77,8 @@ async def upload_file(
     user_id: str = Query(..., description="사용자 ID"),
     book_id: str = Query(..., description="책 ID"),
     file_type: str = Query("upload", description="파일 타입 (upload, media, cover)"),
-    claims = Depends(require_any_scope(["admin", "editor"]))
+    claims = Depends(require_any_scope(["admin", "editor"])),
+    db: Session = Depends(get_db) if 'get_db' in globals() else None
 ):
     """
     파일 업로드
@@ -131,8 +141,13 @@ async def upload_file(
                 detail=f"File upload failed: {result.error}"
             )
 
-        # 오디오 파일인 경우 AudioChapter 생성
-        if file.content_type in allowed_audio_types and file_type == "upload":
+        # 오디오 파일인 경우 AudioChapter 생성 (로컬 환경 한정)
+        if (
+            settings.ENVIRONMENT == "local"
+            and not USE_SQL
+            and file.content_type in allowed_audio_types
+            and file_type == "upload"
+        ):
             try:
                 # 사용자 권한 확인 (책 소유권)
                 user_id_from_claims = str(claims.get("sub") or claims.get("username") or "")
@@ -195,7 +210,8 @@ async def upload_audio_file(
     file: UploadFile = File(...),
     book_id: str = Query(..., description="책 ID"),
     chapter_title: Optional[str] = Query(None, description="챕터 제목"),
-    claims = Depends(require_any_scope(["admin", "editor"]))
+    claims = Depends(require_any_scope(["admin", "editor"])),
+    db: Session = Depends(get_db) if 'get_db' in globals() else None
 ):
     """
     오디오 파일 업로드 (AudioChapter 자동 생성)
@@ -203,6 +219,10 @@ async def upload_audio_file(
     - 파일 크기 제한: 100MB
     - 자동 메타데이터 추출 (로컬 환경)
     """
+    # 로컬 환경 전용
+    if settings.ENVIRONMENT != "local" or USE_SQL:
+        raise HTTPException(status_code=400, detail="Audio upload is only supported in local environment")
+
     # 파일 크기 제한 확인
     max_size = 100 * 1024 * 1024  # 100MB
     file_content = await file.read()
@@ -223,7 +243,7 @@ async def upload_audio_file(
     try:
         # 사용자 권한 확인 (책 소유권)
         user_id = str(claims.get("sub") or claims.get("username") or "")
-        book = BookService.get_book(user_id=user_id, book_id=book_id)
+        book = BookService.get_book(user_id=user_id, book_id=book_id) if not USE_SQL else BookService.get_book(db, user_id=user_id, book_id=book_id)
         if not book:
             raise HTTPException(status_code=404, detail="Book not found or access denied")
 
@@ -356,6 +376,7 @@ async def retry_audio_processing(
 
         # 사용자 권한 확인
         user_id = str(claims.get("sub") or claims.get("username") or "")
+        # 로컬 환경에서만 동작하며 Dynamo 모델을 사용
         book = BookService.get_book(user_id=user_id, book_id=chapter.book_id)
         if not book:
             raise HTTPException(status_code=404, detail="Book not found or access denied")

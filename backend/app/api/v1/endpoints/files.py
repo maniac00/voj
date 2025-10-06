@@ -4,6 +4,8 @@ VOJ Audiobooks API - 파일 관리 엔드포인트
 """
 from fastapi import APIRouter, HTTPException, UploadFile, File, Path as PathParam, Query, Depends, Request
 from fastapi.responses import StreamingResponse
+import hashlib
+from datetime import datetime, timezone
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import uuid
@@ -524,14 +526,7 @@ async def download_file(
         if not await storage_service.file_exists(file_key):
             raise HTTPException(status_code=404, detail="File not found")
         
-        # 프로덕션 환경에서는 Pre-signed URL로 리다이렉트
-        if settings.ENVIRONMENT == "production":
-            download_url = await storage_service.get_download_url(file_key, expires_in=3600)
-            if download_url:
-                from fastapi.responses import RedirectResponse
-                return RedirectResponse(url=download_url)
-            else:
-                raise HTTPException(status_code=500, detail="Failed to generate download URL")
+        # 프로덕션 환경에서도 직접 스트리밍 (CDN 프록시 전제)
         
         # 로컬 환경에서는 직접 스트리밍 (Range 지원)
         file_data = await storage_service.download_file(file_key)
@@ -542,6 +537,24 @@ async def download_file(
         # 파일 정보 조회
         file_info = await storage_service.get_file_info(file_key)
         content_type = file_info.content_type if file_info else "application/octet-stream"
+
+        # 캐시 헤더 준비
+        etag = 'W/"' + hashlib.md5(file_data).hexdigest() + '"'
+        last_modified = None
+        try:
+            if file_info and file_info.last_modified:
+                # 기대 포맷: RFC 1123
+                last_modified = file_info.last_modified
+        except Exception:
+            last_modified = None
+        if not last_modified:
+            last_modified = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
+        cache_headers = {
+            "ETag": etag,
+            "Last-Modified": last_modified,
+            "Cache-Control": "public, max-age=0, s-maxage=86400, stale-while-revalidate=600",
+            "Accept-Ranges": "bytes",
+        }
 
         range_header = request.headers.get("range") if request else None
         if range_header and range_header.lower().startswith("bytes="):
@@ -568,22 +581,19 @@ async def download_file(
                 headers = {
                     "Content-Range": f"bytes {start}-{end}/{file_size}",
                     "Content-Length": str(len(chunk)),
-                    "Accept-Ranges": "bytes",
                 }
+                headers.update(cache_headers)
                 return StreamingResponse(io.BytesIO(chunk), status_code=206, media_type=content_type, headers=headers)
             except Exception:
                 # Fallback to full content on parse error
                 pass
 
         # Full content
-        return StreamingResponse(
-            io.BytesIO(file_data),
-            media_type=content_type,
-            headers={
-                "Content-Length": str(file_size),
-                "Accept-Ranges": "bytes",
-            },
-        )
+        base_headers = {
+            "Content-Length": str(file_size),
+        }
+        base_headers.update(cache_headers)
+        return StreamingResponse(io.BytesIO(file_data), media_type=content_type, headers=base_headers)
         
     except HTTPException:
         raise

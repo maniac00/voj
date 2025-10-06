@@ -1,5 +1,5 @@
 """
-Book service layer built on top of PynamoDB model `Book`.
+Book service layer - supports both DynamoDB and PostgreSQL.
 
 Provides CRUD operations and simple listings.
 """
@@ -10,7 +10,17 @@ from typing import List, Optional, Tuple
 from datetime import datetime
 import uuid
 
-from app.models.book import Book
+from app.core.config import settings
+
+# Environment-based model selection
+if settings.ENVIRONMENT in ["railway", "production"]:
+    from app.models.book_sql import BookSQL as Book
+    from sqlalchemy.orm import Session
+    from app.services.database import get_db
+    USE_SQL = True
+else:
+    from app.models.book import Book
+    USE_SQL = False
 
 
 @dataclass

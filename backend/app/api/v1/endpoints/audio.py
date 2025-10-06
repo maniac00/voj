@@ -424,7 +424,8 @@ async def get_streaming_url(
 async def delete_audio_chapter(
     book_id: str = Path(..., description="책 ID"),
     chapter_id: str = Path(..., description="챕터 ID"),
-    claims = Depends(get_current_user_claims)
+    claims = Depends(get_current_user_claims),
+    db: Session = Depends(get_db)
 ):
     """
     오디오 챕터 삭제
@@ -435,12 +436,21 @@ async def delete_audio_chapter(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
 
     # 책 소유권 확인
-    if not BookService.get_book(user_id=user_id, book_id=book_id):
+    if not BookService.get_book(db, user_id=user_id, book_id=book_id):
         raise HTTPException(status_code=404, detail="Book not found")
 
-    chapter = AudioChapterModel.get_by_id(chapter_id)
-    if not chapter or chapter.book_id != book_id:
-        raise HTTPException(status_code=404, detail="Audio chapter not found")
+    if USE_SQL:
+        chapter = (
+            db.query(AudioChapterModelSQL)
+            .filter(and_(AudioChapterModelSQL.chapter_id == chapter_id, AudioChapterModelSQL.book_id == book_id))
+            .first()
+        )
+        if not chapter:
+            raise HTTPException(status_code=404, detail="Audio chapter not found")
+    else:
+        chapter = AudioChapterModel.get_by_id(chapter_id)
+        if not chapter or chapter.book_id != book_id:
+            raise HTTPException(status_code=404, detail="Audio chapter not found")
 
     # 스토리지 파일 삭제 시도
     try:
@@ -462,9 +472,13 @@ async def delete_audio_chapter(
     except Exception:
         pass
 
-    # DynamoDB에서 챕터 삭제
+    # 챕터 삭제
     try:
-        chapter.delete()
+        if USE_SQL:
+            db.delete(chapter)
+            db.commit()
+        else:
+            chapter.delete()
         return {"message": f"Audio chapter {chapter_id} deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete chapter: {str(e)}")

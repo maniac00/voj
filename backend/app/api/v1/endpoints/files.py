@@ -514,7 +514,6 @@ async def get_file_info(
 async def download_file(
     file_key: str = PathParam(..., description="파일 키"),
     request: Request = None,
-    claims = Depends(get_current_user_claims)
 ):
     """
     파일 다운로드

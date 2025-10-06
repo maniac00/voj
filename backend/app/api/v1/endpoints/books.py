@@ -225,7 +225,8 @@ async def get_books(
 @router.get("/{book_id}", response_model=Book)
 async def get_book(
     book_id: str = Path(..., description="책 ID"),
-    claims = Depends(get_current_user_claims)
+    claims = Depends(get_current_user_claims),
+    db: Session = Depends(get_db) if USE_SQL else None
 ):
     """
     특정 책 상세 조회
@@ -237,7 +238,10 @@ async def get_book(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
 
     try:
-        found = BookService.get_book(user_id=user_id, book_id=book_id)
+        if USE_SQL:
+            found = BookService.get_book(db, user_id=user_id, book_id=book_id)
+        else:
+            found = BookService.get_book(user_id=user_id, book_id=book_id)
         if not found:
             # 소유권 노출 방지를 위해 404 반환
             raise HTTPException(status_code=404, detail="Book not found")
@@ -269,7 +273,8 @@ async def get_book(
 async def update_book(
     book_data: BookUpdate,
     book_id: str = Path(..., description="책 ID"),
-    claims = Depends(get_current_user_claims)
+    claims = Depends(get_current_user_claims),
+    db: Session = Depends(get_db) if USE_SQL else None
 ):
     """
     책 정보 수정
@@ -280,23 +285,41 @@ async def update_book(
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
 
-    found = BookService.get_book(user_id=user_id, book_id=book_id)
+    if USE_SQL:
+        found = BookService.get_book(db, user_id=user_id, book_id=book_id)
+    else:
+        found = BookService.get_book(user_id=user_id, book_id=book_id)
     if not found:
         raise HTTPException(status_code=404, detail="Book not found")
 
     try:
-        updated = BookService.update_book(
-            user_id=user_id,
-            book_id=book_id,
-            title=book_data.title,
-            author=book_data.author,
-            description=book_data.description,
-            genre=book_data.genre,
-            language=book_data.language,
-            isbn=book_data.isbn,
-            publisher=book_data.publisher,
-            published_date=book_data.published_date,
-        )
+        if USE_SQL:
+            updated = BookService.update_book(
+                db,
+                user_id=user_id,
+                book_id=book_id,
+                title=book_data.title,
+                author=book_data.author,
+                description=book_data.description,
+                genre=book_data.genre,
+                language=book_data.language,
+                isbn=book_data.isbn,
+                publisher=book_data.publisher,
+                published_date=book_data.published_date,
+            )
+        else:
+            updated = BookService.update_book(
+                user_id=user_id,
+                book_id=book_id,
+                title=book_data.title,
+                author=book_data.author,
+                description=book_data.description,
+                genre=book_data.genre,
+                language=book_data.language,
+                isbn=book_data.isbn,
+                publisher=book_data.publisher,
+                published_date=book_data.published_date,
+            )
         assert updated is not None
         return {
             "book_id": updated.book_id,
@@ -323,7 +346,8 @@ async def update_book(
 @router.delete("/{book_id}")
 async def delete_book(
     book_id: str = Path(..., description="책 ID"),
-    claims = Depends(get_current_user_claims)
+    claims = Depends(get_current_user_claims),
+    db: Session = Depends(get_db) if USE_SQL else None
 ):
     """
     책 삭제
@@ -336,14 +360,21 @@ async def delete_book(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
 
     # 소유권 확인
-    if not BookService.get_book(user_id=user_id, book_id=book_id):
-        raise HTTPException(status_code=404, detail="Book not found")
+    if USE_SQL:
+        if not BookService.get_book(db, user_id=user_id, book_id=book_id):
+            raise HTTPException(status_code=404, detail="Book not found")
+    else:
+        if not BookService.get_book(user_id=user_id, book_id=book_id):
+            raise HTTPException(status_code=404, detail="Book not found")
 
     # TODO: 연관 리소스 정리 정책
     # - AudioChapter: 같은 book_id 항목 삭제
     # - 스토리지: uploads/media/cover 경로 키 삭제 (비동기 작업 고려)
     try:
-        ok = BookService.delete_book(user_id=user_id, book_id=book_id)
+        if USE_SQL:
+            ok = BookService.delete_book(db, user_id=user_id, book_id=book_id)
+        else:
+            ok = BookService.delete_book(user_id=user_id, book_id=book_id)
         if not ok:
             raise HTTPException(status_code=404, detail="Book not found")
         return {"message": f"Book {book_id} deleted successfully"}

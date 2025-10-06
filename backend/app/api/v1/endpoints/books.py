@@ -10,7 +10,16 @@ import uuid
 
 from app.core.config import settings
 from app.core.auth.simple import get_current_user_claims
-from app.services.books import BookService
+
+# Environment-based service selection
+if settings.ENVIRONMENT in ["railway", "production"]:
+    from app.services.books_sql import BookServiceSQL as BookService
+    from app.services.database import get_db
+    from sqlalchemy.orm import Session
+    USE_SQL = True
+else:
+    from app.services.books import BookService
+    USE_SQL = False
 
 router = APIRouter()
 
@@ -72,7 +81,11 @@ class BookList(BaseModel):
 
 @router.post("", response_model=Book, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=Book, status_code=status.HTTP_201_CREATED)
-async def create_book(book_data: BookCreate, claims = Depends(get_current_user_claims)):
+async def create_book(
+    book_data: BookCreate,
+    claims = Depends(get_current_user_claims),
+    db: Session = Depends(get_db) if USE_SQL else None
+):
     """
     새 책 생성
     - 사용자 인증 필요
@@ -83,17 +96,31 @@ async def create_book(book_data: BookCreate, claims = Depends(get_current_user_c
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
 
     try:
-        created = BookService.create_book(
-            user_id=user_id,
-            title=book_data.title,
-            author=book_data.author,
-            description=book_data.description,
-            genre=book_data.genre,
-            language=book_data.language,
-            isbn=book_data.isbn,
-            publisher=book_data.publisher,
-            published_date=book_data.published_date,
-        )
+        if USE_SQL:
+            created = BookService.create_book(
+                db,
+                user_id=user_id,
+                title=book_data.title,
+                author=book_data.author,
+                description=book_data.description,
+                genre=book_data.genre,
+                language=book_data.language,
+                isbn=book_data.isbn,
+                publisher=book_data.publisher,
+                published_date=book_data.published_date,
+            )
+        else:
+            created = BookService.create_book(
+                user_id=user_id,
+                title=book_data.title,
+                author=book_data.author,
+                description=book_data.description,
+                genre=book_data.genre,
+                language=book_data.language,
+                isbn=book_data.isbn,
+                publisher=book_data.publisher,
+                published_date=book_data.published_date,
+            )
 
         return {
             "book_id": created.book_id,
@@ -122,10 +149,11 @@ async def create_book(book_data: BookCreate, claims = Depends(get_current_user_c
 async def get_books(
     page: int = Query(1, ge=1, description="페이지 번호"),
     size: int = Query(10, ge=1, le=100, description="페이지 크기"),
-    status: Optional[str] = Query(None, description="책 상태 필터"),
+    status_filter: Optional[str] = Query(None, alias="status", description="책 상태 필터"),
     genre: Optional[str] = Query(None, description="장르 필터"),
     search: Optional[str] = Query(None, description="제목/저자 검색"),
     claims = Depends(get_current_user_claims),
+    db: Session = Depends(get_db) if USE_SQL else None
 ):
     """
     책 목록 조회
@@ -141,16 +169,21 @@ async def get_books(
         # Filtered listings
         items: list = []
         total = 0
-        if status:
-            items = BookService.list_books_by_status(user_id=user_id, status=status, limit=size)
-            total = len(items)
-        elif genre:
-            items = BookService.list_books_by_genre(user_id=user_id, genre=genre, limit=size)
-            total = len(items)
+        if USE_SQL:
+            if status_filter:
+                items = BookService.list_books_by_status(db, user_id=user_id, status=status_filter, limit=size)
+            elif genre:
+                items = BookService.list_books_by_genre(db, user_id=user_id, genre=genre, limit=size)
+            else:
+                items = BookService.list_all_books(db, user_id=user_id)
         else:
-            # Load all for deterministic test expectation; future: cursor pagination
-            items = BookService.list_all_books(user_id=user_id)
-            total = len(items)
+            if status_filter:
+                items = BookService.list_books_by_status(user_id=user_id, status=status_filter, limit=size)
+            elif genre:
+                items = BookService.list_books_by_genre(user_id=user_id, genre=genre, limit=size)
+            else:
+                items = BookService.list_all_books(user_id=user_id)
+        total = len(items)
 
         # simple in-memory search filter (title/author)
         if search:

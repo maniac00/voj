@@ -29,6 +29,7 @@ class HealthResponse(BaseModel):
     dependencies: Dict[str, Any]
 
 
+@router.get("", response_model=HealthResponse)
 @router.get("/", response_model=HealthResponse)
 async def health_check():
     """

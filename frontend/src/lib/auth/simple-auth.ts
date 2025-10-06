@@ -4,13 +4,10 @@
  */
 
 // 프론트엔드 전역 API 베이스 규칙 통일
-// 1) 브라우저에서는 상대 경로 우선 (/api/v1) - Mixed Content 방지
-// 2) NEXT_PUBLIC_API_BASE가 있고 http(s) 아닌 경우 그대로 사용
-// 3) 서버(SSR/서버 함수)에서는 절대 경로 구성 허용
+// 1) 브라우저에서는 항상 상대 경로 (/api/v1) - Mixed Content 방지 및 Rewrite 활용
+// 2) 서버(SSR/서버 함수)에서는 절대 경로 구성 허용
 const API_BASE = (typeof window !== 'undefined')
-  ? ((process.env.NEXT_PUBLIC_API_BASE && !/^https?:/i.test(process.env.NEXT_PUBLIC_API_BASE))
-      ? process.env.NEXT_PUBLIC_API_BASE
-      : '/api/v1')
+  ? '/api/v1'  // 브라우저는 항상 상대경로
   : (process.env.NEXT_PUBLIC_API_BASE || `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1`)
 
 export interface LoginCredentials {

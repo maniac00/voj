@@ -10,13 +10,15 @@ from app.core.config import settings
 from app.services.websocket.log_streamer import setup_websocket_logging
 
 # FastAPI 애플리케이션 인스턴스 생성
+docs_enabled = bool(getattr(settings, "ENABLE_API_DOCS", False))
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="VOJ Audiobooks - 오디오북 스트리밍 플랫폼 API",
     version="1.0.0",
-    openapi_url=f"{settings.API_V1_STR}/openapi.json" if settings.ENVIRONMENT == "local" else None,
-    docs_url="/docs" if settings.ENVIRONMENT == "local" else None,
-    redoc_url="/redoc" if settings.ENVIRONMENT == "local" else None,
+    openapi_url=(f"{settings.API_V1_STR}/openapi.json" if docs_enabled else None),
+    docs_url=(f"{settings.API_V1_STR}/docs" if docs_enabled else None),
+    redoc_url=(f"{settings.API_V1_STR}/redoc" if docs_enabled else None),
     # Railway HTTPS 리다이렉트 문제 해결
     redirect_slashes=False,
 )
@@ -67,7 +69,8 @@ async def root():
         "message": "VOJ Audiobooks API",
         "version": "1.0.0",
         "environment": settings.ENVIRONMENT,
-        "status": "healthy"
+        "status": "healthy",
+        "docs_enabled": docs_enabled
     }
 
 

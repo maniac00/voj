@@ -15,6 +15,7 @@ class BaseAppSettings(BaseSettings):
     PROJECT_NAME: str = "VOJ Audiobooks API"
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str = "local"
+    ENABLE_API_DOCS: bool = False
     
     # 서버 설정
     HOST: str = "0.0.0.0"

@@ -12,6 +12,7 @@ class LocalSettings(BaseAppSettings):
     
     # 환경 구분
     ENVIRONMENT: str = "local"
+    ENABLE_API_DOCS: bool = True
     
     # 개발 서버 설정
     HOST: str = "0.0.0.0"

@@ -15,15 +15,15 @@ from app.models.database import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
 from app.services.storage.factory import storage_service
+from app.models.audio_chapter_sql import AudioChapterSQL
 
-# 환경별 모델 선택: 프로덕션/Railway는 SQL, 로컬은 Dynamo
-if settings.ENVIRONMENT in ["railway", "production"]:
-    from app.models.audio_chapter_sql import AudioChapterSQL as AudioChapterModelSQL
-    USE_SQL = True
-else:
-    from app.models.audio_chapter import AudioChapter as AudioChapterModel
-    USE_SQL = False
-import os
+
+def _extract_file_name(audio_key: Optional[str]) -> str:
+    if not audio_key:
+        return ""
+    name = audio_key.split("/")[-1]
+    parts = name.split("_", 1)
+    return parts[1] if len(parts) > 1 else name
 
 router = APIRouter()
 
@@ -139,55 +139,31 @@ async def get_audio_chapters(
         raise HTTPException(status_code=404, detail="Book not found")
 
     try:
+        query = (
+            db.query(AudioChapterSQL)
+            .filter(AudioChapterSQL.book_id == book_id)
+            .order_by(AudioChapterSQL.chapter_number.asc(), AudioChapterSQL.created_at.asc())
+        )
+        rows = query.all()
+
         results: List[AudioChapter] = []
-        if USE_SQL:
-            q = db.query(AudioChapterModelSQL).filter(AudioChapterModelSQL.book_id == book_id)
-            # 상태 필터는 현재 SQL 모델에 status 필드가 없으므로 일단 무시(확장 시 추가)
-            rows = q.order_by(AudioChapterModelSQL.chapter_number.asc(), AudioChapterModelSQL.created_at.asc()).all()
-            for r in rows:
-                results.append(
-                    AudioChapter(
-                        chapter_id=r.chapter_id,
-                        book_id=r.book_id,
-                        chapter_number=int(r.chapter_number),
-                        title=r.chapter_title or "",
-                        description="",
-                        file_name=(r.audio_key.split("/")[-1] if r.audio_key else ""),
-                        file_size=int(r.file_size or 0),
-                        duration=int(r.duration or 0),
-                        status="ready",  # SQL 경로에서는 업로드 즉시 ready 처리
-                        created_at=r.created_at,
-                        updated_at=r.updated_at,
-                    )
+        for row in rows:
+            results.append(
+                AudioChapter(
+                    chapter_id=row.chapter_id,
+                    book_id=row.book_id,
+                    chapter_number=int(row.chapter_number),
+                    title=row.chapter_title or "",
+                    description="",
+                    file_name=_extract_file_name(row.audio_key),
+                    file_size=int(row.file_size or 0),
+                    duration=int(row.duration or 0),
+                    status="ready",
+                    created_at=row.created_at,
+                    updated_at=row.updated_at,
                 )
-        else:
-            chapters = list(AudioChapterModel.list_by_book(book_id=book_id, limit=100))
-            if status:
-                chapters = [c for c in chapters if (c.status or "").lower() == status.lower()]
-            for c in chapters:
-                file_name = None
-                file_size = 0
-                duration = 0
-                if getattr(c, "file_info", None):
-                    file_name = c.file_info.original_name if hasattr(c.file_info, "original_name") else None
-                    file_size = int(c.file_info.file_size) if hasattr(c.file_info, "file_size") and c.file_info.file_size is not None else 0
-                if getattr(c, "audio_metadata", None) and hasattr(c.audio_metadata, "duration") and c.audio_metadata.duration is not None:
-                    duration = int(c.audio_metadata.duration)
-                results.append(
-                    AudioChapter(
-                        chapter_id=c.chapter_id,
-                        book_id=c.book_id,
-                        chapter_number=int(c.chapter_number),
-                        title=c.title,
-                        description=c.description,
-                        file_name=file_name or "",
-                        file_size=file_size,
-                        duration=duration,
-                        status=c.status,
-                        created_at=c.created_at,
-                        updated_at=c.updated_at,
-                    )
-                )
+            )
+
         return results
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list chapters: {str(e)}")
@@ -198,7 +174,8 @@ async def update_chapter_order(
     book_id: str = Path(..., description="책 ID"),
     chapter_id: str = Path(..., description="챕터 ID"),
     new_number: int = Query(..., ge=1, description="새로운 챕터 번호"),
-    claims = Depends(get_current_user_claims)
+    claims = Depends(get_current_user_claims),
+    db: Session = Depends(get_db)
 ):
     """
     오디오 챕터 순서 변경 (chapter_number 업데이트)
@@ -210,36 +187,35 @@ async def update_chapter_order(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
 
     # 책 소유권 확인
-    if not BookService.get_book(user_id=user_id, book_id=book_id):
+    if not BookService.get_book(db, user_id=user_id, book_id=book_id):
         raise HTTPException(status_code=404, detail="Book not found")
 
     # 챕터 조회
-    chapter = AudioChapterModel.get_by_id(chapter_id)
-    if not chapter or chapter.book_id != book_id:
+    chapter = (
+        db.query(AudioChapterSQL)
+        .filter(and_(AudioChapterSQL.chapter_id == chapter_id, AudioChapterSQL.book_id == book_id))
+        .first()
+    )
+    if not chapter:
         raise HTTPException(status_code=404, detail="Chapter not found")
 
     try:
         chapter.chapter_number = new_number
-        chapter.save()
-        file_name = None
-        file_size = 0
-        duration = 0
-        if getattr(chapter, "file_info", None):
-            file_name = chapter.file_info.original_name if hasattr(chapter.file_info, "original_name") else None
-            file_size = int(chapter.file_info.file_size) if hasattr(chapter.file_info, "file_size") and chapter.file_info.file_size is not None else 0
-        if getattr(chapter, "audio_metadata", None) and hasattr(chapter.audio_metadata, "duration") and chapter.audio_metadata.duration is not None:
-            duration = int(chapter.audio_metadata.duration)
+        db.commit()
+        db.refresh(chapter)
+
+        file_name = _extract_file_name(chapter.audio_key)
 
         return AudioChapter(
             chapter_id=chapter.chapter_id,
             book_id=chapter.book_id,
             chapter_number=int(chapter.chapter_number),
-            title=chapter.title,
-            description=chapter.description,
-            file_name=file_name or "",
-            file_size=file_size,
-            duration=duration,
-            status=chapter.status,
+            title=chapter.chapter_title or "",
+            description="",
+            file_name=file_name,
+            file_size=int(chapter.file_size or 0),
+            duration=int(chapter.duration or 0),
+            status="ready",
             created_at=chapter.created_at,
             updated_at=chapter.updated_at,
         )
@@ -266,53 +242,26 @@ async def get_audio_chapter(
         raise HTTPException(status_code=404, detail="Book not found")
 
     # 챕터 조회 및 검증
-    if USE_SQL:
-        chapter = (
-            db.query(AudioChapterModelSQL)
-            .filter(and_(AudioChapterModelSQL.chapter_id == chapter_id, AudioChapterModelSQL.book_id == book_id))
-            .first()
-        )
-        if not chapter:
-            raise HTTPException(status_code=404, detail="Audio chapter not found")
-        file_name = (chapter.audio_key.split("/")[-1] if chapter.audio_key else "")
-        return AudioChapter(
-            chapter_id=chapter.chapter_id,
-            book_id=chapter.book_id,
-            chapter_number=int(chapter.chapter_number),
-            title=chapter.chapter_title or "",
-            description="",
-            file_name=file_name,
-            file_size=int(chapter.file_size or 0),
-            duration=int(chapter.duration or 0),
-            status="ready",
-            created_at=chapter.created_at,
-            updated_at=chapter.updated_at,
-        )
-    else:
-        chapter = AudioChapterModel.get_by_id(chapter_id)
-        if not chapter or chapter.book_id != book_id:
-            raise HTTPException(status_code=404, detail="Audio chapter not found")
+    chapter = (
+        db.query(AudioChapterSQL)
+        .filter(and_(AudioChapterSQL.chapter_id == chapter_id, AudioChapterSQL.book_id == book_id))
+        .first()
+    )
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Audio chapter not found")
 
-    # 응답 모델 구성
-    file_name = ""
-    file_size = 0
-    duration = 0
-    if getattr(chapter, "file_info", None):
-        file_name = chapter.file_info.original_name if hasattr(chapter.file_info, "original_name") else ""
-        file_size = int(chapter.file_info.file_size) if hasattr(chapter.file_info, "file_size") and chapter.file_info.file_size is not None else 0
-    if getattr(chapter, "audio_metadata", None) and hasattr(chapter.audio_metadata, "duration") and chapter.audio_metadata.duration is not None:
-        duration = int(chapter.audio_metadata.duration)
+    file_name = _extract_file_name(chapter.audio_key)
 
     return AudioChapter(
         chapter_id=chapter.chapter_id,
         book_id=chapter.book_id,
         chapter_number=int(chapter.chapter_number),
-        title=chapter.title,
-        description=chapter.description,
+        title=chapter.chapter_title or "",
+        description="",
         file_name=file_name,
-        file_size=file_size,
-        duration=duration,
-        status=chapter.status,
+        file_size=int(chapter.file_size or 0),
+        duration=int(chapter.duration or 0),
+        status="ready",
         created_at=chapter.created_at,
         updated_at=chapter.updated_at,
     )
@@ -338,86 +287,27 @@ async def get_streaming_url(
         raise HTTPException(status_code=404, detail="Book not found")
 
     # 챕터 조회 및 상태 확인
-    if USE_SQL:
-        chapter = (
-            db.query(AudioChapterModelSQL)
-            .filter(and_(AudioChapterModelSQL.chapter_id == chapter_id, AudioChapterModelSQL.book_id == book_id))
-            .first()
-        )
-        if not chapter:
-            raise HTTPException(status_code=404, detail="Audio chapter not found")
-    else:
-        chapter = AudioChapterModel.get_by_id(chapter_id)
-        if not chapter or chapter.book_id != book_id:
-            raise HTTPException(status_code=404, detail="Audio chapter not found")
+    chapter = (
+        db.query(AudioChapterSQL)
+        .filter(and_(AudioChapterSQL.chapter_id == chapter_id, AudioChapterSQL.book_id == book_id))
+        .first()
+    )
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Audio chapter not found")
 
-    # 파일 경로 결정 (로컬 환경에서는 실제 파일 경로 사용)
-    file_path = None
-    
-    if settings.ENVIRONMENT == "local" and not USE_SQL:
-        # 로컬 환경: 실제 파일 경로 사용
-        if chapter.file_info and chapter.file_info.local_path:
-            file_path = chapter.file_info.local_path
-            
-            # 1차: 현재 경로 그대로 존재하는지 확인
-            if not os.path.exists(file_path):
-                # 2차: 스토리지 루트와 조합하여 확인 (기존 데이터 호환)
-                storage_root = os.path.abspath(getattr(settings, 'LOCAL_STORAGE_PATH', './storage'))
-                candidate = os.path.abspath(os.path.join(storage_root, file_path.lstrip('/').lstrip('.').lstrip('/')))
-                
-                if os.path.exists(candidate):
-                    file_path = candidate
-                else:
-                    # 3차: media -> uploads 대체 후 확인 (레거시 호환)
-                    abs_file_path = os.path.abspath(file_path)
-                    abs_base_path = abs_file_path.replace("/media/", "/uploads/")
-                    
-                    if os.path.exists(abs_file_path):
-                        file_path = abs_file_path
-                    elif os.path.exists(abs_base_path):
-                        file_path = abs_base_path
-                    else:
-                        raise HTTPException(status_code=404, detail=f"Audio file not found: {abs_file_path} or {abs_base_path}")
-        else:
-            raise HTTPException(status_code=404, detail="No file path found for chapter")
-    
-    else:
-        # 프로덕션(SQL): 저장된 audio_key를 사용해 Files 엔드포인트 경로로 매핑
-        if USE_SQL:
-            file_path = chapter.audio_key or f"book/{book_id}/media/{chapter.chapter_id}.m4a"
-        else:
-            # Dynamo 레거시 분기(프로덕션에서 사용 안 함)
-            if chapter.file_info and chapter.file_info.s3_key:
-                file_path = chapter.file_info.s3_key
-            elif chapter.file_info and chapter.file_info.original_name:
-                file_path = f"book/{book_id}/media/{chapter.file_info.original_name.replace(' ', '_')}"
-            else:
-                file_path = f"book/{book_id}/media/{chapter.chapter_id}.m4a"
+    storage_file_key = (
+        chapter.audio_key or f"book/{book_id}/media/{chapter.chapter_id}.m4a"
+    )
+    storage_file_key = storage_file_key.lstrip("/")
 
     expires = datetime.now(timezone.utc).replace(hour=23, minute=59, second=59, microsecond=0)
+    duration = int(chapter.duration or 0)
 
-    if settings.ENVIRONMENT == "production":
-        # CloudFront 미사용: Files 라우트를 통한 직접 스트리밍 경로 반환(상대 경로 사용)
-        duration = int(getattr(chapter, "duration", 0) or 0)
-        return StreamingUrlResponse(streaming_url=f"/api/v1/files/{file_path}", expires_at=expires, duration=duration)
+    streaming_path = f"{settings.API_V1_STR}/files/{storage_file_key}"
+    if not streaming_path.startswith("/"):
+        streaming_path = f"/{streaming_path.lstrip('/')}"
 
-    # 로컬: Files 다운로드 엔드포인트를 통한 스트리밍
-    # 실제 파일 경로를 파일 키로 변환
-    storage_root = os.path.abspath(getattr(settings, 'LOCAL_STORAGE_PATH', './storage')) + os.sep
-    abs_file = os.path.abspath(file_path)
-    if abs_file.startswith(storage_root):
-        file_key = abs_file[len(storage_root):]
-    elif file_path.startswith("./storage/"):
-        file_key = file_path.replace("./storage/", "")
-    else:
-        # 마지막 수단: 상대 경로 그대로 사용 (스토리지 서비스가 내부적으로 처리)
-        file_key = file_path.lstrip('/').lstrip('./')
-    
-    local_url = f"http://localhost:{settings.PORT}{settings.API_V1_STR}/files/{file_key}"
-    print(f"Generated streaming URL: {local_url}")
-    
-    duration = chapter.audio_metadata.duration if getattr(chapter, "audio_metadata", None) else 0
-    return StreamingUrlResponse(streaming_url=local_url, expires_at=expires, duration=duration)
+    return StreamingUrlResponse(streaming_url=streaming_path, expires_at=expires, duration=duration)
 
 
 @router.delete("/{book_id}/chapters/{chapter_id}")
@@ -439,47 +329,25 @@ async def delete_audio_chapter(
     if not BookService.get_book(db, user_id=user_id, book_id=book_id):
         raise HTTPException(status_code=404, detail="Book not found")
 
-    if USE_SQL:
-        chapter = (
-            db.query(AudioChapterModelSQL)
-            .filter(and_(AudioChapterModelSQL.chapter_id == chapter_id, AudioChapterModelSQL.book_id == book_id))
-            .first()
-        )
-        if not chapter:
-            raise HTTPException(status_code=404, detail="Audio chapter not found")
-    else:
-        chapter = AudioChapterModel.get_by_id(chapter_id)
-        if not chapter or chapter.book_id != book_id:
-            raise HTTPException(status_code=404, detail="Audio chapter not found")
+    chapter = (
+        db.query(AudioChapterSQL)
+        .filter(and_(AudioChapterSQL.chapter_id == chapter_id, AudioChapterSQL.book_id == book_id))
+        .first()
+    )
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Audio chapter not found")
 
     # 스토리지 파일 삭제 시도
     try:
-        if getattr(chapter, "file_info", None):
-            s3_key = getattr(chapter.file_info, "s3_key", None)
-            local_path = getattr(chapter.file_info, "local_path", None)
-            if s3_key:
-                try:
-                    await storage_service.delete_file(s3_key)
-                except Exception:
-                    pass
-            if local_path:
-                try:
-                    if os.path.exists(local_path):
-                        os.remove(local_path)
-                except Exception:
-                    pass
-        # 메타데이터/원본 등 추가 키가 있다면 여기서 추가 삭제 가능
+        if chapter.audio_key:
+            await storage_service.delete_file(chapter.audio_key)
     except Exception:
         pass
 
     # 챕터 삭제
     try:
-        if USE_SQL:
-            db.delete(chapter)
-            db.commit()
-        else:
-            chapter.delete()
+        db.delete(chapter)
+        db.commit()
         return {"message": f"Audio chapter {chapter_id} deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete chapter: {str(e)}")
-

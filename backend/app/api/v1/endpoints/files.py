@@ -10,26 +10,17 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import uuid
 import io
-import os
 from pathlib import Path
 
 from app.core.config import settings
 from app.services.storage.factory import storage_service
 from app.core.auth.simple import get_current_user_claims, require_any_scope
-
-# 환경별 서비스/모델 로딩 (프로덕션에서는 Dynamo 의존 모듈 미로딩)
-if settings.ENVIRONMENT in ["railway", "production"]:
-    from app.services.books_sql import BookServiceSQL as BookService
-    from app.models.database import get_db
-    from sqlalchemy.orm import Session
-    from sqlalchemy import func
-    from app.models.audio_chapter_sql import AudioChapterSQL
-    USE_SQL = True
-else:
-    from app.models.audio_chapter import AudioChapter, FileInfo
-    from app.services.books import BookService
-    USE_SQL = False
-from app.utils.audio_validation import extract_chapter_info, sanitize_filename
+from app.services.books_sql import BookServiceSQL as BookService
+from app.models.database import get_db
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from app.models.audio_chapter_sql import AudioChapterSQL
+from app.utils.audio_validation import extract_chapter_info
 from app.utils.ffprobe import extract_audio_metadata
 
 router = APIRouter()
@@ -82,7 +73,7 @@ async def upload_file(
     book_id: str = Query(..., description="책 ID"),
     file_type: str = Query("upload", description="파일 타입 (upload, media, cover)"),
     claims = Depends(require_any_scope(["admin", "editor"])),
-    db: Session = Depends(get_db) if 'get_db' in globals() else None
+    db: Session = Depends(get_db)
 ):
     """
     파일 업로드
@@ -145,53 +136,6 @@ async def upload_file(
                 detail=f"File upload failed: {result.error}"
             )
 
-        # 오디오 파일인 경우 AudioChapter 생성 (로컬 환경 한정)
-        if (
-            settings.ENVIRONMENT == "local"
-            and not USE_SQL
-            and file.content_type in allowed_audio_types
-            and file_type == "upload"
-        ):
-            try:
-                # 사용자 권한 확인 (책 소유권)
-                user_id_from_claims = str(claims.get("sub") or claims.get("username") or "")
-                book = BookService.get_book(user_id=user_id_from_claims, book_id=book_id)
-                if not book:
-                    raise HTTPException(status_code=404, detail="Book not found or access denied")
-
-                # 다음 챕터 번호 계산
-                next_chapter_number = AudioChapter.get_next_chapter_number(book_id)
-                
-                # AudioChapter 생성
-                chapter = AudioChapter(
-                    chapter_id=file_id,
-                    book_id=book_id,
-                    chapter_number=next_chapter_number,
-                    title=file.filename or f"Chapter {next_chapter_number}",
-                    status="uploading",
-                    file_info=FileInfo(
-                        original_name=file.filename,
-                        file_size=len(file_content),
-                        mime_type=file.content_type,
-                        s3_key=key if settings.ENVIRONMENT == "production" else None,
-                        local_path=(os.path.join(settings.LOCAL_STORAGE_PATH, key) if settings.ENVIRONMENT == "local" else None)
-                    )
-                )
-                chapter.save()
-
-                # 인코딩/메타데이터 자동 처리 비활성화: 즉시 ready 처리
-                chapter.mark_processing_completed({
-                    "duration": 0,
-                    "bitrate": None,
-                    "sample_rate": 44100,
-                    "channels": 1,
-                    "format": "mp4"
-                })
-
-            except Exception as chapter_error:
-                print(f"AudioChapter creation failed: {chapter_error}")
-                # 파일은 업로드되었지만 챕터 생성 실패 - 경고로 처리
-                
         return FileUploadResponse(
             success=True,
             file_id=file_id,
@@ -215,7 +159,7 @@ async def upload_audio_file(
     book_id: str = Query(..., description="책 ID"),
     chapter_title: Optional[str] = Query(None, description="챕터 제목"),
     claims = Depends(require_any_scope(["admin", "editor"])),
-    db: Session = Depends(get_db) if 'get_db' in globals() else None
+    db: 'Session' = Depends(get_db) if 'get_db' in globals() else None
 ):
     """
     오디오 파일 업로드 (AudioChapter 자동 생성)
@@ -241,12 +185,9 @@ async def upload_audio_file(
     try:
         # 사용자 권한 확인 (책 소유권)
         user_id = str(claims.get("sub") or claims.get("username") or "")
-        if USE_SQL:
-            if db is None:
-                raise HTTPException(status_code=500, detail="Database session unavailable")
-            book = BookService.get_book(db, user_id=user_id, book_id=book_id)
-        else:
-            book = BookService.get_book(user_id=user_id, book_id=book_id)
+        if db is None:
+            raise HTTPException(status_code=500, detail="Database session unavailable")
+        book = BookService.get_book(db, user_id=user_id, book_id=book_id)
         if not book:
             raise HTTPException(status_code=404, detail="Book not found or access denied")
 
@@ -280,92 +221,46 @@ async def upload_audio_file(
 
         # 파일명에서 챕터 정보 추출
         chapter_info = extract_chapter_info(file.filename or "unknown.mp3")
-        sanitized_filename = sanitize_filename(file.filename or "unknown.mp3")
 
-        if USE_SQL:
-            # SQL: 현재 최대 chapter_number + 1
-            max_num = db.query(func.max(AudioChapterSQL.chapter_number)).filter(AudioChapterSQL.book_id == book_id).scalar()
-            next_chapter_number = (max_num or 0) + 1
-            final_title = chapter_title or chapter_info.get('suggested_title') or f"Chapter {next_chapter_number}"
+        # SQL: 현재 최대 chapter_number + 1
+        max_num = (
+            db.query(func.max(AudioChapterSQL.chapter_number))
+            .filter(AudioChapterSQL.book_id == book_id)
+            .scalar()
+        )
+        next_chapter_number = (max_num or 0) + 1
+        final_title = chapter_title or chapter_info.get('suggested_title') or f"Chapter {next_chapter_number}"
 
-            chapter_sql = AudioChapterSQL(
-                book_id=book_id,
-                user_id=user_id,
-                chapter_id=file_id,
-                chapter_number=next_chapter_number,
-                chapter_title=final_title,
-                audio_key=key,
-                audio_url=None,
-                duration=0,
-                file_size=len(file_content),
-                content_type=file.content_type,
-                bitrate=None,
-                sample_rate=44100,
-                channels=1,
-            )
-            db.add(chapter_sql)
-            db.commit()
+        chapter_sql = AudioChapterSQL(
+            book_id=book_id,
+            user_id=user_id,
+            chapter_id=file_id,
+            chapter_number=next_chapter_number,
+            chapter_title=final_title,
+            audio_key=key,
+            audio_url=None,
+            duration=0,
+            file_size=len(file_content),
+            content_type=file.content_type,
+            bitrate=None,
+            sample_rate=44100,
+            channels=1,
+        )
+        db.add(chapter_sql)
+        db.commit()
 
-            processing_info: Dict[str, Any] = {"encoding_skipped": True, "skip_reason": "encoding disabled in MVP"}
-            return AudioUploadResponseDto(
-                success=True,
-                chapter_id=file_id,
-                file_id=file_id,
-                chapter_number=next_chapter_number,
-                title=final_title,
-                status="ready",
-                message=f"Audio file '{file.filename}' uploaded successfully",
-                warnings=None,
-                processing_info=processing_info
-            )
-        else:
-            # 로컬 Dynamo 경로 유지
-            suggested_number = chapter_info.get('chapter_number')
-            next_chapter_number = suggested_number or AudioChapter.get_next_chapter_number(book_id)
-            final_title = (
-                chapter_title or 
-                chapter_info.get('suggested_title') or 
-                f"Chapter {next_chapter_number}"
-            )
-
-            chapter = AudioChapter(
-                chapter_id=file_id,
-                book_id=book_id,
-                chapter_number=next_chapter_number,
-                title=final_title,
-                status="processing",
-                file_info=FileInfo(
-                    original_name=sanitized_filename,
-                    file_size=len(file_content),
-                    mime_type=file.content_type,
-                    s3_key=key if settings.ENVIRONMENT == "production" else None,
-                    local_path=(os.path.join(settings.LOCAL_STORAGE_PATH, key) if settings.ENVIRONMENT == "local" else None)
-                )
-            )
-            chapter.save()
-
-            processing_info: Dict[str, Any] = {}
-            chapter.mark_processing_completed({
-                "duration": 0,
-                "bitrate": None,
-                "sample_rate": 44100,
-                "channels": 1,
-                "format": "mp4"
-            })
-            processing_info["encoding_skipped"] = True
-            processing_info["skip_reason"] = "encoding disabled in MVP"
-
-            return AudioUploadResponseDto(
-                success=True,
-                chapter_id=chapter.chapter_id,
-                file_id=file_id,
-                chapter_number=chapter.chapter_number,
-                title=chapter.title,
-                status=chapter.status,
-                message=f"Audio file '{file.filename}' uploaded successfully",
-                warnings=None,
-                processing_info=processing_info if processing_info else None
-            )
+        processing_info: Dict[str, Any] = {"encoding_skipped": True, "skip_reason": "encoding disabled in MVP"}
+        return AudioUploadResponseDto(
+            success=True,
+            chapter_id=file_id,
+            file_id=file_id,
+            chapter_number=next_chapter_number,
+            title=final_title,
+            status="ready",
+            message=f"Audio file '{file.filename}' uploaded successfully",
+            warnings=None,
+            processing_info=processing_info
+        )
 
     except HTTPException:
         raise
@@ -379,7 +274,8 @@ async def upload_audio_file(
 @router.post("/retry-processing/{chapter_id}")
 async def retry_audio_processing(
     chapter_id: str = PathParam(..., description="챕터 ID"),
-    claims = Depends(require_any_scope(["admin", "editor"]))
+    claims = Depends(require_any_scope(["admin", "editor"])),
+    db: Session = Depends(get_db)
 ):
     """
     오디오 파일 재처리
@@ -393,50 +289,50 @@ async def retry_audio_processing(
         )
 
     try:
-        # 챕터 조회
-        chapter = AudioChapter.get_by_id(chapter_id)
+        user_id = str(claims.get("sub") or claims.get("username") or "")
+
+        chapter = (
+            db.query(AudioChapterSQL)
+            .filter(AudioChapterSQL.chapter_id == chapter_id)
+            .first()
+        )
         if not chapter:
             raise HTTPException(status_code=404, detail="Chapter not found")
 
-        # 사용자 권한 확인
-        user_id = str(claims.get("sub") or claims.get("username") or "")
-        # 로컬 환경에서만 동작하며 Dynamo 모델을 사용
-        book = BookService.get_book(user_id=user_id, book_id=chapter.book_id)
+        book = BookService.get_book(db, user_id=user_id, book_id=chapter.book_id)
         if not book:
             raise HTTPException(status_code=404, detail="Book not found or access denied")
 
-        # 파일 경로 확인
-        if not chapter.file_info or not chapter.file_info.local_path:
-            raise HTTPException(status_code=400, detail="No file path found for reprocessing")
+        if not chapter.audio_key:
+            raise HTTPException(status_code=400, detail="No storage key found for chapter")
 
-        file_path = chapter.file_info.local_path
-        if not os.path.exists(file_path):
+        storage_base = getattr(storage_service, "base_path", getattr(settings, "LOCAL_STORAGE_PATH", "./storage"))
+        file_path = Path(storage_base) / chapter.audio_key.lstrip("/")
+        if not file_path.exists():
             raise HTTPException(status_code=404, detail="Audio file not found on disk")
 
-        # 재처리 시작
-        chapter.mark_processing_started()
-
         try:
-            # 메타데이터 재추출
-            metadata_result = extract_audio_metadata(file_path)
-            chapter.mark_processing_completed(metadata_result)
-            
-            return {
-                "success": True,
-                "chapter_id": chapter_id,
-                "status": chapter.status,
-                "message": "Audio reprocessing completed successfully",
-                "metadata": metadata_result
-            }
-            
+            metadata_result = extract_audio_metadata(str(file_path))
         except Exception as meta_error:
-            error_msg = f"Reprocessing failed: {str(meta_error)}"
-            chapter.mark_processing_error(error_msg)
-            
             raise HTTPException(
                 status_code=500,
-                detail=error_msg
+                detail=f"Reprocessing failed: {meta_error}"
             )
+
+        chapter.duration = int(metadata_result.get("duration") or chapter.duration or 0)
+        chapter.bitrate = metadata_result.get("bitrate")
+        chapter.sample_rate = metadata_result.get("sample_rate")
+        chapter.channels = metadata_result.get("channels")
+        db.commit()
+        db.refresh(chapter)
+
+        return {
+            "success": True,
+            "chapter_id": chapter_id,
+            "status": "ready",
+            "message": "Audio reprocessing completed successfully",
+            "metadata": metadata_result
+        }
 
     except HTTPException:
         raise

@@ -4,20 +4,21 @@
 import sys
 import os
 import pytest
-import tempfile
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 BACKEND_DIR = os.path.join(PROJECT_ROOT, "backend")
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
+os.environ["DATABASE_URL"] = "sqlite:///./test_audio.db"
+
 from app.main import app
 from app.core.config import settings
-from app.services.books import BookService
-from app.models.book import Book
-from app.models.audio_chapter import AudioChapter
+from app.services.books_sql import BookServiceSQL as BookService
+from app.models.audio_chapter_sql import AudioChapterSQL
+from app.models.database import Base, engine, SessionLocal
 
 
 @pytest.fixture(autouse=True)
@@ -27,11 +28,9 @@ def _local_setup():
     settings.LOCAL_BYPASS_ENABLED = True
     settings.LOCAL_BYPASS_SCOPE = "admin"
     
-    # 테이블 생성
-    if not Book.exists():
-        Book.create_table(read_capacity_units=5, write_capacity_units=5, wait=True)
-    if not AudioChapter.exists():
-        AudioChapter.create_table(read_capacity_units=5, write_capacity_units=5, wait=True)
+    # 테이블 초기화
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
     
     yield
 
@@ -42,13 +41,18 @@ class TestAudioUploadAPI:
     def setup_method(self):
         """각 테스트 전 설정"""
         self.client = TestClient(app)
-        
+        self.db = SessionLocal()
+
         # 테스트용 책 생성 (로컬 바이패스 사용자 ID 사용)
         self.book = BookService.create_book(
+            self.db,
             user_id=settings.LOCAL_BYPASS_SUB,
             title="Test Book",
             author="Test Author"
         )
+
+    def teardown_method(self):
+        self.db.close()
 
     def test_upload_audio_file_success(self):
         """오디오 파일 업로드 성공 테스트"""
@@ -76,7 +80,7 @@ class TestAudioUploadAPI:
         assert "chapter_id" in data
         assert data["chapter_number"] == 1
         assert data["title"] == "Test Chapter"
-        assert data["status"] in ["processing", "ready", "error"]  # ffprobe 실패 시 error 상태도 허용
+        assert data["status"] == "ready"
 
     def test_upload_audio_file_invalid_format(self):
         """지원되지 않는 파일 형식 업로드 테스트"""
@@ -165,9 +169,13 @@ class TestAudioUploadAPI:
         assert data["success"] is True
         
         # 챕터가 생성되었는지 확인
-        chapter = AudioChapter.get_by_id(data["chapter_id"])
+        chapter = (
+            self.db.query(AudioChapterSQL)
+            .filter(AudioChapterSQL.chapter_id == data["chapter_id"])
+            .first()
+        )
         assert chapter is not None
-        assert chapter.status in ["ready", "error"]
+        assert int(chapter.duration or 0) == 0
 
     def test_upload_without_authentication(self):
         """인증 없이 업로드 시도 테스트"""
@@ -203,20 +211,17 @@ class TestAudioUploadAPI:
         data = response.json()
         
         # 생성된 챕터 확인
-        chapter = AudioChapter.get_by_id(data["chapter_id"])
+        chapter = (
+            self.db.query(AudioChapterSQL)
+            .filter(AudioChapterSQL.chapter_id == data["chapter_id"])
+            .first()
+        )
         assert chapter is not None
         assert chapter.book_id == self.book.book_id
-        assert chapter.title == "My Chapter"
+        assert chapter.chapter_title == "My Chapter"
         assert chapter.chapter_number == 1
-        assert chapter.file_info.original_name == "my_audio.m4a"
-        assert chapter.file_info.file_size == len(audio_content)
-        assert chapter.file_info.mime_type == "audio/mp4"
-        
-        # 메타데이터 확인 (로컬 환경에서는 즉시 처리)
-        if chapter.status == "ready":
-            assert chapter.audio_metadata is not None
-            assert isinstance(chapter.audio_metadata.duration, (int, float))
-            assert chapter.audio_metadata.channels == 1
+        assert chapter.file_size == len(audio_content)
+        assert chapter.content_type == "audio/mp4"
 
 
 class TestAudioUploadIntegration:
@@ -225,13 +230,18 @@ class TestAudioUploadIntegration:
     def setup_method(self):
         """각 테스트 전 설정"""
         self.client = TestClient(app)
-        
+        self.db = SessionLocal()
+
         # 테스트용 책 생성 (로컬 바이패스 사용자 ID 사용)
         self.book = BookService.create_book(
+            self.db,
             user_id=settings.LOCAL_BYPASS_SUB,
             title="Integration Test Book",
             author="Test Author"
         )
+
+    def teardown_method(self):
+        self.db.close()
 
     def test_complete_audio_upload_workflow(self):
         """완전한 오디오 업로드 워크플로우 테스트"""
@@ -272,23 +282,3 @@ class TestAudioUploadIntegration:
             chapter_data = chapter_response.json()
             assert chapter_data["chapter_id"] == chapter_id
             assert chapter_data["file_name"] == "intro.m4a"
-
-
-@pytest.fixture(autouse=True)
-def cleanup_test_data():
-    """테스트 데이터 정리"""
-    yield
-    
-    # 테스트 후 생성된 데이터 정리
-    try:
-        # 모든 테스트 책 삭제
-        for book in Book.scan():
-            if book.title.startswith("Test") or book.title.startswith("Integration"):
-                book.delete()
-        
-        # 모든 테스트 챕터 삭제
-        for chapter in AudioChapter.scan():
-            if chapter.title.startswith("Test") or chapter.title.startswith("Chapter") or chapter.title.startswith("Intro"):
-                chapter.delete()
-    except Exception:
-        pass

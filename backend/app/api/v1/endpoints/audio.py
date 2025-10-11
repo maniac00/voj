@@ -372,11 +372,14 @@ async def get_streaming_url(
     )
     duration = int(chapter.duration or 0)
 
-    # In production, optionally return absolute origin URL to avoid proxy issues
-    if settings.ENVIRONMENT == "production":
-        railway_base = os.getenv("RAILWAY_PUBLIC_DOMAIN") or os.getenv("BACKEND_ORIGIN")
-        if railway_base:
-            absolute_url = f"{railway_base.rstrip('/')}{settings.API_V1_STR}/files/{storage_file_key}"
+    # In production/railway, return absolute origin URL to avoid proxy issues
+    if settings.ENVIRONMENT in ("production", "railway"):
+        base = os.getenv("BACKEND_ORIGIN") or os.getenv("RAILWAY_PUBLIC_DOMAIN")
+        if base:
+            base = base.strip()
+            if not (base.startswith("http://") or base.startswith("https://")):
+                base = f"https://{base}"
+            absolute_url = f"{base.rstrip('/')}{settings.API_V1_STR}/files/{storage_file_key}"
             return StreamingUrlResponse(
                 streaming_url=absolute_url, expires_at=expires, duration=duration
             )

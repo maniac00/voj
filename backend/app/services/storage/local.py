@@ -20,15 +20,18 @@ class LocalStorageService(BaseStorageService):
     """로컬 파일 시스템을 사용한 스토리지 서비스."""
 
     def __init__(self) -> None:
-        # 설정된 기본 경로가 쓰기 불가한 경우를 대비하여 안전한 경로로 폴백
+        # 프로덕션에서는 설정 경로를 강제 사용 (퍼시스턴트 볼륨)
         configured_base = getattr(settings, "LOCAL_STORAGE_PATH", "./storage")
-        self.base_path = self._choose_base_path(
-            [
-                configured_base,
-                "/app/storage",
-                "/tmp/storage",
-            ]
-        )
+        env = str(getattr(settings, "ENVIRONMENT", "")).lower()
+        if env == "production":
+            self.base_path = configured_base or "/data/storage"
+            self._candidates = [self.base_path]
+            os.makedirs(self.base_path, exist_ok=True)
+        else:
+            # 개발/기타 환경: 쓰기 가능한 경로를 선택
+            candidates = [configured_base, "/app/storage", "/tmp/storage"]
+            self._candidates = candidates
+            self.base_path = self._choose_base_path(candidates)
         port = getattr(settings, "PORT", 8000) or 8000
         self.base_url = (
             getattr(settings, "PUBLIC_STORAGE_URL", None)

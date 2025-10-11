@@ -371,13 +371,19 @@ async def get_streaming_url(
     )
     duration = int(chapter.duration or 0)
 
+    # In production, optionally return absolute origin URL to avoid proxy issues
+    if settings.ENVIRONMENT == "production":
+        railway_base = os.getenv("RAILWAY_PUBLIC_DOMAIN") or os.getenv("BACKEND_ORIGIN")
+        if railway_base:
+            absolute_url = f"{railway_base.rstrip('/')}{settings.API_V1_STR}/files/{storage_file_key}"
+            return StreamingUrlResponse(
+                streaming_url=absolute_url, expires_at=expires, duration=duration
+            )
+
     streaming_path = f"{settings.API_V1_STR}/files/{storage_file_key}"
     if not streaming_path.startswith("/"):
         streaming_path = f"/{streaming_path.lstrip('/')}"
-
-    return StreamingUrlResponse(
-        streaming_url=streaming_path, expires_at=expires, duration=duration
-    )
+    return StreamingUrlResponse(streaming_url=streaming_path, expires_at=expires, duration=duration)
 
 
 @router.post("/{book_id}/chapters/{chapter_id}/progress")

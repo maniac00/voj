@@ -6,6 +6,7 @@ import hashlib
 import io
 import uuid
 from datetime import datetime, timezone
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -27,6 +28,35 @@ from app.utils.audio_validation import extract_chapter_info
 from app.utils.ffprobe import extract_audio_metadata
 
 router = APIRouter()
+@router.get("/debug/resolve/{file_key:path}")
+async def debug_resolve_file(file_key: str):
+    """Return how the storage resolves a given key to a full path in production."""
+    tried: List[str] = []
+    full_path = None
+    exists = False
+    try:
+        # Try public helper
+        getter = getattr(storage_service, "get_full_path", None)
+        if callable(getter):
+            p = getter(file_key)
+            if p:
+                full_path = p
+                exists = True
+        # Inspect internal candidates if available
+        base_path = getattr(storage_service, "base_path", None)
+        candidates = getattr(storage_service, "_candidates", []) or []
+        for root in candidates:
+            tried.append(f"{root}/{file_key}")
+        if base_path and f"{base_path}/{file_key}" not in tried:
+            tried.insert(0, f"{base_path}/{file_key}")
+    except Exception as e:
+        return {"error": str(e)}
+    return {
+        "file_key": file_key,
+        "resolved_full_path": full_path,
+        "exists": exists,
+        "tried_paths": tried,
+    }
 
 
 class FileUploadResponse(BaseModel):
@@ -115,6 +145,13 @@ async def upload_file(
         prefix = {"upload": "uploads", "media": "media", "cover": "covers"}.get(
             file_type, "uploads"
         )
+        # In production/railway, store audio uploads under media for streaming
+        if (
+            settings.ENVIRONMENT in ("production", "railway")
+            and file_type == "upload"
+            and file.content_type in ["audio/mp4", "audio/x-m4a"]
+        ):
+            prefix = "media"
 
         key = storage_service.generate_key(
             user_id, book_id, f"{file_id}_{file.filename}", prefix
@@ -205,8 +242,9 @@ async def upload_audio_file(
 
         # 파일 ID 및 키 생성
         file_id = str(uuid.uuid4())
+        # Store audio under media prefix for streaming
         key = storage_service.generate_key(
-            user_id, book_id, f"{file_id}_{file.filename}", "uploads"
+            user_id, book_id, f"{file_id}_{file.filename}", "media"
         )
 
         # 메타데이터 준비

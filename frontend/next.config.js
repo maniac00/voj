@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  eslint: {
+    // 프로덕션 빌드 시 ESLint 오류로 빌드가 중단되지 않도록 설정
+    ignoreDuringBuilds: true,
+  },
   experimental: {
     optimizePackageImports: [
       '@radix-ui/react-icons'

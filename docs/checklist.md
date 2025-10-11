@@ -109,6 +109,7 @@
   - [x] **3.1.4.7** 헬스 체크에 스토리지 상태 확인 추가
   - [x] **3.1.4.8** 로컬 파일 업로드 테스트 완료
 - [ ] **3.1.5** Cognito 인증 미들웨어 구현
+  - [x] MVP 정적 계정(simple auth) 적용: admin/qwer1234, dev@example.com/qwer1234
 
 ### 3.2 Books API 구현
 - [ ] **3.2.1** 책 생성 API (`POST /books`)
@@ -295,7 +296,13 @@ Railway/Vercel 환경을 기준으로 AWS 의존을 제거하고 데이터베이
 ## 📝 업데이트 로그
 
 ### 2025-10-10
-- BookService, 모델, 프로바이더를 스트리밍 API 응답 스키마에 맞게 업데이트하고 단위 테스트 추가
+- 로컬 DB 경로 통일: 기본 SQLite 경로를 절대경로(repo root의 `voj_dev.db`)로 고정하여 Swagger/어드민 간 DB 이원화로 인한 챕터 수 불일치 해결. 필요 시 `.env.local`의 `DATABASE_URL`로 재정의 가능
+- 모바일: BookService/모델/프로바이더를 스트리밍 스펙에 맞게 업데이트, 목록/상세 정규화
+- 모바일: AudioService를 `/audio/{book_id}/chapters/...` 스펙으로 재구성, 진행률/위치 복원 반영
+- 모바일: AudioPlayerService를 스트리밍 URL 발급 기반으로 리팩터링, 접근성 알림 연동
+- 모바일: WebSocket 클라이언트(`/ws/logs`, `/ws/status/{chapter_id}`) 추가 및 플레이어 상태/알림 연결
+- 모바일: 미니/전체 플레이어에 챕터 상태 텍스트 반영
+- 모바일: README 업데이트(스트리밍/WebSocket/테스트), 간단 테스트 스텁 추가
 
 ### 2025-10-06
 - Railway 빌드 실패 재현 후 Docker 컨텍스트/경로 통일 및 포트 8000 유지 결정

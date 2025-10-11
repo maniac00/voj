@@ -4,20 +4,22 @@ AWS 프로덕션 환경에서 사용되는 설정들
 """
 import os
 from typing import Optional
+
 from pydantic import ConfigDict
+
 from .base import BaseAppSettings
 
 
 class ProductionSettings(BaseAppSettings):
     """프로덕션 환경 설정"""
-    
+
     # 환경 구분
     ENVIRONMENT: str = "production"
-    
+
     # 프로덕션 서버 설정
     HOST: str = "0.0.0.0"
     PORT: int = 8080
-    
+
     # Hosts (TrustedHostMiddleware)
     # 주의: 스킴 없이 호스트명만 지정 (Railway + Vercel)
     ALLOWED_HOSTS: list = [
@@ -32,7 +34,7 @@ class ProductionSettings(BaseAppSettings):
         "https://voj-audiobooks.vercel.app",
         "https://api.voj-audiobook.com",
     ]
-    
+
     # 데이터베이스 (Railway: DATABASE_URL 제공)
     DATABASE_URL: Optional[str] = os.getenv("DATABASE_URL")
 
@@ -63,9 +65,9 @@ class ProductionSettings(BaseAppSettings):
     COGNITO_CLIENT_SECRET: Optional[str] = None
     COGNITO_REGION: Optional[str] = None
     COGNITO_DOMAIN: Optional[str] = None
-    
+
     # 로깅 설정 (프로덕션용)
     LOG_LEVEL: str = "INFO"
-    
+
     # Pydantic v2
     model_config = ConfigDict(case_sensitive=True)

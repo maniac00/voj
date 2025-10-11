@@ -92,8 +92,8 @@ class Book {
   final DateTime updatedAt;
   final DateTime? publishedAt;
   final Category? category;
-  final List<AudioFile> audioFiles;
-  final int audioFileCount;
+  final List<AudioChapter> chapters;
+  final int chapterCount;
   final String? userId;
   final String? statusLabel;
   final String? genre;
@@ -112,8 +112,8 @@ class Book {
     required this.updatedAt,
     this.publishedAt,
     this.category,
-    this.audioFiles = const [],
-    this.audioFileCount = 0,
+    this.chapters = const [],
+    this.chapterCount = 0,
     this.userId,
     this.statusLabel,
     this.genre,
@@ -130,7 +130,7 @@ class Book {
 
     final statusValue = (json['status'] as String? ?? 'draft').toLowerCase();
     final totalDurationRaw = json['totalDuration'] ?? json['total_duration'];
-    final audioFileCountRaw = json['_count']?['audioFiles'] ?? json['audioFileCount'] ?? json['total_chapters'];
+    final chapterCountRaw = json['_count']?['chapters'] ?? json['chapterCount'] ?? json['total_chapters'];
     final statusLabel = json['statusLabel'] ?? json['status_label'] ?? json['status_display'] ?? json['statusDisplay'];
 
     return Book(
@@ -155,13 +155,13 @@ class Book {
       category: json['category'] != null
           ? Category.fromJson(Map<String, dynamic>.from(json['category'] as Map))
           : null,
-      audioFiles: json['audioFiles'] != null
-          ? (json['audioFiles'] as List)
+      chapters: json['chapters'] != null
+          ? (json['chapters'] as List)
               .whereType<Map<String, dynamic>>()
-              .map(AudioFile.fromJson)
+              .map(AudioChapter.fromJson)
               .toList()
           : const [],
-      audioFileCount: _parseInt(audioFileCountRaw),
+      chapterCount: _parseInt(chapterCountRaw),
       userId: json['user_id'] as String?,
       statusLabel: statusLabel as String?,
       genre: json['genre'] as String?,
@@ -182,7 +182,7 @@ class Book {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'publishedAt': publishedAt?.toIso8601String(),
-      'audioFileCount': audioFileCount,
+      'chapterCount': chapterCount,
       'userId': userId,
       'statusLabel': statusLabel,
       'genre': genre,
@@ -203,8 +203,8 @@ class Book {
     DateTime? updatedAt,
     DateTime? publishedAt,
     Category? category,
-    List<AudioFile>? audioFiles,
-    int? audioFileCount,
+    List<AudioChapter>? chapters,
+    int? chapterCount,
     String? userId,
     String? statusLabel,
     String? genre,
@@ -223,8 +223,8 @@ class Book {
       updatedAt: updatedAt ?? this.updatedAt,
       publishedAt: publishedAt ?? this.publishedAt,
       category: category ?? this.category,
-      audioFiles: audioFiles ?? this.audioFiles,
-      audioFileCount: audioFileCount ?? this.audioFileCount,
+      chapters: chapters ?? this.chapters,
+      chapterCount: chapterCount ?? this.chapterCount,
       userId: userId ?? this.userId,
       statusLabel: statusLabel ?? this.statusLabel,
       genre: genre ?? this.genre,
@@ -243,49 +243,52 @@ class Book {
   }
 }
 
-class AudioFile {
+class AudioChapter {
   final String id;
   final String bookId;
   final String fileName;
-  final String? fileUrl;
-  final int? fileSize;
-  final int duration; // in seconds
-  final int sequence;
-  final AudioFileStatus status;
+  final String? streamingUrl;
+  final int? duration;
+  final int chapterNumber;
+  final AudioChapterStatus status;
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? statusLabel;
+  final int? fileSize;
+  final String? contentPath;
 
-  const AudioFile({
+  const AudioChapter({
     required this.id,
     required this.bookId,
     required this.fileName,
-    this.fileUrl,
-    this.fileSize,
-    required this.duration,
-    required this.sequence,
+    this.streamingUrl,
+    this.duration,
+    required this.chapterNumber,
     required this.status,
     required this.createdAt,
     required this.updatedAt,
     this.statusLabel,
+    this.fileSize,
+    this.contentPath,
   });
 
-  factory AudioFile.fromJson(Map<String, dynamic> json) {
-    return AudioFile(
-      id: json['id'] as String? ?? json['chapter_id'] as String? ?? '',
-      bookId: json['bookId'] as String? ?? json['book_id'] as String? ?? '',
-      fileName: json['fileName'] as String? ?? json['file_name'] as String? ?? '',
-      fileUrl: json['fileUrl'] as String? ?? json['file_url'] as String?,
-      fileSize: json['fileSize'] as int? ?? json['file_size'] as int?,
-      duration: json['duration'] as int? ?? json['duration_seconds'] as int? ?? 0,
-      sequence: json['sequence'] as int? ?? json['chapter_number'] as int? ?? 0,
-      status: AudioFileStatus.values.firstWhere(
+  factory AudioChapter.fromJson(Map<String, dynamic> json) {
+    return AudioChapter(
+      id: json['chapter_id'] as String? ?? json['id'] as String? ?? '',
+      bookId: json['book_id'] as String? ?? json['bookId'] as String? ?? '',
+      fileName: json['file_name'] as String? ?? json['fileName'] as String? ?? '',
+      streamingUrl: json['streaming_url'] as String?,
+      duration: json['duration'] as int? ?? json['duration_seconds'] as int?,
+      chapterNumber: json['chapter_number'] as int? ?? json['sequence'] as int? ?? 0,
+      status: AudioChapterStatus.values.firstWhere(
         (e) => e.name == (json['status'] as String? ?? '').toLowerCase(),
-        orElse: () => AudioFileStatus.processing,
+        orElse: () => AudioChapterStatus.processing,
       ),
       createdAt: _parseDateTime(json['createdAt'] ?? json['created_at']) ?? DateTime.now(),
       updatedAt: _parseDateTime(json['updatedAt'] ?? json['updated_at']) ?? DateTime.now(),
       statusLabel: json['status_label'] as String? ?? json['statusDisplay'] as String?,
+      fileSize: json['file_size'] as int? ?? json['fileSize'] as int?,
+      contentPath: json['content_path'] as String? ?? json['contentPath'] as String?,
     );
   }
 
@@ -294,20 +297,24 @@ class AudioFile {
       'id': id,
       'bookId': bookId,
       'fileName': fileName,
-      'fileUrl': fileUrl,
-      'fileSize': fileSize,
+      'streamingUrl': streamingUrl,
       'duration': duration,
-      'sequence': sequence,
+      'chapterNumber': chapterNumber,
       'status': status.name,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'statusLabel': statusLabel,
+      'fileSize': fileSize,
+      'contentPath': contentPath,
     };
   }
 
   String get durationText {
-    final minutes = duration ~/ 60;
-    final seconds = duration % 60;
+    if (duration == null) {
+      return '--:--';
+    }
+    final minutes = duration! ~/ 60;
+    final seconds = duration! % 60;
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 }
@@ -316,23 +323,23 @@ class Bookmark {
   final String id;
   final String userId;
   final String bookId;
-  final String? audioFileId;
+  final String? chapterId;
   final int position; // in seconds
   final String? note;
   final DateTime createdAt;
   final Book? book;
-  final AudioFile? audioFile;
+  final AudioChapter? chapter;
 
   const Bookmark({
     required this.id,
     required this.userId,
     required this.bookId,
-    this.audioFileId,
+    this.chapterId,
     required this.position,
     this.note,
     required this.createdAt,
     this.book,
-    this.audioFile,
+    this.chapter,
   });
 
   factory Bookmark.fromJson(Map<String, dynamic> json) {
@@ -340,16 +347,18 @@ class Bookmark {
       id: json['id'] as String? ?? json['bookmark_id'] as String? ?? '',
       userId: json['userId'] as String? ?? json['user_id'] as String? ?? '',
       bookId: json['bookId'] as String? ?? json['book_id'] as String? ?? '',
-      audioFileId: json['audioFileId'] as String? ?? json['chapter_id'] as String?,
+      chapterId: json['chapterId'] as String? ?? json['chapter_id'] as String?,
       position: _parseInt(json['position'] ?? json['position_seconds']),
       note: json['note'] as String?,
       createdAt: _parseDateTime(json['createdAt'] ?? json['created_at']) ?? DateTime.now(),
       book: json['book'] != null
           ? Book.fromJson(Map<String, dynamic>.from(json['book'] as Map))
           : null,
-      audioFile: json['audioFile'] != null
-          ? AudioFile.fromJson(Map<String, dynamic>.from(json['audioFile'] as Map))
-          : null,
+      chapter: json['chapter'] != null
+          ? AudioChapter.fromJson(Map<String, dynamic>.from(json['chapter'] as Map))
+          : json['audioFile'] != null
+              ? AudioChapter.fromJson(Map<String, dynamic>.from(json['audioFile'] as Map))
+              : null,
     );
   }
 
@@ -358,7 +367,7 @@ class Bookmark {
       'id': id,
       'userId': userId,
       'bookId': bookId,
-      'audioFileId': audioFileId,
+      'chapterId': chapterId,
       'position': position,
       'note': note,
       'createdAt': createdAt.toIso8601String(),
@@ -388,12 +397,12 @@ enum BookStatus {
   final String displayName;
 }
 
-enum AudioFileStatus {
+enum AudioChapterStatus {
   processing('PROCESSING', '처리중'),
   ready('READY', '준비됨'),
   failed('FAILED', '실패');
 
-  const AudioFileStatus(this.value, this.displayName);
+  const AudioChapterStatus(this.value, this.displayName);
   final String value;
   final String displayName;
 }

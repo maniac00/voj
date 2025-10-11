@@ -1,18 +1,24 @@
 import 'dart:io';
 import '../models/book_model.dart';
 import 'api_service.dart';
+import 'audio_service.dart';
 
 class BookService {
   final ApiService _apiService;
+  final AudioService _audioService;
 
-  BookService({ApiService? apiService}) : _apiService = apiService ?? ApiService();
+  BookService({ApiService? apiService, AudioService? audioService})
+      : _apiService = apiService ?? ApiService(),
+        _audioService = audioService ?? AudioService();
 
   void setAuthToken(String token) {
     _apiService.setAuthToken(token);
+    _audioService.setAuthToken(token);
   }
 
   void clearAuthToken() {
     _apiService.clearAuthToken();
+    _audioService.clearAuthToken();
   }
 
   /// 백엔드에 카테고리 목록 API가 아직 없으므로 빈 목록을 반환한다.
@@ -38,6 +44,8 @@ class BookService {
 
       final response = await _apiService.get('/books', queryParameters: query);
       final normalized = _normalizeBooksResponse(response, fallbackLimit: limit);
+      // 목록 조회에서는 네트워크 비용을 줄이기 위해 챕터 목록을 추가 호출하지 않는다.
+      // 상세 조회 시(getBookById) 챕터를 합성한다.
       return BooksResponse.fromJson(normalized);
     } on ApiException catch (error) {
       throw BookServiceException.fromApiException(error);
@@ -58,7 +66,15 @@ class BookService {
     try {
       final response = await _apiService.get('/books/$bookId');
       final payload = _ensureMap(response['book'] ?? response);
-      return Book.fromJson(_normalizeBook(payload));
+      final normalized = _normalizeBook(payload);
+
+      final chapters = await _fetchChapters(bookId);
+      normalized['chapters'] = chapters;
+      normalized['_count'] = {
+        'chapters': chapters.length,
+      };
+
+      return Book.fromJson(normalized);
     } on ApiException catch (error) {
       throw BookServiceException.fromApiException(error);
     } on SocketException {
@@ -153,6 +169,7 @@ class BookService {
 
   void dispose() {
     _apiService.dispose();
+    _audioService.dispose();
   }
 
   Map<String, dynamic> _normalizeCategory(Map<String, dynamic> raw) {
@@ -212,9 +229,9 @@ class BookService {
       'genre': raw['genre'],
       'statusLabel': raw['status_label'] ?? raw['statusDisplay'],
       '_count': {
-        'audioFiles': raw['total_chapters'] ?? raw['totalChapters'] ?? 0,
+        'chapters': raw['total_chapters'] ?? raw['totalChapters'] ?? 0,
       },
-      'audioFiles': raw['audioFiles'] ?? raw['chapters'] ?? const [],
+      'chapters': raw['chapters'] ?? const [],
     };
   }
 
@@ -229,6 +246,27 @@ class BookService {
       message: '잘못된 응답 형식입니다',
       statusCode: -1,
     );
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchChapters(String bookId) async {
+    try {
+      final response = await _audioService.getChapters(bookId: bookId);
+      return response
+          .map((chapter) => chapter.toJson())
+          .map((json) {
+            final mutable = Map<String, dynamic>.from(json);
+            if (!mutable.containsKey('chapter_id')) {
+              mutable['chapter_id'] = mutable['id'];
+            }
+            return mutable;
+          })
+          .toList();
+    } on AudioServiceException catch (error) {
+      if (error.isUnauthorized || error.isForbidden) {
+        rethrow;
+      }
+      return const [];
+    }
   }
 }
 

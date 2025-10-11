@@ -20,7 +20,7 @@
 * **DB**: DynamoDB (Books/AudioChapters)
 * **스토리지**: S3 (비공개 버킷, 서울 `ap-northeast-2`)
 * **CDN/보안**: CloudFront + Origin Access Control(OAC) + Signed URL/쿠키
-* **인증/권한**: Cognito(어드민), IAM(OAC, Lambda 역할 최소권한)
+* **인증/권한**: Cognito(어드민) — MVP 단계에서는 간단 인증(Simple Auth, 정적 계정) 사용, IAM(OAC, Lambda 역할 최소권한)
 * **인코딩 워크플로우**: S3 Put("uploads/") → S3 Event → Lambda(FFmpeg) → "media/"에 결과 저장 → 메타 업데이트
 
 ## 1.1 개발 환경 구성
@@ -31,7 +31,7 @@
 * **백엔드**: FastAPI 로컬 서버 (`localhost:8080`)
 * **DB**: DynamoDB Local (Docker 또는 Java 기반)
 * **스토리지**: 로컬 파일 시스템 (`./storage/audio/`)
-* **인증**: Mock 인증 또는 로컬 JWT
+* **인증**: Mock 인증 또는 로컬 JWT, MVP 간단 인증(Simple Auth)
 * **인코딩**: 로컬 FFmpeg 바이너리
 
 **특징:**

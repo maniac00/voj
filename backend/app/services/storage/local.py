@@ -22,13 +22,18 @@ class LocalStorageService(BaseStorageService):
     def __init__(self) -> None:
         # 설정된 기본 경로가 쓰기 불가한 경우를 대비하여 안전한 경로로 폴백
         configured_base = getattr(settings, "LOCAL_STORAGE_PATH", "./storage")
-        self.base_path = self._choose_base_path([
-            configured_base,
-            "/app/storage",
-            "/tmp/storage",
-        ])
+        self.base_path = self._choose_base_path(
+            [
+                configured_base,
+                "/app/storage",
+                "/tmp/storage",
+            ]
+        )
         port = getattr(settings, "PORT", 8000) or 8000
-        self.base_url = getattr(settings, "PUBLIC_STORAGE_URL", None) or f"http://localhost:{port}/storage"
+        self.base_url = (
+            getattr(settings, "PUBLIC_STORAGE_URL", None)
+            or f"http://localhost:{port}/storage"
+        )
         self._ensure_directories()
 
     # ------------------------------------------------------------------
@@ -210,7 +215,9 @@ class LocalStorageService(BaseStorageService):
             for filename in filenames:
                 if filename.endswith(".metadata") or filename.startswith("."):
                     continue
-                relative = os.path.relpath(os.path.join(directory, filename), self.base_path)
+                relative = os.path.relpath(
+                    os.path.join(directory, filename), self.base_path
+                )
                 info = await self.get_file_info(relative.replace(os.sep, "/"))
                 if info:
                     files.append(info)

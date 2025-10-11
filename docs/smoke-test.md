@@ -15,6 +15,14 @@
 3. 로그인 성공 후 대시보드로 리디렉션되는지 확인 (`/dashboard` 또는 `/books`)
 4. 브라우저 개발자 도구 → Network 탭에서 `/api/v1/auth/me` 호출이 200 OK인지 확인
 
+### 추가: MVP 정적 계정 검증
+
+5. API 직접 호출로 계정 검증
+   - POST /api/v1/auth/login {"username":"admin","password":"qwer1234"} -> 200
+   - POST /api/v1/auth/login {"email":"dev@example.com","password":"qwer1234"} -> 200
+6. 발급된 토큰으로 보호 API 호출
+   - GET /api/v1/books (Authorization: Bearer <token>) -> 200 또는 인증 외 오류(401은 아니어야 함)
+
 ## 2. 책 생성 및 목록 확인 (12.2 일부)
 
 1. `새 책 추가` 버튼 클릭

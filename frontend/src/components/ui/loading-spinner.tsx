@@ -1,36 +1,41 @@
-import React from 'react'
+import React from "react";
 
 interface LoadingSpinnerProps {
-  size?: 'sm' | 'md' | 'lg'
-  className?: string
+  size?: "sm" | "md" | "lg";
+  className?: string;
 }
 
-export function LoadingSpinner({ size = 'md', className = '' }: LoadingSpinnerProps) {
+export function LoadingSpinner({
+  size = "md",
+  className = "",
+}: LoadingSpinnerProps) {
   const sizeClasses = {
-    sm: 'h-4 w-4',
-    md: 'h-6 w-6', 
-    lg: 'h-8 w-8'
-  }
+    sm: "h-4 w-4",
+    md: "h-6 w-6",
+    lg: "h-8 w-8",
+  };
 
   return (
-    <div className={`animate-spin rounded-full border-b-2 border-black ${sizeClasses[size]} ${className}`} />
-  )
+    <div
+      className={`animate-spin rounded-full border-b-2 border-black ${sizeClasses[size]} ${className}`}
+    />
+  );
 }
 
 interface LoadingStateProps {
-  message?: string
-  size?: 'sm' | 'md' | 'lg'
-  fullScreen?: boolean
+  message?: string;
+  size?: "sm" | "md" | "lg";
+  fullScreen?: boolean;
 }
 
-export function LoadingState({ 
-  message = '로딩 중...', 
-  size = 'md',
-  fullScreen = false 
+export function LoadingState({
+  message = "로딩 중...",
+  size = "md",
+  fullScreen = false,
 }: LoadingStateProps) {
-  const containerClass = fullScreen 
-    ? 'flex min-h-screen items-center justify-center'
-    : 'flex items-center justify-center p-8'
+  const containerClass = fullScreen
+    ? "flex min-h-screen items-center justify-center"
+    : "flex items-center justify-center p-8";
 
   return (
     <div className={containerClass}>
@@ -39,22 +44,20 @@ export function LoadingState({
         <p className="text-gray-600 text-sm">{message}</p>
       </div>
     </div>
-  )
+  );
 }
 
 interface SkeletonProps {
-  className?: string
+  className?: string;
 }
 
-export function Skeleton({ className = '' }: SkeletonProps) {
-  return (
-    <div className={`animate-pulse bg-gray-200 rounded ${className}`} />
-  )
+export function Skeleton({ className = "" }: SkeletonProps) {
+  return <div className={`animate-pulse bg-gray-200 rounded ${className}`} />;
 }
 
 interface TableSkeletonProps {
-  rows?: number
-  columns?: number
+  rows?: number;
+  columns?: number;
 }
 
 export function TableSkeleton({ rows = 5, columns = 4 }: TableSkeletonProps) {
@@ -86,11 +89,11 @@ export function TableSkeleton({ rows = 5, columns = 4 }: TableSkeletonProps) {
         </tbody>
       </table>
     </div>
-  )
+  );
 }
 
 interface FormSkeletonProps {
-  fields?: number
+  fields?: number;
 }
 
 export function FormSkeleton({ fields = 4 }: FormSkeletonProps) {
@@ -112,5 +115,5 @@ export function FormSkeleton({ fields = 4 }: FormSkeletonProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }

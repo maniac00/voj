@@ -7,5 +7,11 @@
   "deploy": {
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
+  },
+  "variables": {
+    "SIMPLE_AUTH_USERNAME": "admin",
+    "SIMPLE_AUTH_PASSWORD": "qwer1234",
+    "SIMPLE_AUTH_APP_USERNAME": "dev@example.com",
+    "SIMPLE_AUTH_APP_PASSWORD": "qwer1234"
   }
 }

@@ -36,13 +36,11 @@ app.add_middleware(
 # ALLOWED_HOSTS에 '*'가 포함되면 신뢰 호스트 검사 비활성화 (ALB 헬스체크/내부 트래픽 허용)
 allowed_hosts = getattr(settings, "ALLOWED_HOSTS", [])
 if settings.ENVIRONMENT == "production" and allowed_hosts and "*" not in allowed_hosts:
-    app.add_middleware(
-        TrustedHostMiddleware,
-        allowed_hosts=allowed_hosts
-    )
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
 
 # API 라우터 등록
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
 
 # 애플리케이션 이벤트 핸들러
 @app.on_event("startup")
@@ -53,7 +51,8 @@ async def startup_event():
     except Exception as e:
         print(f"Warning: Failed to initialize application components: {e}")
 
-@app.on_event("shutdown") 
+
+@app.on_event("shutdown")
 async def shutdown_event():
     """애플리케이션 종료 시 실행"""
     try:
@@ -70,7 +69,7 @@ async def root():
         "version": "1.0.0",
         "environment": settings.ENVIRONMENT,
         "status": "healthy",
-        "docs_enabled": docs_enabled
+        "docs_enabled": docs_enabled,
     }
 
 
@@ -82,11 +81,11 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
         port=8080,
         reload=settings.ENVIRONMENT == "local",
-        log_level="info"
+        log_level="info",
     )

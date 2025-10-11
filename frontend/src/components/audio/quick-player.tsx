@@ -1,50 +1,61 @@
-'use client'
+"use client";
 
-import React, { useState } from 'react'
-import { ChapterDto } from '@/lib/audio'
-import { MiniAudioPlayer } from '@/components/audio/audio-player'
+import React, { useState } from "react";
+import { ChapterDto } from "@/lib/audio";
+import { MiniAudioPlayer } from "@/components/audio/audio-player";
 
 interface QuickPlayerProps {
-  chapter: ChapterDto
-  onGetStreamingUrl: (chapterId: string) => Promise<string>
-  className?: string
+  chapter: ChapterDto;
+  onGetStreamingUrl: (chapterId: string) => Promise<string>;
+  className?: string;
 }
 
-export function QuickPlayer({ chapter, onGetStreamingUrl, className = '' }: QuickPlayerProps) {
-  const [streamingUrl, setStreamingUrl] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+export function QuickPlayer({
+  chapter,
+  onGetStreamingUrl,
+  className = "",
+}: QuickPlayerProps) {
+  const [streamingUrl, setStreamingUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handlePlay = async () => {
     if (streamingUrl) {
       // 이미 URL이 있으면 바로 재생
-      return
+      return;
     }
 
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
 
     try {
-      const url = await onGetStreamingUrl(chapter.chapter_id)
-      setStreamingUrl(url)
+      const url = await onGetStreamingUrl(chapter.chapter_id);
+      setStreamingUrl(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '스트리밍 URL 생성 실패')
+      setError(err instanceof Error ? err.message : "스트리밍 URL 생성 실패");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  if (chapter.status !== 'ready') {
+  if (chapter.status !== "ready") {
     return (
       <div className={`inline-flex items-center space-x-2 ${className}`}>
-        <div className="p-1 text-gray-400 cursor-not-allowed" title="아직 준비되지 않음">
+        <div
+          className="p-1 text-gray-400 cursor-not-allowed"
+          title="아직 준비되지 않음"
+        >
           <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+            <path
+              fillRule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+              clipRule="evenodd"
+            />
           </svg>
         </div>
         <span className="text-xs text-gray-500">처리 중</span>
       </div>
-    )
+    );
   }
 
   if (loading) {
@@ -53,7 +64,7 @@ export function QuickPlayer({ chapter, onGetStreamingUrl, className = '' }: Quic
         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
         <span className="text-xs text-gray-500">로딩 중...</span>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -61,7 +72,11 @@ export function QuickPlayer({ chapter, onGetStreamingUrl, className = '' }: Quic
       <div className={`inline-flex items-center space-x-2 ${className}`}>
         <div className="p-1 text-red-500" title={error}>
           <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            <path
+              fillRule="evenodd"
+              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+              clipRule="evenodd"
+            />
           </svg>
         </div>
         <button
@@ -71,27 +86,27 @@ export function QuickPlayer({ chapter, onGetStreamingUrl, className = '' }: Quic
           재시도
         </button>
       </div>
-    )
+    );
   }
 
   return (
     <div className={className}>
       <MiniAudioPlayer
-        src={streamingUrl || ''}
+        src={streamingUrl || ""}
         title={chapter.title}
         onPlay={handlePlay}
       />
     </div>
-  )
+  );
 }
 
 interface PlaylistPlayerProps {
-  chapters: ChapterDto[]
-  currentChapterId?: string
-  onGetStreamingUrl: (chapterId: string) => Promise<string>
-  onChapterChange?: (chapterId: string) => void
-  autoAdvance?: boolean
-  className?: string
+  chapters: ChapterDto[];
+  currentChapterId?: string;
+  onGetStreamingUrl: (chapterId: string) => Promise<string>;
+  onChapterChange?: (chapterId: string) => void;
+  autoAdvance?: boolean;
+  className?: string;
 }
 
 export function PlaylistPlayer({
@@ -100,56 +115,62 @@ export function PlaylistPlayer({
   onGetStreamingUrl,
   onChapterChange,
   autoAdvance = true,
-  className = ''
+  className = "",
 }: PlaylistPlayerProps) {
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [streamingUrls, setStreamingUrls] = useState<Map<string, string>>(new Map())
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [streamingUrls, setStreamingUrls] = useState<Map<string, string>>(
+    new Map(),
+  );
 
-  const readyChapters = chapters.filter(c => c.status === 'ready').sort((a, b) => a.chapter_number - b.chapter_number)
-  const currentChapter = readyChapters[currentIndex]
+  const readyChapters = chapters
+    .filter((c) => c.status === "ready")
+    .sort((a, b) => a.chapter_number - b.chapter_number);
+  const currentChapter = readyChapters[currentIndex];
 
   const handleNext = () => {
     if (currentIndex < readyChapters.length - 1) {
-      const nextIndex = currentIndex + 1
-      setCurrentIndex(nextIndex)
-      onChapterChange?.(readyChapters[nextIndex].chapter_id)
+      const nextIndex = currentIndex + 1;
+      setCurrentIndex(nextIndex);
+      onChapterChange?.(readyChapters[nextIndex].chapter_id);
     }
-  }
+  };
 
   const handlePrevious = () => {
     if (currentIndex > 0) {
-      const prevIndex = currentIndex - 1
-      setCurrentIndex(prevIndex)
-      onChapterChange?.(readyChapters[prevIndex].chapter_id)
+      const prevIndex = currentIndex - 1;
+      setCurrentIndex(prevIndex);
+      onChapterChange?.(readyChapters[prevIndex].chapter_id);
     }
-  }
+  };
 
   const handleChapterSelect = (chapterId: string) => {
-    const index = readyChapters.findIndex(c => c.chapter_id === chapterId)
+    const index = readyChapters.findIndex((c) => c.chapter_id === chapterId);
     if (index !== -1) {
-      setCurrentIndex(index)
-      onChapterChange?.(chapterId)
+      setCurrentIndex(index);
+      onChapterChange?.(chapterId);
     }
-  }
+  };
 
   const getStreamingUrl = async (chapterId: string) => {
     // 캐시된 URL이 있으면 사용
     if (streamingUrls.has(chapterId)) {
-      return streamingUrls.get(chapterId)!
+      return streamingUrls.get(chapterId)!;
     }
 
     // 새로 URL 생성
-    const url = await onGetStreamingUrl(chapterId)
-    setStreamingUrls(prev => new Map(prev).set(chapterId, url))
-    return url
-  }
+    const url = await onGetStreamingUrl(chapterId);
+    setStreamingUrls((prev) => new Map(prev).set(chapterId, url));
+    return url;
+  };
 
   if (readyChapters.length === 0) {
     return (
-      <div className={`bg-gray-50 border border-gray-200 rounded-lg p-4 text-center ${className}`}>
+      <div
+        className={`bg-gray-50 border border-gray-200 rounded-lg p-4 text-center ${className}`}
+      >
         <p className="text-sm text-gray-600">재생 가능한 챕터가 없습니다.</p>
       </div>
-    )
+    );
   }
 
   return (
@@ -170,7 +191,8 @@ export function PlaylistPlayer({
             {currentChapter.title}
           </h4>
           <p className="text-xs text-gray-500">
-            챕터 {currentChapter.chapter_number} • {Math.floor(currentChapter.duration / 60)}분
+            챕터 {currentChapter.chapter_number} •{" "}
+            {Math.floor(currentChapter.duration / 60)}분
           </p>
         </div>
 
@@ -182,8 +204,18 @@ export function PlaylistPlayer({
             className="p-2 text-gray-600 hover:text-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-black rounded"
             aria-label="이전 챕터"
           >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
             </svg>
           </button>
 
@@ -198,8 +230,18 @@ export function PlaylistPlayer({
             className="p-2 text-gray-600 hover:text-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-black rounded"
             aria-label="다음 챕터"
           >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
             </svg>
           </button>
         </div>
@@ -213,8 +255,8 @@ export function PlaylistPlayer({
                 onClick={() => handleChapterSelect(chapter.chapter_id)}
                 className={`w-full text-left px-3 py-2 rounded text-sm ${
                   index === currentIndex
-                    ? 'bg-blue-100 text-blue-900'
-                    : 'hover:bg-gray-100 text-gray-700'
+                    ? "bg-blue-100 text-blue-900"
+                    : "hover:bg-gray-100 text-gray-700"
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -231,5 +273,5 @@ export function PlaylistPlayer({
         </div>
       </div>
     </div>
-  )
+  );
 }

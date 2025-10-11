@@ -30,6 +30,13 @@ echo "[start-local] Starting backend (uvicorn) on :8080..."
 pushd "$ROOT_DIR/backend" >/dev/null
 (
   export ENVIRONMENT=local
+  # Enforce real login flow locally to test static accounts
+  export LOCAL_BYPASS_ENABLED=false
+  # Explicitly set static accounts for MVP local testing
+  export SIMPLE_AUTH_USERNAME=admin
+  export SIMPLE_AUTH_PASSWORD=qwer1234
+  export SIMPLE_AUTH_APP_USERNAME=dev@example.com
+  export SIMPLE_AUTH_APP_PASSWORD=qwer1234
   nohup poetry run uvicorn app.main:app --host 0.0.0.0 --port 8080 \
     >"$STATE_DIR/backend.log" 2>&1 & echo $! >"$STATE_DIR/backend.pid"
 )
@@ -80,6 +87,9 @@ fi
 echo "[start-local] Local environment started."
 echo "- Backend:  http://localhost:8080"
 echo "- Frontend: http://localhost:3000 (if started)"
+echo "- Auth (MVP static accounts):"
+echo "    * Admin: admin / qwer1234"
+echo "    * App  : dev@example.com / qwer1234"
 echo "Logs: $STATE_DIR/{backend.log,frontend.log}"
 
 

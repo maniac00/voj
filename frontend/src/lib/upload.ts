@@ -1,51 +1,57 @@
-export type UploadProgressHandler = (loaded: number, total: number) => void
+export type UploadProgressHandler = (loaded: number, total: number) => void;
 
 function apiBase(): string {
   // 브라우저 환경에서는 항상 상대 경로 사용 (Rewrite 활용)
-  if (typeof window !== 'undefined') {
-    return '/api/v1'
+  if (typeof window !== "undefined") {
+    return "/api/v1";
   }
   // 서버 환경에서는 절대 경로 필요
-  return process.env.NEXT_PUBLIC_API_BASE || `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1`
+  return (
+    process.env.NEXT_PUBLIC_API_BASE ||
+    `${process.env.NEXT_PUBLIC_API_URL || ""}/api/v1`
+  );
 }
 
 export async function uploadAudio(
   bookId: string,
   file: File,
-  onProgress?: UploadProgressHandler
+  onProgress?: UploadProgressHandler,
 ): Promise<{ message: string } | any> {
-  const url = `${apiBase()}/files/upload?book_id=${encodeURIComponent(bookId)}&file_type=uploads`
-  const form = new FormData()
-  form.append('file', file, file.name)
+  const url = `${apiBase()}/files/upload?book_id=${encodeURIComponent(bookId)}&file_type=uploads`;
+  const form = new FormData();
+  form.append("file", file, file.name);
 
   // Use XHR for progress support
   const response = await new Promise<Response>((resolve, reject) => {
-    const xhr = new XMLHttpRequest()
-    xhr.open('POST', url)
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
     xhr.onreadystatechange = () => {
       if (xhr.readyState === 4) {
-        const resp = new Response(xhr.responseText, { status: xhr.status, statusText: xhr.statusText })
-        resolve(resp)
+        const resp = new Response(xhr.responseText, {
+          status: xhr.status,
+          statusText: xhr.statusText,
+        });
+        resolve(resp);
       }
-    }
-    xhr.onerror = () => reject(new Error('Network error during upload'))
+    };
+    xhr.onerror = () => reject(new Error("Network error during upload"));
     if (xhr.upload && onProgress) {
       xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) onProgress(e.loaded, e.total)
-      }
+        if (e.lengthComputable) onProgress(e.loaded, e.total);
+      };
     }
-    xhr.send(form)
-  })
+    xhr.send(form);
+  });
 
   if (!response.ok) {
-    const text = await response.text().catch(() => '')
-    throw new Error(`Upload failed: ${response.status} ${response.statusText} ${text}`)
+    const text = await response.text().catch(() => "");
+    throw new Error(
+      `Upload failed: ${response.status} ${response.statusText} ${text}`,
+    );
   }
   try {
-    return await response.json()
+    return await response.json();
   } catch {
-    return { message: 'uploaded' }
+    return { message: "uploaded" };
   }
 }
-
-

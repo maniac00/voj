@@ -2,17 +2,21 @@
 VOJ Audiobooks API - Book SQLAlchemy 모델
 PostgreSQL용 책 정보 모델
 """
-from sqlalchemy import Column, String, Integer, DateTime, Text, Enum as SQLEnum
-from sqlalchemy.sql import func
-from datetime import datetime
-from typing import Optional, List
 import enum
+from datetime import datetime
+from typing import List, Optional
+
+from sqlalchemy import Column, DateTime
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import Integer, String, Text
+from sqlalchemy.sql import func
 
 from .database import Base
 
 
 class BookStatus(str, enum.Enum):
     """책 상태 열거형"""
+
     DRAFT = "draft"
     PROCESSING = "processing"
     PUBLISHED = "published"
@@ -52,27 +56,33 @@ class BookSQL(Base):
 
     # 타임스탬프
     created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime, default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     def to_dict(self) -> dict:
         """모델을 딕셔너리로 변환"""
         return {
-            'id': self.id,
-            'user_id': self.user_id,
-            'book_id': self.book_id,
-            'title': self.title,
-            'author': self.author,
-            'description': self.description,
-            'genre': self.genre,
-            'language': self.language,
-            'isbn': self.isbn,
-            'publisher': self.publisher,
-            'published_date': self.published_date.isoformat() if self.published_date else None,
-            'status': self.status.value if isinstance(self.status, BookStatus) else self.status,
-            'total_chapters': self.total_chapters,
-            'total_duration': self.total_duration,
-            'cover_image_url': self.cover_image_url,
-            'cover_image_key': self.cover_image_key,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            "id": self.id,
+            "user_id": self.user_id,
+            "book_id": self.book_id,
+            "title": self.title,
+            "author": self.author,
+            "description": self.description,
+            "genre": self.genre,
+            "language": self.language,
+            "isbn": self.isbn,
+            "publisher": self.publisher,
+            "published_date": self.published_date.isoformat()
+            if self.published_date
+            else None,
+            "status": self.status.value
+            if isinstance(self.status, BookStatus)
+            else self.status,
+            "total_chapters": self.total_chapters,
+            "total_duration": self.total_duration,
+            "cover_image_url": self.cover_image_url,
+            "cover_image_key": self.cover_image_key,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

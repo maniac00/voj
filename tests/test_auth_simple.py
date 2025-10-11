@@ -38,7 +38,7 @@ class TestSimpleAuth:
 
     def test_authenticate_user_success(self):
         """사용자 인증 성공 테스트"""
-        result = authenticate_user("admin", "admin123")
+        result = authenticate_user(settings.SIMPLE_AUTH_USERNAME, settings.SIMPLE_AUTH_PASSWORD)
         assert result is True
 
     def test_authenticate_user_wrong_password(self):

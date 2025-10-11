@@ -5,7 +5,6 @@ import os
 from pathlib import Path
 from typing import Any, Dict
 
-
 _DEFAULTS: Dict[str, Any] = {
     "duration": None,
     "bitrate": None,

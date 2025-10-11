@@ -1,8 +1,12 @@
-import React from 'react'
-import { ProtectedRoute } from '@/components/auth/protected-route'
-import { AdminHeader } from '@/components/admin/admin-header'
+import React from "react";
+import { ProtectedRoute } from "@/components/auth/protected-route";
+import { AdminHeader } from "@/components/admin/admin-header";
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50">
@@ -12,5 +16,5 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </main>
       </div>
     </ProtectedRoute>
-  )
+  );
 }

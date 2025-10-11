@@ -5,21 +5,24 @@ Provides CRUD operations and simple listings.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import List, Optional, Tuple
-from datetime import datetime
 import uuid
+from dataclasses import dataclass
+from datetime import datetime
+from typing import List, Optional, Tuple
 
 from app.core.config import settings
 
 # Environment-based model selection
 if settings.ENVIRONMENT in ["railway", "production"]:
-    from app.models.book_sql import BookSQL as Book
     from sqlalchemy.orm import Session
+
+    from app.models.book_sql import BookSQL as Book
     from app.services.database import get_db
+
     USE_SQL = True
 else:
     from app.models.book import Book
+
     USE_SQL = False
 
 
@@ -100,16 +103,12 @@ class BookService:
         return list(result)
 
     @staticmethod
-    def list_books_by_status(
-        *, user_id: str, status: str, limit: int
-    ) -> List[Book]:
+    def list_books_by_status(*, user_id: str, status: str, limit: int) -> List[Book]:
         results = Book.list_by_user_and_status(user_id, status=status, limit=limit)
         return list(results)
 
     @staticmethod
-    def list_books_by_genre(
-        *, user_id: str, genre: str, limit: int
-    ) -> List[Book]:
+    def list_books_by_genre(*, user_id: str, genre: str, limit: int) -> List[Book]:
         results = Book.list_by_user_and_genre(user_id, genre=genre, limit=limit)
         return list(results)
 
@@ -138,5 +137,3 @@ class BookService:
             return False
         book.delete()
         return True
-
-

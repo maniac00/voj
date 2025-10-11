@@ -96,7 +96,12 @@ class BookRepository {
   // 도서 상세 조회
   Future<Book> getBookById(String bookId, {bool forceRefresh = false}) async {
     if (!forceRefresh && _cachedBooks.containsKey(bookId)) {
-      return _cachedBooks[bookId]!;
+      final cached = _cachedBooks[bookId]!;
+      // 목록 캐시에는 챕터 정보가 비어 있을 수 있으므로, 비어 있으면 강제 새로고침
+      if (cached.chapters.isNotEmpty) {
+        return cached;
+      }
+      // fallthrough to refresh when chapters are empty
     }
 
     try {
@@ -125,14 +130,14 @@ class BookRepository {
   // 북마크 추가
   Future<Bookmark> createBookmark({
     required String bookId,
-    String? audioFileId,
+    String? chapterId,
     required int position,
     String? note,
   }) async {
     try {
       return await _bookService.createBookmark(
         bookId: bookId,
-        audioFileId: audioFileId,
+        chapterId: chapterId,
         position: position,
         note: note,
       );

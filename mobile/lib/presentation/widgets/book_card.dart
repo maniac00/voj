@@ -156,7 +156,7 @@ class BookCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '${book.audioFileCount}개 챕터',
+                        '${book.chapterCount}개 챕터',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Colors.grey[600],
                           ),

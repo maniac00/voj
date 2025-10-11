@@ -64,7 +64,7 @@ void main() {
       final book = response.books.first;
       expect(book.id, 'book-1');
       expect(book.totalDuration, 5400);
-      expect(book.audioFileCount, 3);
+      expect(book.chapterCount, 3);
       expect(book.status, BookStatus.draft);
       expect(book.statusLabel, '작성중');
       expect(book.genre, 'essay');
@@ -93,7 +93,7 @@ void main() {
       expect(book.id, 'book-2');
       expect(book.status, BookStatus.archived);
       expect(book.statusLabel, '보관됨');
-      expect(book.audioFileCount, 1);
+      expect(book.chapterCount, 1);
     });
   });
 }

@@ -2,20 +2,30 @@
 VOJ Audiobooks API - 오디오 관리 엔드포인트
 오디오 파일 업로드, 챕터 관리, 스트리밍 URL 생성
 """
-from fastapi import APIRouter, HTTPException, UploadFile, File, Path, Query, Depends, status
-from pydantic import BaseModel, Field
-from typing import List, Optional
-from datetime import datetime, timezone
 import uuid
+from datetime import datetime, timezone
+from typing import List, Optional
 
-from app.core.config import settings
-from app.core.auth.simple import get_current_user_claims
-from app.services.books_sql import BookServiceSQL as BookService
-from app.models.database import get_db
-from sqlalchemy.orm import Session
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Path,
+    Query,
+    UploadFile,
+    status,
+)
+from pydantic import BaseModel, Field
 from sqlalchemy import and_, func
-from app.services.storage.factory import storage_service
+from sqlalchemy.orm import Session
+
+from app.core.auth.simple import get_current_user_claims
+from app.core.config import settings
 from app.models.audio_chapter_sql import AudioChapterSQL
+from app.models.database import get_db
+from app.services.books_sql import BookServiceSQL as BookService
+from app.services.storage.factory import storage_service
 
 
 def _extract_file_name(audio_key: Optional[str]) -> str:
@@ -25,11 +35,13 @@ def _extract_file_name(audio_key: Optional[str]) -> str:
     parts = name.split("_", 1)
     return parts[1] if len(parts) > 1 else name
 
+
 router = APIRouter()
 
 
 class AudioChapterBase(BaseModel):
     """오디오 챕터 기본 정보 모델"""
+
     chapter_number: int = Field(..., ge=1, description="챕터 번호")
     title: str = Field(..., min_length=1, max_length=200, description="챕터 제목")
     description: Optional[str] = Field(None, max_length=500, description="챕터 설명")
@@ -37,28 +49,31 @@ class AudioChapterBase(BaseModel):
 
 class AudioChapterCreate(AudioChapterBase):
     """오디오 챕터 생성 요청 모델"""
+
     pass
 
 
 class AudioChapter(AudioChapterBase):
     """오디오 챕터 응답 모델"""
+
     chapter_id: str
     book_id: str
     file_name: str
     file_size: int = Field(description="파일 크기(바이트)")
     duration: int = Field(description="재생 시간(초)")
-    status: str = Field(default="processing", description="상태: uploading, processing, ready, error")
+    status: str = Field(
+        default="processing", description="상태: uploading, processing, ready, error"
+    )
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+        json_encoders = {datetime: lambda v: v.isoformat()}
 
 
 class AudioUploadResponse(BaseModel):
     """오디오 업로드 응답 모델"""
+
     chapter_id: str
     upload_status: str
     message: str
@@ -66,21 +81,20 @@ class AudioUploadResponse(BaseModel):
 
 class StreamingUrlResponse(BaseModel):
     """스트리밍 URL 응답 모델"""
+
     streaming_url: str
     expires_at: datetime
     duration: int
-    
+
     class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+        json_encoders = {datetime: lambda v: v.isoformat()}
 
 
 @router.post("/{book_id}/chapters/upload", response_model=AudioUploadResponse)
 async def upload_audio_chapter(
     book_id: str = Path(..., description="책 ID"),
     chapter_data: AudioChapterCreate = None,
-    audio_file: UploadFile = File(..., description="오디오 파일")
+    audio_file: UploadFile = File(..., description="오디오 파일"),
 ):
     """
     오디오 챕터 파일 업로드
@@ -94,36 +108,33 @@ async def upload_audio_chapter(
     # TODO: S3/로컬 스토리지에 파일 업로드
     # TODO: DynamoDB에 챕터 정보 저장
     # TODO: 인코딩 작업 큐에 추가
-    
+
     # 파일 형식 검증
     allowed_types = ["audio/mpeg", "audio/wav", "audio/mp4", "audio/flac"]
     if audio_file.content_type not in allowed_types:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported file type. Allowed types: {allowed_types}"
+            detail=f"Unsupported file type. Allowed types: {allowed_types}",
         )
-    
+
     if settings.ENVIRONMENT == "local":
         # 로컬 개발용 더미 응답
         chapter_id = str(uuid.uuid4())
         return AudioUploadResponse(
             chapter_id=chapter_id,
             upload_status="uploaded",
-            message=f"Audio file {audio_file.filename} uploaded successfully (local dev mode)"
+            message=f"Audio file {audio_file.filename} uploaded successfully (local dev mode)",
         )
-    
-    raise HTTPException(
-        status_code=501,
-        detail="Audio upload not implemented yet"
-    )
+
+    raise HTTPException(status_code=501, detail="Audio upload not implemented yet")
 
 
 @router.get("/{book_id}/chapters", response_model=List[AudioChapter])
 async def get_audio_chapters(
     book_id: str = Path(..., description="책 ID"),
     status: Optional[str] = Query(None, description="챕터 상태 필터"),
-    claims = Depends(get_current_user_claims),
-    db: Session = Depends(get_db)
+    claims=Depends(get_current_user_claims),
+    db: Session = Depends(get_db),
 ):
     """
     책의 오디오 챕터 목록 조회
@@ -132,17 +143,27 @@ async def get_audio_chapters(
     """
     user_id = str(claims.get("sub") or claims.get("username") or "")
     if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims"
+        )
 
-    # 책 소유권 확인 (SQL)
-    if not BookService.get_book(db, user_id=user_id, book_id=book_id):
+    # 책 소유권 확인 (관리자 우회 허용)
+    is_admin = str(claims.get("scope", "")).lower() == "admin"
+    book = (
+        BookService.get_book_any_user(db, book_id=book_id)
+        if is_admin
+        else BookService.get_book(db, user_id=user_id, book_id=book_id)
+    )
+    if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
     try:
         query = (
             db.query(AudioChapterSQL)
             .filter(AudioChapterSQL.book_id == book_id)
-            .order_by(AudioChapterSQL.chapter_number.asc(), AudioChapterSQL.created_at.asc())
+            .order_by(
+                AudioChapterSQL.chapter_number.asc(), AudioChapterSQL.created_at.asc()
+            )
         )
         rows = query.all()
 
@@ -166,7 +187,9 @@ async def get_audio_chapters(
 
         return results
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to list chapters: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to list chapters: {str(e)}"
+        )
 
 
 @router.put("/{book_id}/chapters/{chapter_id}", response_model=AudioChapter)
@@ -174,8 +197,8 @@ async def update_chapter_order(
     book_id: str = Path(..., description="책 ID"),
     chapter_id: str = Path(..., description="챕터 ID"),
     new_number: int = Query(..., ge=1, description="새로운 챕터 번호"),
-    claims = Depends(get_current_user_claims),
-    db: Session = Depends(get_db)
+    claims=Depends(get_current_user_claims),
+    db: Session = Depends(get_db),
 ):
     """
     오디오 챕터 순서 변경 (chapter_number 업데이트)
@@ -184,16 +207,29 @@ async def update_chapter_order(
     """
     user_id = str(claims.get("sub") or claims.get("username") or "")
     if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims"
+        )
 
-    # 책 소유권 확인
-    if not BookService.get_book(db, user_id=user_id, book_id=book_id):
+    # 책 소유권 확인 (관리자 우회 허용)
+    is_admin = str(claims.get("scope", "")).lower() == "admin"
+    book = (
+        BookService.get_book_any_user(db, book_id=book_id)
+        if is_admin
+        else BookService.get_book(db, user_id=user_id, book_id=book_id)
+    )
+    if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
     # 챕터 조회
     chapter = (
         db.query(AudioChapterSQL)
-        .filter(and_(AudioChapterSQL.chapter_id == chapter_id, AudioChapterSQL.book_id == book_id))
+        .filter(
+            and_(
+                AudioChapterSQL.chapter_id == chapter_id,
+                AudioChapterSQL.book_id == book_id,
+            )
+        )
         .first()
     )
     if not chapter:
@@ -220,31 +256,46 @@ async def update_chapter_order(
             updated_at=chapter.updated_at,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update chapter order: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update chapter order: {str(e)}"
+        )
 
 
 @router.get("/{book_id}/chapters/{chapter_id}", response_model=AudioChapter)
 async def get_audio_chapter(
     book_id: str = Path(..., description="책 ID"),
     chapter_id: str = Path(..., description="챕터 ID"),
-    claims = Depends(get_current_user_claims),
-    db: Session = Depends(get_db)
+    claims=Depends(get_current_user_claims),
+    db: Session = Depends(get_db),
 ):
     """
     특정 오디오 챕터 상세 조회 (DB 기반)
     """
-    # 사용자 인증 및 책 소유권 확인
+    # 사용자 인증 및 책 소유권 확인 (관리자 우회 허용)
     user_id = str(claims.get("sub") or claims.get("username") or "")
     if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims"
+        )
 
-    if not BookService.get_book(db, user_id=user_id, book_id=book_id):
+    is_admin = str(claims.get("scope", "")).lower() == "admin"
+    book = (
+        BookService.get_book_any_user(db, book_id=book_id)
+        if is_admin
+        else BookService.get_book(db, user_id=user_id, book_id=book_id)
+    )
+    if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
     # 챕터 조회 및 검증
     chapter = (
         db.query(AudioChapterSQL)
-        .filter(and_(AudioChapterSQL.chapter_id == chapter_id, AudioChapterSQL.book_id == book_id))
+        .filter(
+            and_(
+                AudioChapterSQL.chapter_id == chapter_id,
+                AudioChapterSQL.book_id == book_id,
+            )
+        )
         .first()
     )
     if not chapter:
@@ -267,29 +318,44 @@ async def get_audio_chapter(
     )
 
 
-@router.get("/{book_id}/chapters/{chapter_id}/stream", response_model=StreamingUrlResponse)
+@router.get(
+    "/{book_id}/chapters/{chapter_id}/stream", response_model=StreamingUrlResponse
+)
 async def get_streaming_url(
     book_id: str = Path(..., description="책 ID"),
     chapter_id: str = Path(..., description="챕터 ID"),
-    claims = Depends(get_current_user_claims),
-    db: Session = Depends(get_db)
+    claims=Depends(get_current_user_claims),
+    db: Session = Depends(get_db),
 ):
     """
     오디오 챕터 스트리밍 URL 생성
     - 프로덕션: CloudFront Signed URL
     - 로컬: 직접 파일 URL
     """
-    # 사용자 인증 및 소유권 확인
+    # 사용자 인증 및 소유권 확인 (관리자 우회 허용)
     user_id = str(claims.get("sub") or claims.get("username") or "")
     if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
-    if not BookService.get_book(db, user_id=user_id, book_id=book_id):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims"
+        )
+    is_admin = str(claims.get("scope", "")).lower() == "admin"
+    book = (
+        BookService.get_book_any_user(db, book_id=book_id)
+        if is_admin
+        else BookService.get_book(db, user_id=user_id, book_id=book_id)
+    )
+    if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
     # 챕터 조회 및 상태 확인
     chapter = (
         db.query(AudioChapterSQL)
-        .filter(and_(AudioChapterSQL.chapter_id == chapter_id, AudioChapterSQL.book_id == book_id))
+        .filter(
+            and_(
+                AudioChapterSQL.chapter_id == chapter_id,
+                AudioChapterSQL.book_id == book_id,
+            )
+        )
         .first()
     )
     if not chapter:
@@ -300,22 +366,26 @@ async def get_streaming_url(
     )
     storage_file_key = storage_file_key.lstrip("/")
 
-    expires = datetime.now(timezone.utc).replace(hour=23, minute=59, second=59, microsecond=0)
+    expires = datetime.now(timezone.utc).replace(
+        hour=23, minute=59, second=59, microsecond=0
+    )
     duration = int(chapter.duration or 0)
 
     streaming_path = f"{settings.API_V1_STR}/files/{storage_file_key}"
     if not streaming_path.startswith("/"):
         streaming_path = f"/{streaming_path.lstrip('/')}"
 
-    return StreamingUrlResponse(streaming_url=streaming_path, expires_at=expires, duration=duration)
+    return StreamingUrlResponse(
+        streaming_url=streaming_path, expires_at=expires, duration=duration
+    )
 
 
 @router.delete("/{book_id}/chapters/{chapter_id}")
 async def delete_audio_chapter(
     book_id: str = Path(..., description="책 ID"),
     chapter_id: str = Path(..., description="챕터 ID"),
-    claims = Depends(get_current_user_claims),
-    db: Session = Depends(get_db)
+    claims=Depends(get_current_user_claims),
+    db: Session = Depends(get_db),
 ):
     """
     오디오 챕터 삭제
@@ -323,15 +393,28 @@ async def delete_audio_chapter(
     """
     user_id = str(claims.get("sub") or claims.get("username") or "")
     if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims"
+        )
 
-    # 책 소유권 확인
-    if not BookService.get_book(db, user_id=user_id, book_id=book_id):
+    # 책 소유권 확인 (관리자 우회 허용)
+    is_admin = str(claims.get("scope", "")).lower() == "admin"
+    book = (
+        BookService.get_book_any_user(db, book_id=book_id)
+        if is_admin
+        else BookService.get_book(db, user_id=user_id, book_id=book_id)
+    )
+    if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
     chapter = (
         db.query(AudioChapterSQL)
-        .filter(and_(AudioChapterSQL.chapter_id == chapter_id, AudioChapterSQL.book_id == book_id))
+        .filter(
+            and_(
+                AudioChapterSQL.chapter_id == chapter_id,
+                AudioChapterSQL.book_id == book_id,
+            )
+        )
         .first()
     )
     if not chapter:
@@ -350,4 +433,6 @@ async def delete_audio_chapter(
         db.commit()
         return {"message": f"Audio chapter {chapter_id} deleted successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete chapter: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete chapter: {str(e)}"
+        )

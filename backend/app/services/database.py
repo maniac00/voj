@@ -6,9 +6,9 @@ from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import settings
-from app.models.database import engine, SessionLocal, Base
-from app.models.book_sql import BookSQL
 from app.models.audio_chapter_sql import AudioChapterSQL
+from app.models.book_sql import BookSQL
+from app.models.database import Base, SessionLocal, engine
 
 
 class DatabaseService:
@@ -29,7 +29,10 @@ class DatabaseService:
         status: dict = {}
         inspector = inspect(engine)
         with SessionLocal() as db:
-            for table_name, model in (("books", BookSQL), ("audio_chapters", AudioChapterSQL)):
+            for table_name, model in (
+                ("books", BookSQL),
+                ("audio_chapters", AudioChapterSQL),
+            ):
                 try:
                     if not inspector.has_table(table_name):
                         status[table_name] = {"status": "not_found"}
@@ -58,7 +61,9 @@ class DatabaseService:
 
             if not health_status["connection"]:
                 health_status["status"] = "unhealthy"
-            elif any(t.get("status") == "error" for t in health_status["tables"].values()):
+            elif any(
+                t.get("status") == "error" for t in health_status["tables"].values()
+            ):
                 health_status["status"] = "degraded"
         except Exception as e:
             health_status["status"] = "unhealthy"
@@ -77,4 +82,3 @@ class DatabaseService:
 
 # 전역 데이터베이스 서비스 인스턴스
 db_service = DatabaseService()
-

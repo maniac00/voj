@@ -2,21 +2,26 @@
 VOJ Audiobooks API - 책 관리 엔드포인트
 책 생성, 조회, 수정, 삭제 기능
 """
-from fastapi import APIRouter, HTTPException, Query, Path, Depends, status
-from pydantic import BaseModel, Field
-from typing import List, Optional
 from datetime import datetime
+from typing import List, Optional
 
-from app.core.auth.simple import get_current_user_claims
-from app.services.books_sql import BookServiceSQL as BookService
-from app.models.database import get_db
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+
+from app.core.auth.simple import get_current_user_claims, require_admin_scope
+from app.models.database import get_db
+from app.services.books_sql import BookServiceSQL as BookService
+from app.models.book_sql import BookSQL
+from app.models.audio_chapter_sql import AudioChapterSQL
+from sqlalchemy import func
 
 router = APIRouter()
 
 
 class BookBase(BaseModel):
     """책 기본 정보 모델"""
+
     title: str = Field(..., min_length=1, max_length=200, description="책 제목")
     author: str = Field(..., min_length=1, max_length=100, description="저자")
     description: Optional[str] = Field(None, max_length=1000, description="책 설명")
@@ -29,11 +34,13 @@ class BookBase(BaseModel):
 
 class BookCreate(BookBase):
     """책 생성 요청 모델"""
+
     pass
 
 
 class BookUpdate(BaseModel):
     """책 수정 요청 모델"""
+
     title: Optional[str] = Field(None, min_length=1, max_length=200)
     author: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = Field(None, max_length=1000)
@@ -46,23 +53,25 @@ class BookUpdate(BaseModel):
 
 class Book(BookBase):
     """책 응답 모델"""
+
     book_id: str
     user_id: str
-    status: str = Field(default="draft", description="상태: draft, processing, published, error")
+    status: str = Field(
+        default="draft", description="상태: draft, processing, published, error"
+    )
     created_at: datetime
     updated_at: datetime
     total_chapters: int = Field(default=0, description="총 챕터 수")
     total_duration: int = Field(default=0, description="총 재생 시간(초)")
     cover_image_url: Optional[str] = None
-    
+
     class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+        json_encoders = {datetime: lambda v: v.isoformat()}
 
 
 class BookList(BaseModel):
     """책 목록 응답 모델"""
+
     books: List[Book]
     total: int
     page: int
@@ -74,8 +83,8 @@ class BookList(BaseModel):
 @router.post("/", response_model=Book, status_code=status.HTTP_201_CREATED)
 async def create_book(
     book_data: BookCreate,
-    claims = Depends(get_current_user_claims),
-    db: Session = Depends(get_db)
+    claims=Depends(require_admin_scope()),
+    db: Session = Depends(get_db),
 ):
     """
     새 책 생성
@@ -84,7 +93,9 @@ async def create_book(
     """
     user_id = str(claims.get("sub") or claims.get("username") or "")
     if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims"
+        )
 
     try:
         created = BookService.create_book(
@@ -130,8 +141,8 @@ async def get_books(
     status_filter: Optional[str] = Query(None, alias="status", description="책 상태 필터"),
     genre: Optional[str] = Query(None, description="장르 필터"),
     search: Optional[str] = Query(None, description="제목/저자 검색"),
-    claims = Depends(get_current_user_claims),
-    db: Session = Depends(get_db)
+    claims=Depends(get_current_user_claims),
+    db: Session = Depends(get_db),
 ):
     """
     책 목록 조회
@@ -139,27 +150,45 @@ async def get_books(
     - 상태, 장르, 검색어로 필터링
     - 사용자별 책만 조회
     """
-    user_id = str(claims.get("sub") or claims.get("username") or "")
-    if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
+    # 전역 읽기: 인증만 되면 전체 책을 볼 수 있음 (MVP 정책)
 
     try:
         # Filtered listings
         items: list = []
         total = 0
         if status_filter:
-            items = BookService.list_books_by_status(db, user_id=user_id, status=status_filter, limit=size)
+            # 상태 필터는 전체에서 필터링
+            items = BookService.list_books_by_status_any_user(
+                db, status=status_filter, limit=size
+            )
         elif genre:
-            items = BookService.list_books_by_genre(db, user_id=user_id, genre=genre, limit=size)
+            items = BookService.list_books_by_genre_any_user(
+                db, genre=genre, limit=size
+            )
         else:
-            items = BookService.list_all_books(db, user_id=user_id)
+            items = BookService.list_all_books_any_user(db)
         total = len(items)
 
         # simple in-memory search filter (title/author)
         if search:
             s = search.lower()
-            items = [b for b in items if s in (b.title or '').lower() or s in (b.author or '').lower()]
+            items = [
+                b
+                for b in items
+                if s in (b.title or "").lower() or s in (b.author or "").lower()
+            ]
             total = len(items)
+
+        # 카운트 보정(N+1; 소규모 가정)
+        counts_map = {
+            b.book_id: (
+                db.query(func.count(AudioChapterSQL.id))
+                .filter(AudioChapterSQL.book_id == b.book_id)
+                .scalar()
+                or 0
+            )
+            for b in items
+        }
 
         return BookList(
             books=[
@@ -177,7 +206,7 @@ async def get_books(
                     status=b.status,
                     created_at=b.created_at,
                     updated_at=b.updated_at,
-                    total_chapters=b.total_chapters,
+                    total_chapters=counts_map.get(b.book_id, b.total_chapters or 0),
                     total_duration=b.total_duration,
                     cover_image_url=b.cover_image_url,
                 )
@@ -195,23 +224,27 @@ async def get_books(
 @router.get("/{book_id}", response_model=Book)
 async def get_book(
     book_id: str = Path(..., description="책 ID"),
-    claims = Depends(get_current_user_claims),
-    db: Session = Depends(get_db)
+    claims=Depends(get_current_user_claims),
+    db: Session = Depends(get_db),
 ):
     """
     특정 책 상세 조회
     - 사용자 인증 필요
     - 본인의 책만 조회 가능
     """
-    user_id = str(claims.get("sub") or claims.get("username") or "")
-    if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
-
     try:
-        found = BookService.get_book(db, user_id=user_id, book_id=book_id)
+        # 전역 읽기: 특정 사용자 소유 제한 없이 조회
+        found = BookService.get_book_any_user(db, book_id=book_id)
         if not found:
             # 소유권 노출 방지를 위해 404 반환
             raise HTTPException(status_code=404, detail="Book not found")
+        # 상세 카운트 보정
+        chapter_count = (
+            db.query(func.count(AudioChapterSQL.id))
+            .filter(AudioChapterSQL.book_id == book_id)
+            .scalar()
+        ) or 0
+
         return {
             "book_id": found.book_id,
             "user_id": found.user_id,
@@ -226,7 +259,7 @@ async def get_book(
             "status": found.status,
             "created_at": found.created_at,
             "updated_at": found.updated_at,
-            "total_chapters": found.total_chapters,
+            "total_chapters": int(chapter_count),
             "total_duration": found.total_duration,
             "cover_image_url": found.cover_image_url,
         }
@@ -240,8 +273,8 @@ async def get_book(
 async def update_book(
     book_data: BookUpdate,
     book_id: str = Path(..., description="책 ID"),
-    claims = Depends(get_current_user_claims),
-    db: Session = Depends(get_db)
+    claims=Depends(get_current_user_claims),
+    db: Session = Depends(get_db),
 ):
     """
     책 정보 수정
@@ -250,7 +283,9 @@ async def update_book(
     """
     user_id = str(claims.get("sub") or claims.get("username") or "")
     if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims"
+        )
 
     found = BookService.get_book(db, user_id=user_id, book_id=book_id)
     if not found:
@@ -296,8 +331,8 @@ async def update_book(
 @router.delete("/{book_id}")
 async def delete_book(
     book_id: str = Path(..., description="책 ID"),
-    claims = Depends(get_current_user_claims),
-    db: Session = Depends(get_db)
+    claims=Depends(get_current_user_claims),
+    db: Session = Depends(get_db),
 ):
     """
     책 삭제
@@ -307,7 +342,9 @@ async def delete_book(
     """
     user_id = str(claims.get("sub") or claims.get("username") or "")
     if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims"
+        )
 
     # 소유권 확인
     if not BookService.get_book(db, user_id=user_id, book_id=book_id):
@@ -325,4 +362,3 @@ async def delete_book(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete book: {str(e)}")
-

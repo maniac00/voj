@@ -4,6 +4,7 @@ VOJ Audiobooks API - 설정 팩토리
 """
 import os
 from typing import Type
+
 from .base import BaseAppSettings
 from .local import LocalSettings
 from .production import ProductionSettings
@@ -62,4 +63,3 @@ class SettingsFactory:
 
 # 전역 설정 인스턴스
 settings = SettingsFactory.get_settings()
-

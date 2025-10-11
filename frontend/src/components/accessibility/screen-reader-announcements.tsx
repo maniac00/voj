@@ -1,35 +1,35 @@
-'use client'
+"use client";
 
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef } from "react";
 
 interface ScreenReaderAnnouncementProps {
-  message: string
-  priority?: 'polite' | 'assertive'
-  clearAfter?: number
+  message: string;
+  priority?: "polite" | "assertive";
+  clearAfter?: number;
 }
 
-export function ScreenReaderAnnouncement({ 
-  message, 
-  priority = 'polite',
-  clearAfter = 1000 
+export function ScreenReaderAnnouncement({
+  message,
+  priority = "polite",
+  clearAfter = 1000,
 }: ScreenReaderAnnouncementProps) {
-  const announcementRef = useRef<HTMLDivElement>(null)
+  const announcementRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (message && announcementRef.current) {
-      announcementRef.current.textContent = message
+      announcementRef.current.textContent = message;
 
       if (clearAfter > 0) {
         const timer = setTimeout(() => {
           if (announcementRef.current) {
-            announcementRef.current.textContent = ''
+            announcementRef.current.textContent = "";
           }
-        }, clearAfter)
+        }, clearAfter);
 
-        return () => clearTimeout(timer)
+        return () => clearTimeout(timer);
       }
     }
-  }, [message, clearAfter])
+  }, [message, clearAfter]);
 
   return (
     <div
@@ -38,36 +38,32 @@ export function ScreenReaderAnnouncement({
       aria-atomic="true"
       className="sr-only"
     />
-  )
+  );
 }
 
 interface LiveRegionProps {
-  children: React.ReactNode
-  priority?: 'polite' | 'assertive'
-  atomic?: boolean
-  relevant?: 'additions' | 'removals' | 'text' | 'all'
+  children: React.ReactNode;
+  priority?: "polite" | "assertive";
+  atomic?: boolean;
+  relevant?: "additions" | "removals" | "text" | "all";
 }
 
-export function LiveRegion({ 
-  children, 
-  priority = 'polite',
+export function LiveRegion({
+  children,
+  priority = "polite",
   atomic = true,
-  relevant = 'all'
+  relevant = "all",
 }: LiveRegionProps) {
   return (
-    <div
-      aria-live={priority}
-      aria-atomic={atomic}
-      aria-relevant={relevant}
-    >
+    <div aria-live={priority} aria-atomic={atomic} aria-relevant={relevant}>
       {children}
     </div>
-  )
+  );
 }
 
 interface SkipLinkProps {
-  href: string
-  children: React.ReactNode
+  href: string;
+  children: React.ReactNode;
 }
 
 export function SkipLink({ href, children }: SkipLinkProps) {
@@ -78,18 +74,21 @@ export function SkipLink({ href, children }: SkipLinkProps) {
     >
       {children}
     </a>
-  )
+  );
 }
 
 interface VisuallyHiddenProps {
-  children: React.ReactNode
-  focusable?: boolean
+  children: React.ReactNode;
+  focusable?: boolean;
 }
 
-export function VisuallyHidden({ children, focusable = false }: VisuallyHiddenProps) {
+export function VisuallyHidden({
+  children,
+  focusable = false,
+}: VisuallyHiddenProps) {
   return (
-    <span className={focusable ? 'sr-only focus:not-sr-only' : 'sr-only'}>
+    <span className={focusable ? "sr-only focus:not-sr-only" : "sr-only"}>
       {children}
     </span>
-  )
+  );
 }

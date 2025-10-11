@@ -23,11 +23,11 @@ def _local_mode():
 
 def test_login_simple_auth():
     client = TestClient(app)
-    resp = client.post("/api/v1/auth/login", json={"username": "admin", "password": "admin123"})
+    resp = client.post("/api/v1/auth/login", json={"username": settings.SIMPLE_AUTH_USERNAME, "password": settings.SIMPLE_AUTH_PASSWORD})
     assert resp.status_code == 200, resp.text
     data = resp.json()
     assert data["access_token"]
-    assert data["username"] == "admin"
+    assert data["username"] == settings.SIMPLE_AUTH_USERNAME
 
 
 def test_me_endpoint_works_with_bypass():

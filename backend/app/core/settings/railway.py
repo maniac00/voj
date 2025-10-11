@@ -4,6 +4,7 @@ Railway 환경에서 사용되는 설정들
 """
 import os
 from typing import Optional
+
 from .base import BaseAppSettings
 
 
@@ -20,16 +21,24 @@ class RailwaySettings(BaseAppSettings):
 
     # Railway Volumes 스토리지 경로
     RAILWAY_VOLUME_MOUNT_PATH: str = os.getenv("RAILWAY_VOLUME_MOUNT_PATH", "/data")
-    LOCAL_STORAGE_PATH: str = os.getenv("RAILWAY_VOLUME_MOUNT_PATH", "/data") + "/storage"
-    LOCAL_UPLOADS_PATH: str = os.getenv("RAILWAY_VOLUME_MOUNT_PATH", "/data") + "/storage/uploads"
-    LOCAL_MEDIA_PATH: str = os.getenv("RAILWAY_VOLUME_MOUNT_PATH", "/data") + "/storage/media"
-    LOCAL_BOOKS_PATH: str = os.getenv("RAILWAY_VOLUME_MOUNT_PATH", "/data") + "/storage/books"
+    LOCAL_STORAGE_PATH: str = (
+        os.getenv("RAILWAY_VOLUME_MOUNT_PATH", "/data") + "/storage"
+    )
+    LOCAL_UPLOADS_PATH: str = (
+        os.getenv("RAILWAY_VOLUME_MOUNT_PATH", "/data") + "/storage/uploads"
+    )
+    LOCAL_MEDIA_PATH: str = (
+        os.getenv("RAILWAY_VOLUME_MOUNT_PATH", "/data") + "/storage/media"
+    )
+    LOCAL_BOOKS_PATH: str = (
+        os.getenv("RAILWAY_VOLUME_MOUNT_PATH", "/data") + "/storage/books"
+    )
 
     # CORS 설정 - Railway 도메인 허용
     CORS_ORIGINS: list = [
         "https://*.railway.app",
         "https://*.up.railway.app",
-        os.getenv("FRONTEND_URL", "http://localhost:3000")
+        os.getenv("FRONTEND_URL", "http://localhost:3000"),
     ]
 
     # 프로덕션 보안 설정

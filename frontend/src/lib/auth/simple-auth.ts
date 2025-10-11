@@ -6,109 +6,115 @@
 // 프론트엔드 전역 API 베이스 규칙 통일
 // 1) 브라우저에서는 항상 상대 경로 (/api/v1) - Mixed Content 방지 및 Rewrite 활용
 // 2) 서버(SSR/서버 함수)에서는 절대 경로 구성 허용
-const API_BASE = (typeof window !== 'undefined')
-  ? '/api/v1'  // 브라우저는 항상 상대경로
-  : (process.env.NEXT_PUBLIC_API_BASE || `${process.env.NEXT_PUBLIC_API_URL || ''}/api/v1`)
+const API_BASE =
+  typeof window !== "undefined"
+    ? "/api/v1" // 브라우저는 항상 상대경로
+    : process.env.NEXT_PUBLIC_API_BASE ||
+      `${process.env.NEXT_PUBLIC_API_URL || ""}/api/v1`;
 
 export interface LoginCredentials {
-  username: string
-  password: string
+  username: string;
+  password: string;
 }
 
 export interface LoginResponse {
-  access_token: string
-  token_type: string
-  expires_in: number
-  username: string
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  username: string;
 }
 
 export interface User {
-  sub: string
-  username: string
-  scope: string
+  sub: string;
+  username: string;
+  scope: string;
 }
 
 // 토큰 저장 키
-const TOKEN_KEY = 'voj_access_token'
-const USER_KEY = 'voj_user_info'
+const TOKEN_KEY = "voj_access_token";
+const USER_KEY = "voj_user_info";
 
 /**
  * 로그인 API 호출
  */
-export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
+export async function login(
+  credentials: LoginCredentials,
+): Promise<LoginResponse> {
   const response = await fetch(`${API_BASE}/auth/login`, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: JSON.stringify(credentials),
-  })
+  });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Login failed' }))
-    throw new Error(error.detail || 'Login failed')
+    const error = await response
+      .json()
+      .catch(() => ({ detail: "Login failed" }));
+    throw new Error(error.detail || "Login failed");
   }
 
-  return response.json()
+  return response.json();
 }
 
 /**
  * 로그아웃 API 호출
  */
 export async function logout(): Promise<void> {
-  const token = getStoredToken()
-  
+  const token = getStoredToken();
+
   if (token) {
     try {
       await fetch(`${API_BASE}/auth/logout`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
-      })
+      });
     } catch (error) {
-      console.warn('Logout API call failed:', error)
+      console.warn("Logout API call failed:", error);
     }
   }
-  
+
   // 로컬 스토리지 정리
-  clearAuthData()
+  clearAuthData();
 }
 
 /**
  * 현재 사용자 정보 조회
  */
 export async function getCurrentUser(): Promise<User> {
-  const token = getStoredToken()
-  
+  const token = getStoredToken();
+
   if (!token) {
-    throw new Error('No access token')
+    throw new Error("No access token");
   }
 
   const response = await fetch(`${API_BASE}/auth/me`, {
     headers: {
-      'Authorization': `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
     },
-  })
+  });
 
   if (!response.ok) {
-    clearAuthData()
-    throw new Error('Failed to get user info')
+    clearAuthData();
+    throw new Error("Failed to get user info");
   }
 
-  return response.json()
+  return response.json();
 }
 
 /**
  * 토큰 저장 (localStorage + 쿠키)
  */
 export function storeToken(token: string): void {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(TOKEN_KEY, token)
-    
+  if (typeof window !== "undefined") {
+    localStorage.setItem(TOKEN_KEY, token);
+
     // 쿠키에도 저장하여 서버 사이드에서 접근 가능하도록 함
     // httpOnly는 false로 설정하여 클라이언트에서도 접근 가능
-    document.cookie = `voj_access_token=${token}; path=/; max-age=86400; SameSite=Strict`
+    document.cookie = `voj_access_token=${token}; path=/; max-age=86400; SameSite=Strict`;
   }
 }
 
@@ -116,18 +122,18 @@ export function storeToken(token: string): void {
  * 저장된 토큰 조회
  */
 export function getStoredToken(): string | null {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem(TOKEN_KEY)
+  if (typeof window !== "undefined") {
+    return localStorage.getItem(TOKEN_KEY);
   }
-  return null
+  return null;
 }
 
 /**
  * 사용자 정보 저장
  */
 export function storeUser(user: User): void {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(USER_KEY, JSON.stringify(user))
+  if (typeof window !== "undefined") {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
   }
 }
 
@@ -135,29 +141,30 @@ export function storeUser(user: User): void {
  * 저장된 사용자 정보 조회
  */
 export function getStoredUser(): User | null {
-  if (typeof window !== 'undefined') {
-    const userStr = localStorage.getItem(USER_KEY)
+  if (typeof window !== "undefined") {
+    const userStr = localStorage.getItem(USER_KEY);
     if (userStr) {
       try {
-        return JSON.parse(userStr)
+        return JSON.parse(userStr);
       } catch {
-        return null
+        return null;
       }
     }
   }
-  return null
+  return null;
 }
 
 /**
  * 인증 데이터 정리 (localStorage + 쿠키)
  */
 export function clearAuthData(): void {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(USER_KEY)
-    
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+
     // 쿠키도 삭제
-    document.cookie = 'voj_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    document.cookie =
+      "voj_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   }
 }
 
@@ -165,20 +172,20 @@ export function clearAuthData(): void {
  * 로그인 상태 확인
  */
 export function isLoggedIn(): boolean {
-  return getStoredToken() !== null
+  return getStoredToken() !== null;
 }
 
 /**
  * API 요청에 인증 헤더 추가
  */
 export function getAuthHeaders(): Record<string, string> {
-  const token = getStoredToken()
-  
+  const token = getStoredToken();
+
   if (token) {
     return {
-      'Authorization': `Bearer ${token}`,
-    }
+      Authorization: `Bearer ${token}`,
+    };
   }
-  
-  return {}
+
+  return {};
 }

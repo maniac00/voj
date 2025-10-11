@@ -29,8 +29,8 @@ class TestAuthEndpoints:
         response = self.client.post(
             "/api/v1/auth/login",
             json={
-                "username": "admin",
-                "password": "admin123"
+                "username": settings.SIMPLE_AUTH_USERNAME,
+                "password": settings.SIMPLE_AUTH_PASSWORD
             }
         )
         
@@ -73,7 +73,7 @@ class TestAuthEndpoints:
 
     def test_get_current_user_with_valid_token(self):
         """유효한 토큰으로 현재 사용자 정보 조회 테스트"""
-        token = create_simple_token("admin")
+        token = create_simple_token(settings.SIMPLE_AUTH_USERNAME)
         
         response = self.client.get(
             "/api/v1/auth/me",
@@ -124,8 +124,8 @@ class TestAuthIntegration:
         login_response = self.client.post(
             "/api/v1/auth/login",
             json={
-                "username": "admin",
-                "password": "admin123"
+                "username": settings.SIMPLE_AUTH_USERNAME,
+                "password": settings.SIMPLE_AUTH_PASSWORD
             }
         )
         
@@ -149,7 +149,7 @@ class TestAuthIntegration:
     def test_protected_endpoint_access(self):
         """보호된 엔드포인트 접근 테스트"""
         # 유효한 토큰으로 접근
-        token = create_simple_token("admin")
+        token = create_simple_token(settings.SIMPLE_AUTH_USERNAME)
         
         response = self.client.get(
             "/api/v1/books/",

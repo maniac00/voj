@@ -1,52 +1,60 @@
-'use client'
+"use client";
 
-import React from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/contexts/auth-context'
-import { logout as logoutApi } from '@/lib/auth/simple-auth'
+import React from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/auth-context";
+import { logout as logoutApi } from "@/lib/auth/simple-auth";
 
 export function AdminHeader() {
-  const { user, logout } = useAuth()
-  const router = useRouter()
+  const { user, logout } = useAuth();
+  const router = useRouter();
 
   const handleLogout = async () => {
     try {
-      await logoutApi()
-      logout()
-      router.push('/login')
+      await logoutApi();
+      logout();
+      router.push("/login");
     } catch (error) {
-      console.warn('Logout failed:', error)
+      console.warn("Logout failed:", error);
       // 로그아웃 API 실패해도 로컬 상태는 정리
-      logout()
-      router.push('/login')
+      logout();
+      router.push("/login");
     }
-  }
+  };
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200" role="banner">
+    <header
+      className="bg-white shadow-sm border-b border-gray-200"
+      role="banner"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* 로고 및 네비게이션 */}
           <div className="flex items-center space-x-8">
-            <Link 
-              href="/books" 
+            <Link
+              href="/books"
               className="text-xl font-semibold text-gray-900 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
               aria-label="VOJ Admin 홈페이지로 이동"
             >
               VOJ Admin
             </Link>
-            
-            <nav id="navigation" className="hidden md:flex space-x-6" role="navigation" aria-label="주 내비게이션">
-              <Link 
-                href="/books" 
+
+            <nav
+              id="navigation"
+              className="hidden md:flex space-x-6"
+              role="navigation"
+              aria-label="주 내비게이션"
+            >
+              <Link
+                href="/books"
                 className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
                 aria-label="책 관리 페이지로 이동"
               >
                 책 관리
               </Link>
-              <Link 
-                href="/dashboard" 
+              <Link
+                href="/dashboard"
                 className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
                 aria-label="대시보드 페이지로 이동"
               >
@@ -62,7 +70,7 @@ export function AdminHeader() {
                 환영합니다, {user.username}님
               </span>
             )}
-            
+
             <button
               onClick={handleLogout}
               className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
@@ -77,14 +85,14 @@ export function AdminHeader() {
       {/* 모바일 네비게이션 (간단하게) */}
       <div className="md:hidden border-t border-gray-200 bg-gray-50">
         <nav className="px-4 py-3 space-y-1">
-          <Link 
-            href="/books" 
+          <Link
+            href="/books"
             className="block text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium"
           >
             책 관리
           </Link>
-          <Link 
-            href="/dashboard" 
+          <Link
+            href="/dashboard"
             className="block text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium"
           >
             대시보드
@@ -92,5 +100,5 @@ export function AdminHeader() {
         </nav>
       </div>
     </header>
-  )
+  );
 }

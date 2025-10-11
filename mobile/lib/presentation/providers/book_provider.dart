@@ -4,6 +4,7 @@ import '../../data/models/book_model.dart';
 import '../../data/repositories/book_repository.dart';
 import '../../data/services/book_service.dart';
 import 'auth_provider.dart';
+import '../../core/constants/app_config.dart';
 
 // Export the service exception for use in UI
 export '../../data/services/book_service.dart' show BookServiceException;
@@ -23,11 +24,19 @@ final bookRepositoryProvider = Provider<BookRepository>((ref) {
   );
 
   final initialSession = authRepo.currentSession;
-  if (initialSession != null && initialSession.isValid) {
-    bookRepo.setAuthToken(initialSession.accessToken);
+  if (!AppConfig.authBypassEnabled) {
+    if (initialSession != null && initialSession.isValid) {
+      bookRepo.setAuthToken(initialSession.accessToken);
+    }
+  } else {
+    bookRepo.clearAuthToken();
   }
 
   ref.listen(authSessionProvider, (previous, next) {
+    if (AppConfig.authBypassEnabled) {
+      bookRepo.clearAuthToken();
+      return;
+    }
     next.when(
       data: (session) {
         if (session != null && session.isValid) {
@@ -154,14 +163,14 @@ class BookmarksNotifier extends StateNotifier<AsyncValue<BookmarksResponse>> {
 
   Future<void> addBookmark({
     required String bookId,
-    String? audioFileId,
+    String? chapterId,
     required int position,
     String? note,
   }) async {
     try {
       await _bookRepository.createBookmark(
         bookId: bookId,
-        audioFileId: audioFileId,
+        chapterId: chapterId,
         position: position,
         note: note,
       );

@@ -380,6 +380,102 @@ async def get_streaming_url(
     )
 
 
+@router.post("/{book_id}/chapters/{chapter_id}/progress")
+async def update_playback_progress(
+    book_id: str = Path(..., description="책 ID"),
+    chapter_id: str = Path(..., description="챕터 ID"),
+    payload: dict = None,
+    claims=Depends(get_current_user_claims),
+    db: Session = Depends(get_db),
+):
+    """
+    재생 진행률 업데이트 (MVP: 수신만 하고 저장은 생략)
+    - 모바일 클라이언트 호환을 위해 200 OK 반환
+    """
+    user_id = str(claims.get("sub") or claims.get("username") or "")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims"
+        )
+
+    # 책 소유권 확인 (관리자 우회 허용)
+    is_admin = str(claims.get("scope", "")).lower() == "admin"
+    book = (
+        BookService.get_book_any_user(db, book_id=book_id)
+        if is_admin
+        else BookService.get_book(db, user_id=user_id, book_id=book_id)
+    )
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    # 챕터 존재 여부만 확인
+    chapter = (
+        db.query(AudioChapterSQL)
+        .filter(
+            and_(
+                AudioChapterSQL.chapter_id == chapter_id,
+                AudioChapterSQL.book_id == book_id,
+            )
+        )
+        .first()
+    )
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+
+    # 수신 페이로드 검증은 완화 (모바일 클라이언트 호환)
+    try:
+        _ = int((payload or {}).get("position", 0))
+        _ = int((payload or {}).get("duration", 0))
+    except Exception:
+        pass
+
+    return {"ok": True}
+
+
+@router.get("/{book_id}/chapters/{chapter_id}/position")
+async def get_playback_position(
+    book_id: str = Path(..., description="책 ID"),
+    chapter_id: str = Path(..., description="챕터 ID"),
+    claims=Depends(get_current_user_claims),
+    db: Session = Depends(get_db),
+):
+    """
+    마지막 재생 위치 조회 (MVP: 저장 미구현 → 빈 객체 반환)
+    - 모바일 클라이언트는 빈 응답이면 복원을 건너뜀
+    """
+    user_id = str(claims.get("sub") or claims.get("username") or "")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims"
+        )
+
+    # 책 소유권 확인 (관리자 우회 허용)
+    is_admin = str(claims.get("scope", "")).lower() == "admin"
+    book = (
+        BookService.get_book_any_user(db, book_id=book_id)
+        if is_admin
+        else BookService.get_book(db, user_id=user_id, book_id=book_id)
+    )
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    # 챕터 존재 여부만 확인
+    chapter_exists = (
+        db.query(AudioChapterSQL)
+        .filter(
+            and_(
+                AudioChapterSQL.chapter_id == chapter_id,
+                AudioChapterSQL.book_id == book_id,
+            )
+        )
+        .first()
+        is not None
+    )
+    if not chapter_exists:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+
+    return {}
+
 @router.delete("/{book_id}/chapters/{chapter_id}")
 async def delete_audio_chapter(
     book_id: str = Path(..., description="책 ID"),

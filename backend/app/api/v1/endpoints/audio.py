@@ -13,6 +13,7 @@ from fastapi import (
     File,
     HTTPException,
     Path,
+    Request,
     Query,
     UploadFile,
     status,
@@ -327,6 +328,7 @@ async def get_streaming_url(
     chapter_id: str = Path(..., description="챕터 ID"),
     claims=Depends(get_current_user_claims),
     db: Session = Depends(get_db),
+    request: Request = None,
 ):
     """
     오디오 챕터 스트리밍 URL 생성
@@ -372,17 +374,17 @@ async def get_streaming_url(
     )
     duration = int(chapter.duration or 0)
 
-    # In production/railway, return absolute origin URL to avoid proxy issues
-    if settings.ENVIRONMENT in ("production", "railway"):
+    # In production, return absolute origin URL; prefer BACKEND_ORIGIN, then RAILWAY_PUBLIC_DOMAIN, else request.base_url
+    if settings.ENVIRONMENT == "production":
         base = os.getenv("BACKEND_ORIGIN") or os.getenv("RAILWAY_PUBLIC_DOMAIN")
+        if not base and request is not None:
+            base = str(request.base_url)
         if base:
             base = base.strip()
             if not (base.startswith("http://") or base.startswith("https://")):
                 base = f"https://{base}"
             absolute_url = f"{base.rstrip('/')}{settings.API_V1_STR}/files/{storage_file_key}"
-            return StreamingUrlResponse(
-                streaming_url=absolute_url, expires_at=expires, duration=duration
-            )
+            return StreamingUrlResponse(streaming_url=absolute_url, expires_at=expires, duration=duration)
 
     streaming_path = f"{settings.API_V1_STR}/files/{storage_file_key}"
     if not streaming_path.startswith("/"):

@@ -38,7 +38,8 @@ RUN addgroup --system app && adduser --system --ingroup app app && \
     mkdir -p /app/.venv && chown -R app:app /app/.venv && \
     mkdir -p /data && chown -R app:app /data
 
-USER app
+# Run entrypoint as root (to fix volume permissions), gunicorn will drop to app
+USER root
 
 ENV PATH="/app/.venv/bin:$PATH"
 

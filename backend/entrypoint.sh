@@ -70,6 +70,15 @@ export ALLOWED_HOSTS
 unset CORS_ORIGINS || true
 unset ALLOWED_HOSTS || true
 
+# Ensure storage directory exists and is writable before app imports
+# Run as root here, then drop privileges in gunicorn
+STORAGE_BASE=${LOCAL_STORAGE_PATH:-/app/storage}
+echo "[entrypoint] Ensuring storage path: ${STORAGE_BASE}"
+mkdir -p "${STORAGE_BASE}" "${STORAGE_BASE}/uploads" "${STORAGE_BASE}/media" "${STORAGE_BASE}/books" || true
+chown -R app:app "${STORAGE_BASE}" || true
+# If chown fails due to platform constraints, ensure world-writable permissions
+chmod -R 777 "${STORAGE_BASE}" || true
+
 # Run DB migrations (idempotent)
 echo "[entrypoint] Running database migrations (alembic upgrade head)"
 if command -v poetry >/dev/null 2>&1; then
@@ -87,4 +96,5 @@ exec gunicorn app.main:app \
     -k uvicorn.workers.UvicornWorker \
     -b 0.0.0.0:${PORT} \
     --workers ${GUNICORN_WORKERS} \
-    --timeout ${GUNICORN_TIMEOUT}
+    --timeout ${GUNICORN_TIMEOUT} \
+    --user app --group app

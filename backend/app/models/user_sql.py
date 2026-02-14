@@ -33,8 +33,14 @@ class UserSQL(Base):
     email = Column(String(255), nullable=False, unique=True, index=True)
     display_name = Column(String(255), nullable=True)
     photo_url = Column(Text, nullable=True)
-    status = Column(SQLEnum(UserStatus), default=UserStatus.PENDING, nullable=False, index=True)
-    role = Column(SQLEnum(UserRole), default=UserRole.USER, nullable=False)
+    status = Column(
+        SQLEnum(UserStatus, values_callable=lambda e: [x.value for x in e]),
+        default=UserStatus.PENDING, nullable=False, index=True,
+    )
+    role = Column(
+        SQLEnum(UserRole, values_callable=lambda e: [x.value for x in e]),
+        default=UserRole.USER, nullable=False,
+    )
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 

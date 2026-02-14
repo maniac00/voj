@@ -26,6 +26,12 @@ class RailwaySettings(BaseAppSettings):
             raise ValueError(
                 "SIMPLE_AUTH_PASSWORD must be changed from the default value in railway environment."
             )
+        if not self.FIREBASE_SERVICE_ACCOUNT_JSON:
+            import logging
+            logging.getLogger(__name__).warning(
+                "FIREBASE_SERVICE_ACCOUNT_JSON is not set. "
+                "Firebase auth endpoints will return 503."
+            )
         return self
 
     # PostgreSQL 설정 (Railway에서 자동 제공)

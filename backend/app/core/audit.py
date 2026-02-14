@@ -52,3 +52,25 @@ def log_audio_uploaded(user: str, book_id: str, chapter_id: str, filename: str) 
 
 def log_audio_deleted(user: str, book_id: str, chapter_id: str) -> None:
     _log("audio.delete", user=user, detail={"book_id": book_id, "chapter_id": chapter_id})
+
+
+def log_firebase_login(email: str, firebase_uid: str, is_new: bool) -> None:
+    _log(
+        "auth.firebase_login",
+        user=email,
+        detail={"firebase_uid": firebase_uid, "is_new_user": is_new},
+    )
+
+
+def log_user_status_change(
+    admin: str, target_user_id: int, old_status: str, new_status: str
+) -> None:
+    _log(
+        "user.status_change",
+        user=admin,
+        detail={
+            "target_user_id": target_user_id,
+            "old_status": old_status,
+            "new_status": new_status,
+        },
+    )

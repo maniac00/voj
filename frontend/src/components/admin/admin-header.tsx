@@ -60,6 +60,13 @@ export function AdminHeader() {
               >
                 대시보드
               </Link>
+              <Link
+                href="/users"
+                className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+                aria-label="사용자 관리 페이지로 이동"
+              >
+                사용자 관리
+              </Link>
             </nav>
           </div>
 
@@ -96,6 +103,12 @@ export function AdminHeader() {
             className="block text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium"
           >
             대시보드
+          </Link>
+          <Link
+            href="/users"
+            className="block text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium"
+          >
+            사용자 관리
           </Link>
         </nav>
       </div>

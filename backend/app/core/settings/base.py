@@ -87,6 +87,27 @@ class BaseAppSettings(BaseSettings):
     SIMPLE_AUTH_APP_USERNAME: str = "dev@example.com"
     SIMPLE_AUTH_APP_PASSWORD: str = "qwer1234"
 
+    # Firebase 인증 설정
+    FIREBASE_SERVICE_ACCOUNT_JSON: str = ""
+    ADMIN_EMAILS: List[str] = []
+
+    @field_validator("ADMIN_EMAILS", mode="before")
+    def parse_admin_emails(cls, v: Any) -> List[str]:
+        if isinstance(v, list):
+            return [str(item).strip() for item in v]
+        if isinstance(v, str):
+            s = v.strip()
+            if s.startswith("[") and s.endswith("]"):
+                try:
+                    import json
+                    arr = json.loads(s)
+                    if isinstance(arr, list):
+                        return [str(item).strip() for item in arr]
+                except Exception:
+                    pass
+            return [e.strip() for e in s.split(",") if e.strip()]
+        return []
+
     # 로컬 인증 바이패스 설정
     LOCAL_BYPASS_ENABLED: bool = False
     LOCAL_BYPASS_SUB: str = "local-dev-user-id"

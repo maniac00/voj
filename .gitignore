@@ -139,5 +139,12 @@ poetry.lock
 .dmypy.json
 dmypy.json
 
+# Flutter / Dart
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/build/
+
 # Security keys
 keys/

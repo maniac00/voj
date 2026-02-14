@@ -51,7 +51,7 @@ class HomeScreen extends ConsumerWidget {
                     Icon(
                       Icons.headphones,
                       size: 80,
-                      color: Theme.of(context).primaryColor,
+                      color: Theme.of(context).colorScheme.primary,
                       semanticLabel: 'Voice of Juan 로고',
                     ),
                     const SizedBox(height: 16),
@@ -60,7 +60,7 @@ class HomeScreen extends ConsumerWidget {
                       style: Theme.of(context).textTheme.headlineLarge
                           ?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: Theme.of(context).primaryColor,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                     ),
                     const SizedBox(height: 8),
@@ -79,9 +79,18 @@ class HomeScreen extends ConsumerWidget {
               // 사용자 상태에 따른 콘텐츠
               Expanded(
                 child: userAsync.when(
-                  data: (user) => user != null
-                      ? _buildLoggedInContent(context, user)
-                      : _buildLoggedOutContent(context, ref),
+                  data: (user) {
+                    if (user == null) {
+                      return _buildLoggedOutContent(context, ref);
+                    }
+                    if (user.status == UserStatus.pending) {
+                      return _buildPendingContent(context, ref, user);
+                    }
+                    if (user.status == UserStatus.suspended) {
+                      return _buildSuspendedContent(context, ref);
+                    }
+                    return _buildApprovedContent(context, user);
+                  },
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
                   error: (error, stack) => _buildErrorContent(context, error),
@@ -94,145 +103,171 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildLoggedInContent(BuildContext context, User user) {
+  Widget _buildPendingContent(BuildContext context, WidgetRef ref, User user) {
     return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 사용자 정보 카드
-        Card(
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+        const Spacer(),
+
+        // 대기 아이콘
+        Icon(
+          Icons.hourglass_empty,
+          size: 80,
+          color: Colors.orange.shade600,
+          semanticLabel: '승인 대기 중',
+        ),
+
+        const SizedBox(height: 24),
+
+        Text(
+          '승인 대기 중',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Colors.orange.shade700,
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.person,
-                      size: 32,
-                      color: Theme.of(context).primaryColor,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      '사용자 정보',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _buildInfoRow('이름', user.name),
-                const SizedBox(height: 8),
-                _buildInfoRow('이메일', user.email),
-                const SizedBox(height: 8),
-                _buildInfoRow('상태', user.status.displayName),
-              ],
+          textAlign: TextAlign.center,
+        ),
+
+        const SizedBox(height: 16),
+
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.orange.shade200),
+          ),
+          child: Text(
+            '회원가입이 완료되었습니다.\n\n'
+            '관리자가 인증하기 전입니다.\n'
+            '1 영업일 이내에 승인해드립니다.\n\n'
+            '승인 후 오디오북 서비스를 이용하실 수 있습니다.',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: Colors.orange.shade800,
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+
+        const SizedBox(height: 32),
+
+        // 승인 확인 버튼
+        OutlinedButton.icon(
+          onPressed: () {
+            ref.read(authControllerProvider.notifier).refreshProfile();
+          },
+          icon: const Icon(Icons.refresh),
+          label: const Text('승인 확인'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size(double.infinity, 56),
+            side: BorderSide(color: Colors.orange.shade400),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
         ),
 
-        const SizedBox(height: 20),
+        const SizedBox(height: 12),
 
-        // 상태별 안내 메시지
-        if (user.status == UserStatus.pending)
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.orange.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.orange.shade200),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.hourglass_empty,
-                  color: Colors.orange.shade700,
-                  size: 24,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '관리자 승인을 기다리고 있습니다.\n승인 완료 시 이메일로 알림을 드립니다.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.orange.shade700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          )
-        else if (user.status == UserStatus.approved)
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.green.shade200),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.check_circle,
-                  color: Colors.green.shade700,
-                  size: 24,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '계정이 승인되었습니다!\n오디오북 서비스를 이용하실 수 있습니다.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.green.shade700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          )
-        else if (user.status == UserStatus.suspended)
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.red.shade200),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.block, color: Colors.red.shade700, size: 24),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '계정이 정지되었습니다.\n자세한 내용은 관리자에게 문의해주세요.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.red.shade700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        // 로그아웃 버튼
+        TextButton.icon(
+          onPressed: () => _showLogoutDialog(context, ref),
+          icon: const Icon(Icons.logout, size: 20),
+          label: const Text('로그아웃'),
+        ),
 
         const Spacer(),
+      ],
+    );
+  }
 
-        // 오디오북 목록 버튼 (승인된 사용자만)
-        if (user.status == UserStatus.approved)
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const BooksScreen()),
-              );
-            },
-            icon: const Icon(Icons.library_books),
-            label: const Text('오디오북 둘러보기'),
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 60),
-            ),
+  Widget _buildSuspendedContent(BuildContext context, WidgetRef ref) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Spacer(),
+
+        Icon(
+          Icons.block,
+          size: 80,
+          color: Colors.red.shade600,
+          semanticLabel: '계정 정지됨',
+        ),
+
+        const SizedBox(height: 24),
+
+        Text(
+          '계정이 정지되었습니다',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Colors.red.shade700,
           ),
+          textAlign: TextAlign.center,
+        ),
+
+        const SizedBox(height: 16),
+
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.red.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.red.shade200),
+          ),
+          child: Text(
+            '자세한 내용은 관리자에게 문의해주세요.',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: Colors.red.shade800,
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+
+        const SizedBox(height: 32),
+
+        TextButton.icon(
+          onPressed: () => _showLogoutDialog(context, ref),
+          icon: const Icon(Icons.logout, size: 20),
+          label: const Text('로그아웃'),
+        ),
+
+        const Spacer(),
+      ],
+    );
+  }
+
+  Widget _buildApprovedContent(BuildContext context, User user) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // 환영 메시지
+        Text(
+          '${user.name.isNotEmpty ? user.name : '사용자'}님, 환영합니다!',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+          textAlign: TextAlign.center,
+        ),
+
+        const SizedBox(height: 32),
+
+        // 오디오북 둘러보기 버튼
+        ElevatedButton.icon(
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const BooksScreen()),
+            );
+          },
+          icon: const Icon(Icons.library_books),
+          label: const Text('오디오북 둘러보기'),
+          style: ElevatedButton.styleFrom(
+            minimumSize: const Size(double.infinity, 60),
+          ),
+        ),
       ],
     );
   }
@@ -244,8 +279,8 @@ class HomeScreen extends ConsumerWidget {
         // 안내 메시지
         Container(
           padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Column(
@@ -253,14 +288,14 @@ class HomeScreen extends ConsumerWidget {
               Icon(
                 Icons.info_outline,
                 size: 48,
-                color: Theme.of(context).primaryColor,
+                  color: Theme.of(context).colorScheme.primary,
               ),
               const SizedBox(height: 16),
               Text(
                 '로그인이 필요합니다',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: Theme.of(context).primaryColor,
+                    color: Theme.of(context).colorScheme.primary,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -316,33 +351,6 @@ class HomeScreen extends ConsumerWidget {
           error.toString(),
           style: Theme.of(context).textTheme.bodyMedium,
           textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInfoRow(String label, String? value) {
-    final displayValue = (value == null || value.trim().isEmpty)
-        ? '정보 없음'
-        : value;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 60,
-          child: Text(
-            '$label:',
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[700],
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            displayValue,
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
         ),
       ],
     );

@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "731128991571",
+    "project_id": "voiceofjuan-a9773",
+    "storage_bucket": "voiceofjuan-a9773.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:731128991571:android:ac119143ecb1ce516d1ba6",
+        "android_client_info": {
+          "package_name": "com.voiceofjuan.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "731128991571-evuscn1g07f0lpa3fjhj8faf1mrb239p.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDjXk9oPz-2wBK16ApywHIum-L-Cs9Lk7g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "731128991571-evuscn1g07f0lpa3fjhj8faf1mrb239p.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

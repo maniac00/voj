@@ -84,35 +84,11 @@ class AuthController extends StateNotifier<AuthState> {
 
   AuthController(this._authRepository) : super(const AuthState.initial());
 
-  Future<void> register({
-    required String name,
-    required String email,
-    required String password,
-  }) async {
+  Future<void> signInWithGoogle() async {
     state = const AuthState.loading();
 
     try {
-      final response = await _authRepository.register(
-        name: name,
-        email: email,
-        password: password,
-      );
-
-      state = AuthState.registered(response);
-    } catch (e) {
-      state = AuthState.error(_getErrorMessage(e));
-    }
-  }
-
-  Future<void> login({required String email, required String password}) async {
-    state = const AuthState.loading();
-
-    try {
-      final response = await _authRepository.login(
-        email: email,
-        password: password,
-      );
-
+      final response = await _authRepository.signInWithGoogle();
       state = AuthState.loggedIn(response);
     } catch (e) {
       state = AuthState.error(_getErrorMessage(e));
@@ -158,7 +134,6 @@ sealed class AuthState {
 
   const factory AuthState.initial() = AuthInitial;
   const factory AuthState.loading() = AuthLoading;
-  const factory AuthState.registered(AuthResponse response) = AuthRegistered;
   const factory AuthState.loggedIn(AuthResponse response) = AuthLoggedIn;
   const factory AuthState.loggedOut() = AuthLoggedOut;
   const factory AuthState.error(String message) = AuthError;
@@ -170,11 +145,6 @@ class AuthInitial extends AuthState {
 
 class AuthLoading extends AuthState {
   const AuthLoading();
-}
-
-class AuthRegistered extends AuthState {
-  final AuthResponse response;
-  const AuthRegistered(this.response);
 }
 
 class AuthLoggedIn extends AuthState {

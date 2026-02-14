@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.auth.simple import get_current_user_claims, require_admin_scope
+from app.core.auth.simple import get_current_user_claims, require_admin_scope, require_approved_user
 from app.models.database import get_db
 from app.services.books_sql import BookServiceSQL as BookService
 from app.models.book_sql import BookSQL
@@ -148,16 +148,15 @@ async def get_books(
     status_filter: Optional[str] = Query(None, alias="status", description="책 상태 필터"),
     genre: Optional[str] = Query(None, description="장르 필터"),
     search: Optional[str] = Query(None, description="제목/저자 검색"),
-    claims=Depends(get_current_user_claims),
+    claims=Depends(require_approved_user()),
     db: Session = Depends(get_db),
 ):
     """
     책 목록 조회
     - 페이징 지원
     - 상태, 장르, 검색어로 필터링
-    - 사용자별 책만 조회
+    - 승인된 사용자만 접근 가능
     """
-    # 전역 읽기: 인증만 되면 전체 책을 볼 수 있음 (MVP 정책)
 
     try:
         # Filtered listings
@@ -232,13 +231,12 @@ async def get_books(
 @router.get("/{book_id}", response_model=Book)
 async def get_book(
     book_id: str = Path(..., description="책 ID"),
-    claims=Depends(get_current_user_claims),
+    claims=Depends(require_approved_user()),
     db: Session = Depends(get_db),
 ):
     """
     특정 책 상세 조회
-    - 사용자 인증 필요
-    - 본인의 책만 조회 가능
+    - 승인된 사용자만 접근 가능
     """
     try:
         # 전역 읽기: 특정 사용자 소유 제한 없이 조회

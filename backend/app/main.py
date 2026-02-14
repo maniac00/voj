@@ -51,6 +51,16 @@ async def startup_event():
     except Exception as e:
         print(f"Warning: Failed to initialize application components: {e}")
 
+    # Firebase Admin SDK 초기화
+    try:
+        from app.core.auth.firebase import init_firebase
+        if init_firebase():
+            print("Firebase Admin SDK initialized successfully")
+        else:
+            print("Firebase Admin SDK not configured (FIREBASE_SERVICE_ACCOUNT_JSON not set)")
+    except Exception as e:
+        print(f"Warning: Failed to initialize Firebase: {e}")
+
 
 @app.on_event("shutdown")
 async def shutdown_event():

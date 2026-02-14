@@ -28,6 +28,7 @@ psycopg2-binary = "^2.9.9"  # PostgreSQL 드라이버
 # 인증 및 보안
 python-jose = {extras = ["cryptography"], version = "^3.3.0"}
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+firebase-admin = "^6.0"
 
 # 환경 변수 관리
 python-dotenv = "^1.0.0"

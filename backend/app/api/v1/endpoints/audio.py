@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
-from app.core.auth.simple import get_current_user_claims
+from app.core.auth.simple import get_current_user_claims, require_approved_user
 from app.core.config import settings
 from app.models.audio_chapter_sql import AudioChapterSQL
 from app.models.database import get_db
@@ -139,13 +139,13 @@ async def upload_audio_chapter(
 async def get_audio_chapters(
     book_id: str = Path(..., description="책 ID"),
     status: Optional[str] = Query(None, description="챕터 상태 필터"),
-    claims=Depends(get_current_user_claims),
+    claims=Depends(require_approved_user()),
     db: Session = Depends(get_db),
 ):
     """
     책의 오디오 챕터 목록 조회
     - 챕터 번호 순으로 정렬
-    - 상태별 필터링 가능
+    - 승인된 사용자만 접근 가능
     """
     user_id = str(claims.get("sub") or claims.get("username") or "")
     if not user_id:
@@ -330,14 +330,13 @@ async def get_audio_chapter(
 async def get_streaming_url(
     book_id: str = Path(..., description="책 ID"),
     chapter_id: str = Path(..., description="챕터 ID"),
-    claims=Depends(get_current_user_claims),
+    claims=Depends(require_approved_user()),
     db: Session = Depends(get_db),
     request: Request = None,
 ):
     """
     오디오 챕터 스트리밍 URL 생성
-    - 프로덕션: CloudFront Signed URL
-    - 로컬: 직접 파일 URL
+    - 승인된 사용자만 접근 가능
     """
     # 사용자 인증 및 소유권 확인 (관리자 우회 허용)
     user_id = str(claims.get("sub") or claims.get("username") or "")

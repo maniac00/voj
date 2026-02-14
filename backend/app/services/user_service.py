@@ -40,7 +40,7 @@ class UserService:
             return user
 
         # 신규 사용자 생성
-        admin_emails = getattr(settings, "ADMIN_EMAILS", [])
+        admin_emails = settings.admin_emails_list
         is_admin = email.lower() in [e.lower() for e in admin_emails]
 
         user = UserSQL(

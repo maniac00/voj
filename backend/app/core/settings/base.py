@@ -89,24 +89,23 @@ class BaseAppSettings(BaseSettings):
 
     # Firebase 인증 설정
     FIREBASE_SERVICE_ACCOUNT_JSON: str = ""
-    ADMIN_EMAILS: List[str] = []
+    ADMIN_EMAILS: str = ""
 
-    @field_validator("ADMIN_EMAILS", mode="before")
-    def parse_admin_emails(cls, v: Any) -> List[str]:
-        if isinstance(v, list):
-            return [str(item).strip() for item in v]
-        if isinstance(v, str):
-            s = v.strip()
-            if s.startswith("[") and s.endswith("]"):
-                try:
-                    import json
-                    arr = json.loads(s)
-                    if isinstance(arr, list):
-                        return [str(item).strip() for item in arr]
-                except Exception:
-                    pass
-            return [e.strip() for e in s.split(",") if e.strip()]
-        return []
+    @property
+    def admin_emails_list(self) -> List[str]:
+        """ADMIN_EMAILS 문자열을 리스트로 파싱 (콤마 구분 또는 JSON 배열)"""
+        s = self.ADMIN_EMAILS.strip()
+        if not s:
+            return []
+        if s.startswith("[") and s.endswith("]"):
+            try:
+                import json
+                arr = json.loads(s)
+                if isinstance(arr, list):
+                    return [str(item).strip() for item in arr]
+            except Exception:
+                pass
+        return [e.strip() for e in s.split(",") if e.strip()]
 
     # 로컬 인증 바이패스 설정
     LOCAL_BYPASS_ENABLED: bool = False

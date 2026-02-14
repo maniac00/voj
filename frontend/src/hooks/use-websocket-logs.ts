@@ -112,6 +112,9 @@ export function useWebSocketLogs({
             1000 * Math.pow(2, reconnectAttempts.current),
             30000,
           );
+          if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+          }
           reconnectTimeoutRef.current = setTimeout(() => {
             reconnectAttempts.current += 1;
             connect();
@@ -335,6 +338,9 @@ export function useChapterStatus({
 
         // 자동 재연결
         if (autoConnect) {
+          if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+          }
           reconnectTimeoutRef.current = setTimeout(connect, 5000);
         }
       };

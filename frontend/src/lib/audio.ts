@@ -1,11 +1,5 @@
-import { getAuthHeaders } from "@/lib/auth/simple-auth";
-
-// 브라우저에서는 항상 상대 경로 사용 (Rewrite 활용)
-const API_BASE =
-  typeof window !== "undefined"
-    ? "/api/v1"
-    : process.env.NEXT_PUBLIC_API_BASE ||
-      `${process.env.NEXT_PUBLIC_API_URL || ""}/api/v1`;
+import { apiBase } from "@/lib/config";
+import { fetchJson } from "@/lib/api";
 
 export type ChapterDto = {
   chapter_id: string;
@@ -21,29 +15,9 @@ export type ChapterDto = {
   updated_at?: string;
 };
 
-export async function fetchJson<T>(
-  input: RequestInfo | URL,
-  init?: RequestInit,
-): Promise<T> {
-  const res = await fetch(input, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(),
-      ...(init?.headers || {}),
-    },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Request failed: ${res.status} ${res.statusText} ${text}`);
-  }
-  return (await res.json()) as T;
-}
-
 export async function getChapters(bookId: string): Promise<ChapterDto[]> {
   return fetchJson<ChapterDto[]>(
-    `${API_BASE}/audio/${encodeURIComponent(bookId)}/chapters`,
+    `${apiBase()}/audio/${encodeURIComponent(bookId)}/chapters`,
   );
 }
 
@@ -53,7 +27,7 @@ export async function reorderChapter(
   newNumber: number,
 ): Promise<ChapterDto> {
   return fetchJson<ChapterDto>(
-    `${API_BASE}/audio/${encodeURIComponent(bookId)}/chapters/${encodeURIComponent(chapterId)}?new_number=${newNumber}`,
+    `${apiBase()}/audio/${encodeURIComponent(bookId)}/chapters/${encodeURIComponent(chapterId)}?new_number=${newNumber}`,
     { method: "PUT" },
   );
 }
@@ -63,7 +37,7 @@ export async function deleteChapter(
   chapterId: string,
 ): Promise<{ message: string }> {
   return fetchJson<{ message: string }>(
-    `${API_BASE}/audio/${encodeURIComponent(bookId)}/chapters/${encodeURIComponent(chapterId)}`,
+    `${apiBase()}/audio/${encodeURIComponent(bookId)}/chapters/${encodeURIComponent(chapterId)}`,
     { method: "DELETE" },
   );
 }
@@ -79,6 +53,6 @@ export async function getStreamingUrlApi(
   chapterId: string,
 ): Promise<StreamUrlResponse> {
   return fetchJson<StreamUrlResponse>(
-    `${API_BASE}/audio/${encodeURIComponent(bookId)}/chapters/${encodeURIComponent(chapterId)}/stream`,
+    `${apiBase()}/audio/${encodeURIComponent(bookId)}/chapters/${encodeURIComponent(chapterId)}/stream`,
   );
 }

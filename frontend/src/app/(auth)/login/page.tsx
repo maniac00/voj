@@ -140,9 +140,11 @@ function LoginForm() {
           </button>
         </form>
 
-        <div className="text-center text-xs text-gray-500">
-          기본 계정: admin / admin123
-        </div>
+        {process.env.NODE_ENV !== "production" && (
+          <div className="text-center text-xs text-gray-500">
+            기본 계정: admin / admin123
+          </div>
+        )}
       </div>
     </main>
   );

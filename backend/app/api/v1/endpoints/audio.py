@@ -2,10 +2,13 @@
 VOJ Audiobooks API - 오디오 관리 엔드포인트
 오디오 파일 업로드, 챕터 관리, 스트리밍 URL 생성
 """
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
 import os
+
+logger = logging.getLogger(__name__)
 
 from fastapi import (
     APIRouter,
@@ -27,6 +30,7 @@ from app.core.config import settings
 from app.models.audio_chapter_sql import AudioChapterSQL
 from app.models.database import get_db
 from app.services.books_sql import BookServiceSQL as BookService
+from app.core.audit import log_audio_deleted
 from app.services.storage.factory import storage_service
 
 
@@ -532,13 +536,14 @@ async def delete_audio_chapter(
     try:
         if chapter.audio_key:
             await storage_service.delete_file(chapter.audio_key)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Failed to delete storage file %s: %s", chapter.audio_key, e)
 
     # 챕터 삭제
     try:
         db.delete(chapter)
         db.commit()
+        log_audio_deleted(user_id, book_id, chapter_id)
         return {"message": f"Audio chapter {chapter_id} deleted successfully"}
     except Exception as e:
         raise HTTPException(

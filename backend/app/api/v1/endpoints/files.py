@@ -4,10 +4,13 @@ VOJ Audiobooks API - 파일 관리 엔드포인트
 """
 import hashlib
 import io
+import logging
 import uuid
 from datetime import datetime, timezone
 import os
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException
@@ -28,21 +31,27 @@ from app.utils.audio_validation import extract_chapter_info
 from app.utils.ffprobe import extract_audio_metadata
 
 router = APIRouter()
+
+
 @router.get("/debug/resolve/{file_key:path}")
-async def debug_resolve_file(file_key: str):
-    """Return how the storage resolves a given key to a full path in production."""
+async def debug_resolve_file(
+    file_key: str,
+    claims=Depends(get_current_user_claims),
+):
+    """Return how the storage resolves a given key to a full path (local only)."""
+    if settings.ENVIRONMENT != "local":
+        raise HTTPException(status_code=404, detail="Not found")
+
     tried: List[str] = []
     full_path = None
     exists = False
     try:
-        # Try public helper
         getter = getattr(storage_service, "get_full_path", None)
         if callable(getter):
             p = getter(file_key)
             if p:
                 full_path = p
                 exists = True
-        # Inspect internal candidates if available
         base_path = getattr(storage_service, "base_path", None)
         candidates = getattr(storage_service, "_candidates", []) or []
         for root in candidates:
@@ -459,7 +468,10 @@ async def get_file_info(
 ):
     """파일 정보 조회"""
     try:
-        file_info = await storage_service.get_file_info(file_key)
+        try:
+            file_info = await storage_service.get_file_info(file_key)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid file key")
 
         if file_info is None:
             raise HTTPException(status_code=404, detail="File not found")
@@ -483,15 +495,21 @@ async def get_file_info(
 async def download_file(
     file_key: str = PathParam(..., description="파일 키"),
     request: Request = None,
+    claims=Depends(get_current_user_claims),
 ):
     """
     파일 다운로드
+    - 인증 필요
     - 로컬 환경: 직접 파일 스트리밍
     - 프로덕션 환경: Pre-signed URL로 리다이렉트
     """
     try:
         # 파일 존재 확인
-        if not await storage_service.file_exists(file_key):
+        try:
+            exists = await storage_service.file_exists(file_key)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid file key")
+        if not exists:
             raise HTTPException(status_code=404, detail="File not found")
 
         # 프로덕션 환경에서도 직접 스트리밍 (CDN 프록시 전제)

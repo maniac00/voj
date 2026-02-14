@@ -74,29 +74,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   useEffect(() => {
+    let cancelled = false;
+
     // 초기 로드 시 저장된 사용자 정보 확인
     const initAuth = async () => {
       const storedUser = getStoredUser();
       const token = getStoredToken();
 
       if (storedUser && token) {
-        setUser(storedUser);
+        if (!cancelled) setUser(storedUser);
         // 백그라운드에서 사용자 정보 갱신
         try {
           const currentUser = await getCurrentUser();
-          setUser(currentUser);
+          if (!cancelled) setUser(currentUser);
         } catch (error) {
           // 토큰이 만료되었거나 유효하지 않음
           console.warn("Token validation failed:", error);
-          clearAuthData();
-          setUser(null);
+          if (!cancelled) {
+            clearAuthData();
+            setUser(null);
+          }
         }
       }
 
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     };
 
     initAuth();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const value: AuthContextType = {

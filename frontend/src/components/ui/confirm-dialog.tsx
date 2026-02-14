@@ -136,7 +136,7 @@ export function ConfirmDialog({
             id="dialog-description"
             className="text-sm text-gray-500 text-center mb-4"
           >
-            <div dangerouslySetInnerHTML={{ __html: message }} />
+            <p className="whitespace-pre-line">{message}</p>
           </div>
 
           {/* 타이핑 확인 */}

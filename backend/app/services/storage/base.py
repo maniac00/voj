@@ -86,7 +86,7 @@ class BaseStorageService(ABC):
     ) -> str:
         """파일 저장에 사용할 표준 키를 생성한다."""
 
-        safe_filename = filename.replace(" ", "_")
+        safe_filename = os.path.basename(filename).replace(" ", "_")
         return f"book/{book_id}/{prefix}/{safe_filename}"
 
     def get_content_type(self, filename: str) -> str:

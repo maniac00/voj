@@ -5,7 +5,7 @@ PostgreSQL용 오디오 챕터 모델
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -16,12 +16,15 @@ class AudioChapterSQL(Base):
     """오디오 챕터 모델 - PostgreSQL"""
 
     __tablename__ = "audio_chapters"
+    __table_args__ = (
+        UniqueConstraint("book_id", "chapter_number", name="uq_book_chapter_number"),
+    )
 
     # Primary Key
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
 
     # Foreign Keys
-    book_id = Column(String(255), nullable=False, index=True)
+    book_id = Column(String(255), ForeignKey("books.book_id"), nullable=False, index=True)
     user_id = Column(String(255), nullable=False, index=True)
 
     # Chapter 정보

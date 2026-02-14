@@ -1,11 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/utils/logger.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/services/api_service.dart';
 import '../../services/accessibility_feedback_service.dart';
 import '../../core/constants/app_config.dart';
+
+const _log = AppLogger('AuthProvider');
 
 // API 서비스 프로바이더
 final apiServiceProvider = Provider<ApiService>((ref) {
@@ -33,12 +36,14 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
   final accessibility = ref.watch(accessibilityFeedbackProvider);
   final secureStorage = ref.watch(secureStorageProvider);
-  return AuthRepository(
+  final repo = AuthRepository(
     apiService: apiService,
     prefs: prefs,
     secureStorage: secureStorage,
     accessibilityFeedback: accessibility,
   );
+  ref.onDispose(() => repo.dispose());
+  return repo;
 });
 
 // 현재 사용자 프로바이더
@@ -128,8 +133,8 @@ class AuthController extends StateNotifier<AuthState> {
   Future<void> refreshProfile() async {
     try {
       await _authRepository.refreshUserProfile();
-    } catch (e) {
-      // 프로필 새로고침 실패는 별도 처리하지 않음
+    } catch (e, st) {
+      _log.warning('프로필 새로고침 실패', error: e, stackTrace: st);
     }
   }
 

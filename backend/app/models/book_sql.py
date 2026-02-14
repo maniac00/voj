@@ -9,6 +9,7 @@ from typing import List, Optional
 from sqlalchemy import Column, DateTime
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import Integer, String, Text
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from .database import Base
@@ -53,6 +54,9 @@ class BookSQL(Base):
     # 파일 정보
     cover_image_url = Column(Text, nullable=True)
     cover_image_key = Column(String(500), nullable=True)
+
+    # Relationships
+    chapters = relationship("AudioChapterSQL", cascade="all, delete-orphan", passive_deletes=True)
 
     # 타임스탬프
     created_at = Column(DateTime, default=func.now(), nullable=False)

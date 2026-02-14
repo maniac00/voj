@@ -1,7 +1,10 @@
 import 'dart:io';
 import '../models/book_model.dart';
+import '../../core/utils/logger.dart';
 import 'api_service.dart';
 import 'audio_service.dart';
+
+const _log = AppLogger('BookService');
 
 class BookService {
   final ApiService _apiService;
@@ -54,7 +57,8 @@ class BookService {
         message: '네트워크 연결을 확인해주세요',
         statusCode: 0,
       );
-    } catch (_) {
+    } catch (e, st) {
+      _log.warning('도서 목록 조회 중 오류', error: e, stackTrace: st);
       throw const BookServiceException(
         message: '도서 목록 조회 중 오류가 발생했습니다',
         statusCode: -1,
@@ -82,7 +86,8 @@ class BookService {
         message: '네트워크 연결을 확인해주세요',
         statusCode: 0,
       );
-    } catch (_) {
+    } catch (e, st) {
+      _log.warning('도서 상세 정보 조회 중 오류', error: e, stackTrace: st);
       throw const BookServiceException(
         message: '도서 상세 정보 조회 중 오류가 발생했습니다',
         statusCode: -1,
@@ -110,7 +115,8 @@ class BookService {
         message: '네트워크 연결을 확인해주세요',
         statusCode: 0,
       );
-    } catch (_) {
+    } catch (e, st) {
+      _log.warning('북마크 목록 조회 중 오류', error: e, stackTrace: st);
       throw const BookServiceException(
         message: '북마크 목록 조회 중 오류가 발생했습니다',
         statusCode: -1,
@@ -141,7 +147,8 @@ class BookService {
         message: '네트워크 연결을 확인해주세요',
         statusCode: 0,
       );
-    } catch (_) {
+    } catch (e, st) {
+      _log.warning('북마크 추가 중 오류', error: e, stackTrace: st);
       throw const BookServiceException(
         message: '북마크 추가 중 오류가 발생했습니다',
         statusCode: -1,
@@ -159,7 +166,8 @@ class BookService {
         message: '네트워크 연결을 확인해주세요',
         statusCode: 0,
       );
-    } catch (_) {
+    } catch (e, st) {
+      _log.warning('북마크 삭제 중 오류', error: e, stackTrace: st);
       throw const BookServiceException(
         message: '북마크 삭제 중 오류가 발생했습니다',
         statusCode: -1,

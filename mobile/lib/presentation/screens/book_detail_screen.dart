@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/book_model.dart';
@@ -23,14 +24,9 @@ class BookDetailScreen extends ConsumerWidget {
         centerTitle: true,
         actions: [
           IconButton(
-            onPressed: () {
-              // TODO: 즐겨찾기 기능
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('즐겨찾기 기능은 준비 중입니다')),
-              );
-            },
+            onPressed: null,
             icon: const Icon(Icons.favorite_border),
-            tooltip: '즐겨찾기',
+            tooltip: '즐겨찾기 (준비 중)',
           ),
         ],
       ),
@@ -94,18 +90,18 @@ class BookDetailScreen extends ConsumerWidget {
                     height: 180,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
-                      color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                       border: Border.all(
-                        color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
+                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                       ),
                     ),
                     child: book.coverUrl != null
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              book.coverUrl!,
+                            child: CachedNetworkImage(
+                              imageUrl: book.coverUrl!,
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
+                              errorWidget: (context, url, error) =>
                                   _buildDefaultCover(context),
                             ),
                           )
@@ -154,7 +150,7 @@ class BookDetailScreen extends ConsumerWidget {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).primaryColor,
+                              color: Theme.of(context).colorScheme.primary,
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Text(
@@ -273,7 +269,7 @@ class BookDetailScreen extends ConsumerWidget {
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: Theme.of(context).primaryColor,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
                     child: Text(
                       '${chapter.chapterNumber}',
                       style: const TextStyle(
@@ -311,8 +307,8 @@ class BookDetailScreen extends ConsumerWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Theme.of(context).primaryColor.withValues(alpha: 0.7),
-            Theme.of(context).primaryColor.withValues(alpha: 0.5),
+            Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
+            Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
           ],
         ),
       ),

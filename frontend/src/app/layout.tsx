@@ -7,8 +7,17 @@ import "../app/globals.css";
 import React from "react";
 import { AuthProvider } from "@/contexts/auth-context";
 import { NotificationProvider } from "@/contexts/notification-context";
-import { EnvChecker } from "@/components/debug/env-checker";
-import { RequestInspector } from "@/components/debug/request-inspector";
+import { ErrorBoundary } from "@/components/error-boundary";
+
+// 디버그 컴포넌트는 개발 환경에서만 로드
+const EnvChecker =
+  process.env.NODE_ENV !== "production"
+    ? require("@/components/debug/env-checker").EnvChecker
+    : () => null;
+const RequestInspector =
+  process.env.NODE_ENV !== "production"
+    ? require("@/components/debug/request-inspector").RequestInspector
+    : () => null;
 
 export default function RootLayout({
   children,
@@ -31,9 +40,11 @@ export default function RootLayout({
             검색으로 건너뛰기
           </a>
         </div>
-        <AuthProvider>
-          <NotificationProvider>{children}</NotificationProvider>
-        </AuthProvider>
+        <ErrorBoundary>
+          <AuthProvider>
+            <NotificationProvider>{children}</NotificationProvider>
+          </AuthProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

@@ -5,7 +5,7 @@ AWS 프로덕션 환경에서 사용되는 설정들
 import os
 from typing import Optional
 
-from pydantic import ConfigDict
+from pydantic import ConfigDict, model_validator
 
 from .base import BaseAppSettings
 
@@ -15,6 +15,19 @@ class ProductionSettings(BaseAppSettings):
 
     # 환경 구분
     ENVIRONMENT: str = "production"
+
+    @model_validator(mode="after")
+    def _validate_production_secrets(self) -> "ProductionSettings":
+        if self.SECRET_KEY == "INSECURE-local-dev-only-change-me":
+            raise ValueError(
+                "SECRET_KEY must be set to a secure value in production environment. "
+                "Set the SECRET_KEY environment variable."
+            )
+        if self.SIMPLE_AUTH_PASSWORD == "qwer1234":
+            raise ValueError(
+                "SIMPLE_AUTH_PASSWORD must be changed from the default value in production environment."
+            )
+        return self
 
     # 프로덕션 서버 설정
     HOST: str = "0.0.0.0"

@@ -118,17 +118,23 @@ final currentChapterStatusProvider = StateProvider<String?>((ref) => null);
 
 /// 오디오 플레이어 컨트롤러 프로바이더
 final audioPlayerControllerProvider = Provider<AudioPlayerController>((ref) {
-  return AudioPlayerController(ref);
+  final controller = AudioPlayerController(ref);
+  ref.onDispose(() {
+    controller._statusSub?.cancel();
+    controller._statusWs?.dispose();
+  });
+  return controller;
 });
 
 /// 오디오 플레이어 컨트롤러
 class AudioPlayerController {
   final Ref _ref;
-  
+
   AudioPlayerController(this._ref);
 
   AudioPlayerService get _service => _ref.read(audioPlayerServiceProvider);
   StreamSubscription? _statusSub;
+  StatusWebSocketService? _statusWs;
 
   /// 오디오 파일 재생
   Future<void> playChapter({
@@ -156,9 +162,10 @@ class AudioPlayerController {
 
       // 상태 WebSocket 구독 (기존 구독 해제 후 재구독)
       await _statusSub?.cancel();
-      final statusWs = StatusWebSocketService(chapter.id);
-      await statusWs.connect();
-      _statusSub = statusWs.stream.listen((event) async {
+      await _statusWs?.dispose();
+      _statusWs = StatusWebSocketService(chapter.id);
+      await _statusWs!.connect();
+      _statusSub = _statusWs!.stream.listen((event) async {
         final type = event['type'] as String?;
         if (type == 'chapter_status') {
           final status = (event['status'] ?? '').toString().toLowerCase();
@@ -181,9 +188,6 @@ class AudioPlayerController {
           final accessibility = _ref.read(accessibilityFeedbackProvider);
           await accessibility.error(msg);
         }
-      });
-      _ref.onDispose(() async {
-        await _statusSub?.cancel();
       });
 
     } catch (e) {
@@ -263,6 +267,8 @@ class AudioPlayerController {
     _ref.read(currentChapterStatusProvider.notifier).state = null;
     _statusSub?.cancel();
     _statusSub = null;
+    _statusWs?.dispose();
+    _statusWs = null;
   }
 
   /// 미니 플레이어 숨기기

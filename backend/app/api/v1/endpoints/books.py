@@ -2,6 +2,7 @@
 VOJ Audiobooks API - 책 관리 엔드포인트
 책 생성, 조회, 수정, 삭제 기능
 """
+import logging
 from datetime import datetime
 from typing import List, Optional
 
@@ -14,7 +15,11 @@ from app.models.database import get_db
 from app.services.books_sql import BookServiceSQL as BookService
 from app.models.book_sql import BookSQL
 from app.models.audio_chapter_sql import AudioChapterSQL
+from app.core.audit import log_book_created, log_book_deleted
+from app.services.storage.factory import storage_service
 from sqlalchemy import func
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -111,6 +116,8 @@ async def create_book(
             published_date=book_data.published_date,
         )
 
+        log_book_created(user_id, created.book_id, created.title)
+
         return {
             "book_id": created.book_id,
             "user_id": created.user_id,
@@ -179,16 +186,17 @@ async def get_books(
             ]
             total = len(items)
 
-        # 카운트 보정(N+1; 소규모 가정)
-        counts_map = {
-            b.book_id: (
-                db.query(func.count(AudioChapterSQL.id))
-                .filter(AudioChapterSQL.book_id == b.book_id)
-                .scalar()
-                or 0
+        # 카운트 보정: 단일 GROUP BY 쿼리로 N+1 해소
+        book_ids = [b.book_id for b in items]
+        counts_map = {}
+        if book_ids:
+            counts_rows = (
+                db.query(AudioChapterSQL.book_id, func.count(AudioChapterSQL.id))
+                .filter(AudioChapterSQL.book_id.in_(book_ids))
+                .group_by(AudioChapterSQL.book_id)
+                .all()
             )
-            for b in items
-        }
+            counts_map = {row[0]: row[1] for row in counts_rows}
 
         return BookList(
             books=[
@@ -305,7 +313,8 @@ async def update_book(
             publisher=book_data.publisher,
             published_date=book_data.published_date,
         )
-        assert updated is not None
+        if updated is None:
+            raise HTTPException(status_code=500, detail="Failed to update book")
         return {
             "book_id": updated.book_id,
             "user_id": updated.user_id,
@@ -350,13 +359,24 @@ async def delete_book(
     if not BookService.get_book(db, user_id=user_id, book_id=book_id):
         raise HTTPException(status_code=404, detail="Book not found")
 
-    # TODO: 연관 리소스 정리 정책
-    # - AudioChapter: 같은 book_id 항목 삭제
-    # - 스토리지: uploads/media/cover 경로 키 삭제 (비동기 작업 고려)
+    # 연관 리소스 정리: 챕터별 스토리지 파일 삭제
+    chapters = (
+        db.query(AudioChapterSQL)
+        .filter(AudioChapterSQL.book_id == book_id)
+        .all()
+    )
+    for chapter in chapters:
+        if chapter.audio_key:
+            try:
+                await storage_service.delete_file(chapter.audio_key)
+            except Exception as e:
+                logger.warning("Failed to delete storage file %s: %s", chapter.audio_key, e)
+    # DB CASCADE가 챕터 레코드를 자동 삭제함
     try:
         ok = BookService.delete_book(db, user_id=user_id, book_id=book_id)
         if not ok:
             raise HTTPException(status_code=404, detail="Book not found")
+        log_book_deleted(user_id, book_id)
         return {"message": f"Book {book_id} deleted successfully"}
     except HTTPException:
         raise

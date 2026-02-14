@@ -83,8 +83,8 @@ export default function BooksPage() {
         if (!cancelled) {
           setChapterCountOverrides((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
         }
-      } catch {
-        // ignore
+      } catch (err) {
+        console.error("Failed to fetch chapter counts:", err);
       }
     })();
 

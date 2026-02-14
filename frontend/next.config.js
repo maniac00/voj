@@ -10,18 +10,25 @@ const nextConfig = {
       '@radix-ui/react-icons'
     ]
   },
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+        ],
+      },
+    ]
+  },
   async rewrites() {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-
-    // 디버깅: 빌드 시점의 환경변수 로그
-    console.log('🔧 [next.config.js] NEXT_PUBLIC_API_URL:', apiUrl)
 
     // HTTPS 강제 (프로덕션 환경에서만)
     const finalApiUrl = process.env.NODE_ENV === 'production' && apiUrl.startsWith('http://')
       ? apiUrl.replace('http://', 'https://')
       : apiUrl
-
-    console.log('🔧 [next.config.js] Final API URL:', finalApiUrl)
 
     return [
       {
@@ -39,5 +46,3 @@ const nextConfig = {
 }
 
 module.exports = nextConfig
-
-

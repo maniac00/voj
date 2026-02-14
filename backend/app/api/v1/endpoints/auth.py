@@ -14,6 +14,7 @@ from app.core.auth.simple import (
     create_simple_token,
     get_current_user_claims,
 )
+from app.core.audit import log_login_success, log_login_failure
 
 router = APIRouter()
 
@@ -56,10 +57,13 @@ async def login(login_data: LoginRequest) -> LoginResponse:
         )
 
     if not authenticate_user(username, login_data.password):
+        log_login_failure(username)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password",
         )
+
+    log_login_success(username)
 
     # 토큰 생성
     access_token = create_simple_token(username)

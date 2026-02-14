@@ -1,17 +1,5 @@
 import { getAuthHeaders } from "@/lib/auth/simple-auth";
-
-// 런타임 시점에 API Base를 계산하여 SSR 시 절대경로가 고정되는 문제를 회피
-function apiBase(): string {
-  // 브라우저 환경에서는 항상 상대 경로 사용 (Rewrite 활용)
-  if (typeof window !== "undefined") {
-    return "/api/v1";
-  }
-  // 서버 환경에서는 절대 경로 필요
-  return (
-    process.env.NEXT_PUBLIC_API_BASE ||
-    `${process.env.NEXT_PUBLIC_API_URL || ""}/api/v1`
-  );
-}
+import { apiBase } from "@/lib/config";
 
 export type BookDto = {
   book_id: string;
@@ -29,24 +17,35 @@ export type BookDto = {
   total_duration?: number;
 };
 
+const DEFAULT_TIMEOUT_MS = 30_000;
+
 export async function fetchJson<T>(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<T> {
-  const res = await fetch(input, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(),
-      ...(init?.headers || {}),
-    },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Request failed: ${res.status} ${res.statusText} ${text}`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(input, {
+      ...init,
+      signal: init?.signal ?? controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+        ...getAuthHeaders(),
+        ...(init?.headers || {}),
+      },
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Request failed: ${res.status} ${res.statusText} ${text}`);
+    }
+    return (await res.json()) as T;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  return (await res.json()) as T;
 }
 
 export async function getBooks(): Promise<BookDto[]> {

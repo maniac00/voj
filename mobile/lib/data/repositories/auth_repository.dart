@@ -4,8 +4,11 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 import '../../core/constants/app_config.dart';
+import '../../core/utils/logger.dart';
 import '../../services/accessibility_feedback_service.dart';
 import '../services/api_service.dart';
+
+const _log = AppLogger('AuthRepository');
 
 class AuthRepository {
   static const String _tokenKey = 'auth_token';
@@ -52,8 +55,8 @@ class AuthRepository {
     if (isLoggedIn && _currentUser == null) {
       try {
         await refreshUserProfile();
-      } catch (_) {
-        // 프로필 로드 실패는 초기화 단계에서 무시 (추후 로그인 시 재시도)
+      } catch (e, st) {
+        _log.warning('프로필 로드 실패 (추후 로그인 시 재시도)', error: e, stackTrace: st);
       }
     }
   }
@@ -116,7 +119,8 @@ class AuthRepository {
 
       _apiService.setAuthToken(session.accessToken);
       _setSession(session);
-    } catch (e) {
+    } catch (e, st) {
+      _log.warning('세션 복원 실패', error: e, stackTrace: st);
       await _secureStorage.delete(key: _sessionStorageKey);
       _setSession(null);
     }
@@ -132,7 +136,8 @@ class AuthRepository {
     try {
       final userData = User.fromJson({..._parseUserJson(userJson)});
       _setCurrentUser(userData);
-    } catch (_) {
+    } catch (e, st) {
+      _log.warning('사용자 정보 복원 실패', error: e, stackTrace: st);
       await _prefs.remove(_userKey);
       _setCurrentUser(null);
     }
@@ -144,8 +149,8 @@ class AuthRepository {
       if (decoded is Map<String, dynamic>) {
         return decoded;
       }
-    } catch (_) {
-      // ignore and fallback
+    } catch (e) {
+      _log.debug('JSON 파싱 실패, 레거시 형식 시도', error: e);
     }
 
     try {
@@ -158,7 +163,8 @@ class AuthRepository {
         parsed['status'] = parts[3];
       }
       return parsed;
-    } catch (_) {
+    } catch (e, st) {
+      _log.warning('레거시 사용자 데이터 파싱 실패', error: e, stackTrace: st);
       return {};
     }
   }
@@ -169,12 +175,16 @@ class AuthRepository {
 
   void _setCurrentUser(User? user) {
     _currentUser = user;
-    _userController.add(_currentUser);
+    if (!_userController.isClosed) {
+      _userController.add(_currentUser);
+    }
   }
 
   void _setSession(AuthSession? session) {
     _currentSession = session;
-    _sessionController.add(_currentSession);
+    if (!_sessionController.isClosed) {
+      _sessionController.add(_currentSession);
+    }
   }
 
   Future<void> handleUnauthorized({String? message, String? origin}) async {

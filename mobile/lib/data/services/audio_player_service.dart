@@ -1,10 +1,12 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
+import '../../core/utils/logger.dart';
 import '../../services/accessibility_feedback_service.dart';
 import '../models/book_model.dart';
 import 'audio_service.dart';
+
+const _log = AppLogger('AudioPlayer');
 
 /// 오디오 플레이어 서비스
 /// just_audio를 사용하여 오디오 스트리밍 및 재생 제어를 제공
@@ -204,7 +206,7 @@ class AudioPlayerService {
     } catch (e) {
       // 진행률 저장 실패는 재생에 영향을 주지 않음
       await _handleUnauthorizedError(e);
-      debugPrint('Progress save failed: $e');
+      _log.warning('Progress save failed', error: e);
     }
   }
 
@@ -224,7 +226,7 @@ class AudioPlayerService {
     } catch (e) {
       await _handleUnauthorizedError(e);
       // 위치 복원 실패는 재생에 영향을 주지 않음
-      debugPrint('Position restore failed: $e');
+      _log.warning('Position restore failed', error: e);
     }
   }
 

@@ -42,7 +42,18 @@ class LocalStorageService(BaseStorageService):
     # ------------------------------------------------------------------
     # 내부 유틸리티
     # ------------------------------------------------------------------
+    def _validate_key(self, key: str) -> None:
+        """키에 대한 Path Traversal 공격을 방지한다."""
+        if ".." in key:
+            raise ValueError(f"Invalid file key: path traversal detected in '{key}'")
+        normalized = os.path.normpath(os.path.join(self.base_path, key.lstrip("/")))
+        real_base = os.path.realpath(self.base_path)
+        real_path = os.path.realpath(normalized)
+        if not real_path.startswith(real_base + os.sep) and real_path != real_base:
+            raise ValueError(f"Invalid file key: path escapes storage root in '{key}'")
+
     def _full_path(self, key: str) -> str:
+        self._validate_key(key)
         return os.path.join(self.base_path, key.lstrip("/"))
 
     def _metadata_path(self, key: str) -> str:

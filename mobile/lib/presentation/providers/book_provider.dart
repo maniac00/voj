@@ -1,10 +1,12 @@
-import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/utils/logger.dart';
 import '../../data/models/book_model.dart';
 import '../../data/repositories/book_repository.dart';
 import '../../data/services/book_service.dart';
 import 'auth_provider.dart';
 import '../../core/constants/app_config.dart';
+
+const _log = AppLogger('BookProvider');
 
 // Export the service exception for use in UI
 export '../../data/services/book_service.dart' show BookServiceException;
@@ -116,8 +118,7 @@ class BooksNotifier extends StateNotifier<AsyncValue<BooksResponse>> {
       state = AsyncValue.data(updatedResponse);
     } catch (error) {
       // 더 로드 실패 시 기존 상태 유지하고 에러는 별도 처리
-      // TODO: 에러 로깅 시스템으로 교체
-      debugPrint('더 로드 실패: $error');
+      _log.warning('더 로드 실패', error: error);
     }
   }
 

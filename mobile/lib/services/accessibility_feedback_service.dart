@@ -3,6 +3,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
+import '../core/utils/logger.dart';
+
+const _log = AppLogger('Accessibility');
 
 class AccessibilityFeedbackService {
   const AccessibilityFeedbackService({this.textDirection = ui.TextDirection.ltr});
@@ -16,8 +19,8 @@ class AccessibilityFeedbackService {
 
     try {
       await SemanticsService.announce(message, textDirection);
-    } catch (_) {
-      // SemanticsService가 초기화되지 않은 경우 무시
+    } catch (e) {
+      _log.debug('SemanticsService 초기화 안됨', error: e);
     }
 
     if (withHaptic) {
@@ -42,8 +45,8 @@ class AccessibilityFeedbackService {
   Future<void> _safeHaptic(Future<void> Function() callback) async {
     try {
       await callback();
-    } catch (_) {
-      // 일부 플랫폼에서는 햅틱을 지원하지 않으므로 무시
+    } catch (e) {
+      _log.debug('햅틱 피드백 미지원 플랫폼', error: e);
     }
   }
 }

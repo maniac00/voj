@@ -3,6 +3,9 @@ import 'dart:convert';
 
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../core/constants/app_config.dart';
+import '../core/utils/logger.dart';
+
+const _log = AppLogger('LogWebSocket');
 
 class LogWebSocketService {
   LogWebSocketService({this.retryBaseDelay = const Duration(seconds: 2)})
@@ -43,12 +46,16 @@ class LogWebSocketService {
             }
           }
         },
-        onError: (_) => _scheduleReconnect(),
+        onError: (e) {
+          _log.warning('WebSocket 스트림 오류', error: e);
+          _scheduleReconnect();
+        },
         onDone: _scheduleReconnect,
       );
 
       send({'type': 'subscribe'});
-    } catch (_) {
+    } catch (e, st) {
+      _log.warning('WebSocket 연결 실패', error: e, stackTrace: st);
       _scheduleReconnect();
     }
   }

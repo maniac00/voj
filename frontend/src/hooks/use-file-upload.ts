@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { getAuthHeaders } from "@/lib/auth/simple-auth";
+import { apiBase } from "@/lib/config";
 
 export interface UploadProgress {
   loaded: number;
@@ -120,13 +121,7 @@ export function useFileUpload() {
           });
         }
 
-        // API 베이스 URL 구성 (브라우저에서는 항상 상대 경로 - Rewrite 활용)
-        const apiV1 =
-          typeof window !== "undefined"
-            ? "/api/v1"
-            : process.env.NEXT_PUBLIC_API_BASE ||
-              `${process.env.NEXT_PUBLIC_API_URL || ""}/api/v1`;
-        const url = `${apiV1}/files/upload/audio?book_id=${encodeURIComponent(bookId)}&chapter_title=${encodeURIComponent(title)}`;
+        const url = `${apiBase()}/files/upload/audio?book_id=${encodeURIComponent(bookId)}&chapter_title=${encodeURIComponent(title)}`;
         xhr.open("POST", url);
 
         // 인증 헤더 추가

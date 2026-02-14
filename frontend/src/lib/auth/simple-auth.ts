@@ -3,14 +3,7 @@
  * PRD v2.0 요구사항에 따른 하드코딩 인증 (admin/admin123)
  */
 
-// 프론트엔드 전역 API 베이스 규칙 통일
-// 1) 브라우저에서는 항상 상대 경로 (/api/v1) - Mixed Content 방지 및 Rewrite 활용
-// 2) 서버(SSR/서버 함수)에서는 절대 경로 구성 허용
-const API_BASE =
-  typeof window !== "undefined"
-    ? "/api/v1" // 브라우저는 항상 상대경로
-    : process.env.NEXT_PUBLIC_API_BASE ||
-      `${process.env.NEXT_PUBLIC_API_URL || ""}/api/v1`;
+import { apiBase } from "@/lib/config";
 
 export interface LoginCredentials {
   username: string;
@@ -40,7 +33,7 @@ const USER_KEY = "voj_user_info";
 export async function login(
   credentials: LoginCredentials,
 ): Promise<LoginResponse> {
-  const response = await fetch(`${API_BASE}/auth/login`, {
+  const response = await fetch(`${apiBase()}/auth/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -66,7 +59,7 @@ export async function logout(): Promise<void> {
 
   if (token) {
     try {
-      await fetch(`${API_BASE}/auth/logout`, {
+      await fetch(`${apiBase()}/auth/logout`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -91,7 +84,7 @@ export async function getCurrentUser(): Promise<User> {
     throw new Error("No access token");
   }
 
-  const response = await fetch(`${API_BASE}/auth/me`, {
+  const response = await fetch(`${apiBase()}/auth/me`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -106,24 +99,25 @@ export async function getCurrentUser(): Promise<User> {
 }
 
 /**
- * 토큰 저장 (localStorage + 쿠키)
+ * 토큰 저장 (쿠키만 사용 - localStorage에 토큰 저장하지 않음)
  */
 export function storeToken(token: string): void {
   if (typeof window !== "undefined") {
-    localStorage.setItem(TOKEN_KEY, token);
-
-    // 쿠키에도 저장하여 서버 사이드에서 접근 가능하도록 함
-    // httpOnly는 false로 설정하여 클라이언트에서도 접근 가능
-    document.cookie = `voj_access_token=${token}; path=/; max-age=86400; SameSite=Strict`;
+    // Secure 플래그 추가 (HTTPS에서만 전송), SameSite=Strict
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `voj_access_token=${token}; path=/; max-age=86400; SameSite=Strict${secure}`;
   }
 }
 
 /**
- * 저장된 토큰 조회
+ * 저장된 토큰 조회 (쿠키에서 파싱)
  */
 export function getStoredToken(): string | null {
   if (typeof window !== "undefined") {
-    return localStorage.getItem(TOKEN_KEY);
+    const match = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("voj_access_token="));
+    return match ? match.split("=")[1] : null;
   }
   return null;
 }
@@ -159,10 +153,9 @@ export function getStoredUser(): User | null {
  */
 export function clearAuthData(): void {
   if (typeof window !== "undefined") {
-    localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
 
-    // 쿠키도 삭제
+    // 쿠키 삭제
     document.cookie =
       "voj_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   }

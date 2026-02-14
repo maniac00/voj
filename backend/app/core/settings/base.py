@@ -24,7 +24,7 @@ class BaseAppSettings(BaseSettings):
 
     # CORS/Hosts 설정
     ALLOWED_HOSTS: List[str] = ["*"]  # TrustedHostMiddleware 용 (호스트만, 스킴 없음)
-    CORS_ORIGINS: List[str] = ["*"]  # CORSMiddleware 용 (Origin, 스킴 포함)
+    CORS_ORIGINS: List[str] = []  # CORSMiddleware 용 (Origin, 스킴 포함)
 
     @field_validator("ALLOWED_HOSTS", mode="before")
     def parse_allowed_hosts(cls, v: Any) -> List[str]:
@@ -76,6 +76,9 @@ class BaseAppSettings(BaseSettings):
     # S3 기본 설정
     S3_BUCKET_NAME: str = "voj-audiobooks"
 
+    # JWT 시크릿 키 (프로덕션에서 반드시 변경 필요)
+    SECRET_KEY: str = "INSECURE-local-dev-only-change-me"
+
     # 간단한 인증 설정
     SIMPLE_AUTH_ENABLED: bool = True
     SIMPLE_AUTH_USERNAME: str = "admin"
@@ -85,7 +88,7 @@ class BaseAppSettings(BaseSettings):
     SIMPLE_AUTH_APP_PASSWORD: str = "qwer1234"
 
     # 로컬 인증 바이패스 설정
-    LOCAL_BYPASS_ENABLED: bool = True
+    LOCAL_BYPASS_ENABLED: bool = False
     LOCAL_BYPASS_SUB: str = "local-dev-user-id"
     LOCAL_BYPASS_EMAIL: str = "dev@example.com"
     LOCAL_BYPASS_USERNAME: str = "local.dev"

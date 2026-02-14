@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:voice_of_juan/core/constants/app_config.dart';
+import 'package:voice_of_juan/core/utils/logger.dart';
+
+const _log = AppLogger('ApiService');
 
 class ApiService {
   final http.Client _client;
@@ -60,7 +63,8 @@ class ApiService {
       });
     } on ApiException {
       rethrow;
-    } catch (_) {
+    } catch (e, st) {
+      _log.warning('회원가입 중 오류', error: e, stackTrace: st);
       throw ApiException(message: '회원가입 중 오류가 발생했습니다', statusCode: -1);
     }
   }
@@ -76,7 +80,8 @@ class ApiService {
       });
     } on ApiException {
       rethrow;
-    } catch (_) {
+    } catch (e, st) {
+      _log.warning('로그인 중 오류', error: e, stackTrace: st);
       throw ApiException(message: '로그인 중 오류가 발생했습니다', statusCode: -1);
     }
   }
@@ -86,7 +91,8 @@ class ApiService {
       return await get('/auth/me');
     } on ApiException {
       rethrow;
-    } catch (_) {
+    } catch (e, st) {
+      _log.warning('프로필 조회 중 오류', error: e, stackTrace: st);
       throw ApiException(message: '프로필 조회 중 오류가 발생했습니다', statusCode: -1);
     }
   }

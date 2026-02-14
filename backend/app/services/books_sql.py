@@ -12,6 +12,13 @@ from app.models.book_sql import BookSQL
 from app.models.database import get_db
 
 
+ALLOWED_UPDATE_FIELDS = frozenset({
+    "title", "author", "description", "genre", "language",
+    "isbn", "publisher", "published_date", "status",
+    "total_chapters", "total_duration", "cover_image_url", "cover_image_key",
+})
+
+
 class BookServiceSQL:
     """Service for book operations using PostgreSQL."""
 
@@ -136,7 +143,7 @@ class BookServiceSQL:
             return None
 
         for field, value in updates.items():
-            if value is not None and hasattr(book, field):
+            if value is not None and field in ALLOWED_UPDATE_FIELDS:
                 setattr(book, field, value)
 
         db.commit()
@@ -155,7 +162,7 @@ class BookServiceSQL:
             return None
 
         for field, value in updates.items():
-            if value is not None and hasattr(book, field):
+            if value is not None and field in ALLOWED_UPDATE_FIELDS:
                 setattr(book, field, value)
 
         db.commit()

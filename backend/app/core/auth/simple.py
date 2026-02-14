@@ -32,9 +32,13 @@ def get_admin_credentials() -> Dict[str, Optional[str]]:
 
 
 # 간단한 JWT 대체용 토큰 생성/검증
-SECRET_KEY = "voj-simple-auth-secret-key-2024"
 
 security = HTTPBearer(auto_error=False)
+
+
+def _get_secret_key() -> str:
+    """settings에서 SECRET_KEY를 가져온다."""
+    return settings.SECRET_KEY
 
 
 def create_simple_token(username: str) -> str:
@@ -47,12 +51,14 @@ def create_simple_token(username: str) -> str:
         "scope": "admin",
     }
 
+    secret_key = _get_secret_key()
+
     # 간단한 서명 생성
     payload_str = json.dumps(payload, sort_keys=True)
     # URL-safe 인코딩으로 Authorization 헤더 호환성 확보
     payload_b64 = base64.urlsafe_b64encode(payload_str.encode()).decode()
     signature = hmac.new(
-        SECRET_KEY.encode(), payload_str.encode(), hashlib.sha256
+        secret_key.encode(), payload_str.encode(), hashlib.sha256
     ).hexdigest()
 
     # base64 인코딩 없이 간단하게
@@ -68,12 +74,14 @@ def verify_simple_token(token: str) -> Dict[str, Any]:
 
         payload_b64, signature = parts
 
+        secret_key = _get_secret_key()
+
         # 서명 검증
         # 디코딩 전 원본 payload 문자열로 서명 검증
         payload_bytes = base64.urlsafe_b64decode(payload_b64.encode())
         payload_str = payload_bytes.decode()
         expected_signature = hmac.new(
-            SECRET_KEY.encode(), payload_str.encode(), hashlib.sha256
+            secret_key.encode(), payload_str.encode(), hashlib.sha256
         ).hexdigest()
 
         if not hmac.compare_digest(signature, expected_signature):

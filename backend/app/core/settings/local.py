@@ -16,6 +16,9 @@ class LocalSettings(BaseAppSettings):
     ENVIRONMENT: str = "local"
     ENABLE_API_DOCS: bool = True
 
+    # 로컬 개발 환경에서는 인증 바이패스 활성화
+    LOCAL_BYPASS_ENABLED: bool = True
+
     # 개발 서버 설정
     HOST: str = "0.0.0.0"
     PORT: int = 8080

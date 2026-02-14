@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
@@ -77,10 +78,10 @@ class AudioPlayerWidget extends ConsumerWidget {
                 child: book.coverUrl != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          book.coverUrl!,
+                        child: CachedNetworkImage(
+                          imageUrl: book.coverUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
+                          errorWidget: (context, url, error) =>
                               const Icon(Icons.book, size: 32),
                         ),
                       )
@@ -133,6 +134,7 @@ class AudioPlayerWidget extends ConsumerWidget {
                     onPressed: controller.skipToPrevious,
                     icon: const Icon(Icons.skip_previous),
                     iconSize: 28,
+                    tooltip: '이전 챕터',
                   ),
                   
                   // 재생/일시정지
@@ -140,7 +142,7 @@ class AudioPlayerWidget extends ConsumerWidget {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor,
+                      color: Theme.of(context).colorScheme.primary,
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
@@ -157,6 +159,11 @@ class AudioPlayerWidget extends ConsumerWidget {
                           error: (error, stack) {},
                         );
                       },
+                      tooltip: playerState.when(
+                        data: (state) => state.playing ? '일시정지' : '재생',
+                        loading: () => '로딩 중',
+                        error: (_, __) => '오류',
+                      ),
                       icon: playerState.when(
                         data: (state) => Icon(
                           state.playing ? Icons.pause : Icons.play_arrow,
@@ -177,12 +184,13 @@ class AudioPlayerWidget extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  
+
                   // 다음 트랙
                   IconButton(
                     onPressed: controller.skipToNext,
                     icon: const Icon(Icons.skip_next),
                     iconSize: 28,
+                    tooltip: '다음 챕터',
                   ),
                 ],
               ),
@@ -227,10 +235,10 @@ class AudioPlayerWidget extends ConsumerWidget {
             child: book.coverUrl != null
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(16),
-                    child: Image.network(
-                      book.coverUrl!,
+                    child: CachedNetworkImage(
+                      imageUrl: book.coverUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
+                      errorWidget: (context, url, error) =>
                           const Icon(Icons.book, size: 80),
                     ),
                   )
@@ -291,8 +299,9 @@ class AudioPlayerWidget extends ConsumerWidget {
                 onPressed: controller.skipToPrevious,
                 icon: const Icon(Icons.skip_previous),
                 iconSize: 40,
+                tooltip: '이전 챕터',
               ),
-              
+
               // 15초 뒤로
               IconButton(
                 onPressed: () {
@@ -307,6 +316,7 @@ class AudioPlayerWidget extends ConsumerWidget {
                 },
                 icon: const Icon(Icons.replay),
                 iconSize: 32,
+                tooltip: '15초 뒤로',
               ),
               
               // 재생/일시정지
@@ -314,7 +324,7 @@ class AudioPlayerWidget extends ConsumerWidget {
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor,
+                  color: Theme.of(context).colorScheme.primary,
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
@@ -331,6 +341,11 @@ class AudioPlayerWidget extends ConsumerWidget {
                       error: (error, stack) {},
                     );
                   },
+                  tooltip: playerState.when(
+                    data: (state) => state.playing ? '일시정지' : '재생',
+                    loading: () => '로딩 중',
+                    error: (_, __) => '오류',
+                  ),
                   icon: playerState.when(
                     data: (state) => Icon(
                       state.playing ? Icons.pause : Icons.play_arrow,
@@ -353,7 +368,7 @@ class AudioPlayerWidget extends ConsumerWidget {
                   ),
                 ),
               ),
-              
+
               // 15초 앞으로
               IconButton(
                 onPressed: () {
@@ -376,13 +391,15 @@ class AudioPlayerWidget extends ConsumerWidget {
                 },
                 icon: const Icon(Icons.fast_forward),
                 iconSize: 32,
+                tooltip: '15초 앞으로',
               ),
-              
+
               // 다음 트랙
               IconButton(
                 onPressed: controller.skipToNext,
                 icon: const Icon(Icons.skip_next),
                 iconSize: 40,
+                tooltip: '다음 챕터',
               ),
             ],
           ),
@@ -423,6 +440,12 @@ class AudioPlayerWidget extends ConsumerWidget {
                       final newPosition = Duration(seconds: (value * totalSeconds).round());
                       controller.seek(newPosition);
                     }
+                  },
+                  semanticFormatterCallback: (value) {
+                    final seconds = (value * totalSeconds).round();
+                    final min = seconds ~/ 60;
+                    final sec = seconds % 60;
+                    return '$min분 $sec초';
                   },
                 ),
               ),

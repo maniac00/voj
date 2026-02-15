@@ -302,6 +302,7 @@ class AudioChapter {
     return {
       'id': id,
       'bookId': bookId,
+      'title': title,
       'fileName': fileName,
       'streamingUrl': streamingUrl,
       'duration': duration,

@@ -31,10 +31,10 @@ class AudioPlayerWidget extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    return isFullPlayer 
-        ? _buildFullPlayer(context, ref, controller, currentBook, currentChapter, 
+    return isFullPlayer
+        ? _buildFullPlayer(context, ref, controller, currentBook, currentChapter,
                           playerState, position, duration, speed, chapterStatus)
-        : _buildMiniPlayer(context, ref, controller, currentBook, currentChapter, 
+        : _buildMiniPlayer(context, ref, controller, currentBook, currentChapter,
                           playerState, position, duration, chapterStatus);
   }
 
@@ -52,7 +52,7 @@ class AudioPlayerWidget extends ConsumerWidget {
     return Container(
       height: 80,
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
+        color: const Color(0xFFFFFDF8),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
@@ -73,7 +73,7 @@ class AudioPlayerWidget extends ConsumerWidget {
                 height: 56,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
-                  color: Colors.grey[300],
+                  color: const Color(0xFF5D4037),
                 ),
                 child: book.coverUrl != null
                     ? ClipRRect(
@@ -82,13 +82,13 @@ class AudioPlayerWidget extends ConsumerWidget {
                           imageUrl: book.coverUrl!,
                           fit: BoxFit.cover,
                           errorWidget: (context, url, error) =>
-                              const Icon(Icons.book, size: 32),
+                              const Icon(Icons.book, size: 32, color: Color(0xFFD7CCC8)),
                         ),
                       )
-                    : const Icon(Icons.book, size: 32),
+                    : const Icon(Icons.book, size: 32, color: Color(0xFFD7CCC8)),
               ),
               const SizedBox(width: 12),
-              
+
               // 책 정보
               Expanded(
                 child: Column(
@@ -97,52 +97,44 @@ class AudioPlayerWidget extends ConsumerWidget {
                   children: [
                     Text(
                       book.title,
-                      style: Theme.of(context).textTheme.titleSmall,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF3E2723),
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      chapter.fileName,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[600],
+                      chapter.displayName,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF8D7B68),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (chapterStatus != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        '상태: $chapterStatus',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[600],
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
                   ],
                 ),
               ),
-              
+
               // 재생 컨트롤
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 이전 트랙
                   IconButton(
                     onPressed: controller.skipToPrevious,
-                    icon: const Icon(Icons.skip_previous),
+                    icon: const Icon(Icons.skip_previous, color: Color(0xFF3E2723)),
                     iconSize: 28,
                     tooltip: '이전 챕터',
                   ),
-                  
-                  // 재생/일시정지
+
                   Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
+                    width: 44,
+                    height: 44,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF5D2E0C),
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
@@ -168,6 +160,7 @@ class AudioPlayerWidget extends ConsumerWidget {
                         data: (state) => Icon(
                           state.playing ? Icons.pause : Icons.play_arrow,
                           color: Colors.white,
+                          size: 22,
                         ),
                         loading: () => const SizedBox(
                           width: 20,
@@ -180,15 +173,15 @@ class AudioPlayerWidget extends ConsumerWidget {
                         error: (error, stack) => const Icon(
                           Icons.error,
                           color: Colors.white,
+                          size: 22,
                         ),
                       ),
                     ),
                   ),
 
-                  // 다음 트랙
                   IconButton(
                     onPressed: controller.skipToNext,
-                    icon: const Icon(Icons.skip_next),
+                    icon: const Icon(Icons.skip_next, color: Color(0xFF3E2723)),
                     iconSize: 28,
                     tooltip: '다음 챕터',
                   ),
@@ -213,22 +206,28 @@ class AudioPlayerWidget extends ConsumerWidget {
     AsyncValue<double> speed,
     String? chapterStatus,
   ) {
-    return Container(
-      padding: const EdgeInsets.all(24),
+    final isReady = playerState.whenOrNull(
+      data: (state) =>
+          state.processingState == ProcessingState.ready ||
+          state.processingState == ProcessingState.completed,
+    ) ?? false;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
       child: Column(
         children: [
           // 책 커버
           Container(
-            width: 200,
-            height: 200,
+            width: 100,
+            height: 130,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              color: Colors.grey[300],
+              color: const Color(0xFF5D4037),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
@@ -239,145 +238,98 @@ class AudioPlayerWidget extends ConsumerWidget {
                       imageUrl: book.coverUrl!,
                       fit: BoxFit.cover,
                       errorWidget: (context, url, error) =>
-                          const Icon(Icons.book, size: 80),
+                          _buildDefaultCover(),
                     ),
                   )
-                : const Icon(Icons.book, size: 80),
+                : _buildDefaultCover(),
           ),
           const SizedBox(height: 32),
-          
-          // 책 제목과 저자
+
+          // 책 제목
           Text(
             book.title,
-            style: Theme.of(context).textTheme.headlineSmall,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF3E2723),
+              height: 1.3,
+            ),
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 8),
+
+          // 저자
           Text(
             book.author,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: Colors.grey[600],
+            style: const TextStyle(
+              fontSize: 16,
+              color: Color(0xFF5D4037),
+              fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
+
+          // 챕터 제목
           Text(
-            chapter.fileName,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.grey[500],
+            chapter.displayName,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF8D7B68),
             ),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          if (chapterStatus != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              '상태: $chapterStatus',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-          const SizedBox(height: 32),
-          
+          const SizedBox(height: 28),
+
           // 진행률 슬라이더
           _buildProgressSlider(context, ref, controller, position, duration),
-          const SizedBox(height: 32),
-          
+          const SizedBox(height: 40),
+
           // 재생 컨트롤
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               // 이전 트랙
-              IconButton(
-                onPressed: controller.skipToPrevious,
-                icon: const Icon(Icons.skip_previous),
-                iconSize: 40,
-                tooltip: '이전 챕터',
+              _buildControlButton(
+                onPressed: isReady ? controller.skipToPrevious : null,
+                icon: Icons.skip_previous,
+                size: 48,
+                iconSize: 26,
               ),
 
-              // 15초 뒤로
-              IconButton(
-                onPressed: () {
+              // 10초 뒤로
+              _buildControlButton(
+                onPressed: isReady ? () {
                   position.when(
                     data: (pos) {
-                      final newPosition = pos - const Duration(seconds: 15);
+                      final newPosition = pos - const Duration(seconds: 10);
                       controller.seek(newPosition < Duration.zero ? Duration.zero : newPosition);
                     },
                     loading: () {},
                     error: (error, stack) {},
                   );
-                },
-                icon: const Icon(Icons.replay),
-                iconSize: 32,
-                tooltip: '15초 뒤로',
-              ),
-              
-              // 재생/일시정지
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary,
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  onPressed: () {
-                    playerState.when(
-                      data: (state) {
-                        if (state.playing) {
-                          controller.pause();
-                        } else {
-                          controller.resume();
-                        }
-                      },
-                      loading: () {},
-                      error: (error, stack) {},
-                    );
-                  },
-                  tooltip: playerState.when(
-                    data: (state) => state.playing ? '일시정지' : '재생',
-                    loading: () => '로딩 중',
-                    error: (_, __) => '오류',
-                  ),
-                  icon: playerState.when(
-                    data: (state) => Icon(
-                      state.playing ? Icons.pause : Icons.play_arrow,
-                      color: Colors.white,
-                      size: 36,
-                    ),
-                    loading: () => const SizedBox(
-                      width: 32,
-                      height: 32,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    ),
-                    error: (error, stack) => const Icon(
-                      Icons.error,
-                      color: Colors.white,
-                      size: 36,
-                    ),
-                  ),
-                ),
+                } : null,
+                icon: Icons.replay_10,
+                size: 48,
+                iconSize: 26,
               ),
 
-              // 15초 앞으로
-              IconButton(
-                onPressed: () {
+              // 재생/일시정지 (큰 버튼)
+              _buildPlayButton(context, controller, playerState, isReady),
+
+              // 10초 앞으로
+              _buildControlButton(
+                onPressed: isReady ? () {
                   position.when(
                     data: (pos) {
                       duration.when(
                         data: (dur) {
                           if (dur != null) {
-                            final newPosition = pos + const Duration(seconds: 15);
+                            final newPosition = pos + const Duration(seconds: 10);
                             controller.seek(newPosition > dur ? dur : newPosition);
                           }
                         },
@@ -388,26 +340,143 @@ class AudioPlayerWidget extends ConsumerWidget {
                     loading: () {},
                     error: (error, stack) {},
                   );
-                },
-                icon: const Icon(Icons.fast_forward),
-                iconSize: 32,
-                tooltip: '15초 앞으로',
+                } : null,
+                icon: Icons.forward_10,
+                size: 48,
+                iconSize: 26,
               ),
 
               // 다음 트랙
-              IconButton(
-                onPressed: controller.skipToNext,
-                icon: const Icon(Icons.skip_next),
-                iconSize: 40,
-                tooltip: '다음 챕터',
+              _buildControlButton(
+                onPressed: isReady ? controller.skipToNext : null,
+                icon: Icons.skip_next,
+                size: 48,
+                iconSize: 26,
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          
+          const SizedBox(height: 32),
+
           // 재생 속도 조절
           _buildSpeedControl(context, ref, controller, speed),
         ],
+      ),
+    );
+  }
+
+  Widget _buildControlButton({
+    required VoidCallback? onPressed,
+    required IconData icon,
+    required double size,
+    required double iconSize,
+  }) {
+    final enabled = onPressed != null;
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: enabled ? const Color(0xFF3E2723) : const Color(0xFFBCAAA4),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          icon,
+          color: enabled ? const Color(0xFFF5EDE0) : const Color(0xFFD7CCC8),
+          size: iconSize,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlayButton(
+    BuildContext context,
+    AudioPlayerController controller,
+    AsyncValue<PlayerState> playerState,
+    bool isReady,
+  ) {
+    return GestureDetector(
+      onTap: isReady ? () {
+        playerState.when(
+          data: (state) {
+            if (state.playing) {
+              controller.pause();
+            } else {
+              controller.resume();
+            }
+          },
+          loading: () {},
+          error: (error, stack) {},
+        );
+      } : null,
+      child: Container(
+        width: 76,
+        height: 76,
+        decoration: BoxDecoration(
+          color: isReady ? const Color(0xFF5D2E0C) : const Color(0xFFBCAAA4),
+          shape: BoxShape.circle,
+        ),
+        child: playerState.when(
+          data: (state) {
+            if (state.processingState == ProcessingState.loading ||
+                state.processingState == ProcessingState.buffering) {
+              return const Center(
+                child: SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF5EDE0)),
+                  ),
+                ),
+              );
+            }
+            return Icon(
+              state.playing ? Icons.pause : Icons.play_arrow,
+              color: const Color(0xFFF5EDE0),
+              size: 40,
+            );
+          },
+          loading: () => const Center(
+            child: SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF5EDE0)),
+              ),
+            ),
+          ),
+          error: (error, stack) => const Icon(
+            Icons.error,
+            color: Color(0xFFF5EDE0),
+            size: 40,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDefaultCover() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        color: const Color(0xFF5D4037),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.book, color: Color(0xFFD7CCC8), size: 48),
+            SizedBox(height: 8),
+            Text(
+              '오디오북',
+              style: TextStyle(
+                color: Color(0xFFD7CCC8),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -424,17 +493,23 @@ class AudioPlayerWidget extends ConsumerWidget {
         data: (dur) {
           final totalSeconds = dur?.inSeconds ?? 0;
           final currentSeconds = pos.inSeconds;
-          
+
           return Column(
             children: [
               SliderTheme(
                 data: SliderTheme.of(context).copyWith(
-                  trackHeight: 4,
+                  trackHeight: 6,
+                  activeTrackColor: const Color(0xFF5D4037),
+                  inactiveTrackColor: const Color(0xFFC9A97A),
+                  thumbColor: const Color(0xFF5D4037),
                   thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
                   overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+                  overlayColor: const Color(0x295D4037),
                 ),
                 child: Slider(
-                  value: totalSeconds > 0 ? currentSeconds / totalSeconds : 0,
+                  value: totalSeconds > 0
+                      ? (currentSeconds / totalSeconds).clamp(0.0, 1.0)
+                      : 0,
                   onChanged: (value) {
                     if (totalSeconds > 0) {
                       final newPosition = Duration(seconds: (value * totalSeconds).round());
@@ -456,11 +531,19 @@ class AudioPlayerWidget extends ConsumerWidget {
                   children: [
                     Text(
                       _formatDuration(pos),
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF3E2723),
+                      ),
                     ),
                     Text(
                       dur != null ? _formatDuration(dur) : '--:--',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF3E2723),
+                      ),
                     ),
                   ],
                 ),
@@ -468,10 +551,16 @@ class AudioPlayerWidget extends ConsumerWidget {
             ],
           );
         },
-        loading: () => const LinearProgressIndicator(),
+        loading: () => const LinearProgressIndicator(
+          color: Color(0xFF5D4037),
+          backgroundColor: Color(0xFFC9A97A),
+        ),
         error: (error, stack) => const SizedBox(),
       ),
-      loading: () => const LinearProgressIndicator(),
+      loading: () => const LinearProgressIndicator(
+        color: Color(0xFF5D4037),
+        backgroundColor: Color(0xFFC9A97A),
+      ),
       error: (error, stack) => const SizedBox(),
     );
   }
@@ -483,20 +572,37 @@ class AudioPlayerWidget extends ConsumerWidget {
     AsyncValue<double> speed,
   ) {
     final speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
-    
+
     return speed.when(
-      data: (currentSpeed) => Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.speed, size: 20),
-          const SizedBox(width: 8),
-          DropdownButton<double>(
+      data: (currentSpeed) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: const Color(0xFFC9A97A),
+            width: 1.5,
+          ),
+          color: const Color(0xFFFFFDF8),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<double>(
             value: currentSpeed,
-            underline: const SizedBox(),
-            items: speeds.map((speed) {
+            isDense: true,
+            icon: const Icon(
+              Icons.keyboard_arrow_down,
+              color: Color(0xFF3E2723),
+              size: 20,
+            ),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF3E2723),
+            ),
+            dropdownColor: const Color(0xFFFFFDF8),
+            items: speeds.map((s) {
               return DropdownMenuItem(
-                value: speed,
-                child: Text('${speed}x'),
+                value: s,
+                child: Text('${s}x'),
               );
             }).toList(),
             onChanged: (newSpeed) {
@@ -505,7 +611,7 @@ class AudioPlayerWidget extends ConsumerWidget {
               }
             },
           ),
-        ],
+        ),
       ),
       loading: () => const SizedBox(),
       error: (error, stack) => const SizedBox(),
@@ -531,7 +637,7 @@ class MiniPlayerWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final showMiniPlayer = ref.watch(showMiniPlayerProvider);
-    
+
     if (!showMiniPlayer) {
       return const SizedBox.shrink();
     }

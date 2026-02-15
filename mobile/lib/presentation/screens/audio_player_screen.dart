@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/audio_player_provider.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/audio_player_widget.dart';
 import '../../data/models/book_model.dart';
+import '../../data/services/local_playback_state.dart';
 
 /// 전체 화면 오디오 플레이어 스크린
 class AudioPlayerScreen extends ConsumerStatefulWidget {
@@ -15,6 +17,26 @@ class AudioPlayerScreen extends ConsumerStatefulWidget {
 class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
   bool _showPlaylist = false;
 
+  void _goBack() {
+    // 현재 재생 위치를 로컬에 저장
+    final book = ref.read(currentBookProvider);
+    final chapter = ref.read(currentChapterProvider);
+    final service = ref.read(audioPlayerServiceProvider);
+    if (book != null && chapter != null) {
+      final prefs = ref.read(sharedPreferencesProvider);
+      LocalPlaybackState.save(
+        prefs,
+        bookId: book.id,
+        chapterId: chapter.id,
+        chapterNumber: chapter.chapterNumber,
+        chapterFileName: chapter.displayName,
+        positionSeconds: service.position.inSeconds,
+      );
+    }
+    ref.read(audioPlayerControllerProvider).stop();
+    Navigator.pop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentBook = ref.watch(currentBookProvider);
@@ -24,161 +46,289 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
 
     if (currentBook == null || currentChapter == null) {
       return Scaffold(
+        backgroundColor: const Color(0xFFF5EDE0),
         appBar: AppBar(
-          title: const Text('오디오 플레이어'),
+          backgroundColor: const Color(0xFFF5EDE0),
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Color(0xFF3E2723)),
+            tooltip: '이전',
+            onPressed: _goBack,
+          ),
+          title: const Text(
+            '재생 중',
+            style: TextStyle(
+              color: Color(0xFF3E2723),
+              fontWeight: FontWeight.w700,
+              fontSize: 20,
+            ),
+          ),
+          centerTitle: true,
         ),
         body: const Center(
-          child: Text('재생 중인 오디오가 없습니다'),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: Color(0xFF5D4037)),
+              SizedBox(height: 16),
+              Text(
+                '책을 불러오는 중입니다.\n잠시만 기다려 주세요.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Color(0xFF5D4037)),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.keyboard_arrow_down),
-          onPressed: () => Navigator.pop(context),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          if (_showPlaylist) {
+            setState(() => _showPlaylist = false);
+          } else {
+            _goBack();
+          }
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF5EDE0),
+        appBar: _showPlaylist
+            ? _buildPlaylistAppBar()
+            : _buildPlayerAppBar(),
+        body: SafeArea(
+          child: _showPlaylist
+              ? _buildPlaylistView(playlist, currentIndex)
+              : const AudioPlayerWidget(isFullPlayer: true),
         ),
-        title: const Text('재생 중'),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(_showPlaylist ? Icons.close : Icons.queue_music),
-            onPressed: () {
-              setState(() {
-                _showPlaylist = !_showPlaylist;
-              });
-            },
-          ),
-        ],
       ),
-      body: _showPlaylist 
-          ? _buildPlaylistView(playlist, currentIndex)
-          : const AudioPlayerWidget(isFullPlayer: true),
+    );
+  }
+
+  PreferredSizeWidget _buildPlayerAppBar() {
+    return AppBar(
+      backgroundColor: const Color(0xFFF5EDE0),
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, color: Color(0xFF3E2723)),
+        tooltip: '이전',
+        onPressed: _goBack,
+      ),
+      title: const Text(
+        '재생 중',
+        style: TextStyle(
+          color: Color(0xFF3E2723),
+          fontWeight: FontWeight.w700,
+          fontSize: 20,
+        ),
+      ),
+      centerTitle: true,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.queue_music, color: Color(0xFF3E2723)),
+          tooltip: '플레이리스트',
+          onPressed: () => setState(() => _showPlaylist = true),
+        ),
+      ],
+    );
+  }
+
+  PreferredSizeWidget _buildPlaylistAppBar() {
+    return AppBar(
+      backgroundColor: const Color(0xFFF5EDE0),
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, color: Color(0xFF3E2723)),
+        tooltip: '플레이어로 돌아가기',
+        onPressed: () => setState(() => _showPlaylist = false),
+      ),
+      title: const Text(
+        '플레이리스트',
+        style: TextStyle(
+          color: Color(0xFF3E2723),
+          fontWeight: FontWeight.w700,
+          fontSize: 20,
+        ),
+      ),
+      centerTitle: true,
     );
   }
 
   Widget _buildPlaylistView(List<AudioChapter>? playlist, int currentIndex) {
     if (playlist == null || playlist.isEmpty) {
       return const Center(
-        child: Text('플레이리스트가 비어있습니다'),
+        child: Text(
+          '플레이리스트가 비어있습니다',
+          style: TextStyle(color: Color(0xFF5D4037), fontSize: 16),
+        ),
       );
     }
 
     return Column(
       children: [
         // 플레이리스트 헤더
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            border: Border(
-              bottom: BorderSide(
-                color: Colors.grey.withValues(alpha: 0.2),
-              ),
-            ),
-          ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Row(
             children: [
-              const Icon(Icons.queue_music),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '플레이리스트',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    Text(
-                      '${playlist.length}개 트랙',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
+              const Icon(
+                Icons.auto_stories,
+                color: Color(0xFF5D4037),
+                size: 22,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '플레이리스트 (${playlist.length}개 트랙)',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF3E2723),
                 ),
               ),
             ],
           ),
         ),
-        
-        // 플레이리스트 목록
+
+        // 트랙 목록
         Expanded(
           child: ListView.builder(
             itemCount: playlist.length,
+            padding: const EdgeInsets.only(bottom: 24),
             itemBuilder: (context, index) {
-              final audioChapter = playlist[index];
+              final chapter = playlist[index];
               final isCurrentTrack = index == currentIndex;
-              
-              return ListTile(
-                leading: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: isCurrentTrack 
-                        ? Theme.of(context).primaryColor 
-                        : Colors.grey[300],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Center(
-                    child: isCurrentTrack
-                        ? const Icon(
-                            Icons.volume_up,
-                            color: Colors.white,
-                            size: 20,
-                          )
-                        : Text(
-                            '${audioChapter.chapterNumber}',
-                            style: const TextStyle(
-                              color: Colors.black54,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                  ),
-                ),
-                title: Text(
-                  audioChapter.fileName,
-                  style: TextStyle(
-                    fontWeight: isCurrentTrack ? FontWeight.bold : FontWeight.normal,
-                    color: isCurrentTrack ? Theme.of(context).primaryColor : null,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Text(audioChapter.durationText),
-                trailing: isCurrentTrack
-                    ? Icon(
-                        Icons.equalizer,
-                        color: Theme.of(context).primaryColor,
-                      )
-                    : null,
-                onTap: () {
-                  // 선택한 트랙 재생
-                  final controller = ref.read(audioPlayerControllerProvider);
-                  final currentBook = ref.read(currentBookProvider);
-                  
-                  if (currentBook != null) {
-                    controller.playChapter(
-                      book: currentBook,
-                      chapter: audioChapter,
-                      playlist: playlist,
-                    );
-                  }
-                  
-                  // 플레이어 뷰로 돌아가기
-                  setState(() {
-                    _showPlaylist = false;
-                  });
-                },
+
+              return _buildTrackItem(
+                chapter: chapter,
+                isCurrentTrack: isCurrentTrack,
+                playlist: playlist,
               );
             },
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildTrackItem({
+    required AudioChapter chapter,
+    required bool isCurrentTrack,
+    required List<AudioChapter> playlist,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isCurrentTrack ? const Color(0xFFE8DFD0) : Colors.transparent,
+        border: const Border(
+          bottom: BorderSide(
+            color: Color(0xFFE0D5C5),
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: InkWell(
+        onTap: () {
+          final controller = ref.read(audioPlayerControllerProvider);
+          final currentBook = ref.read(currentBookProvider);
+
+          if (currentBook != null) {
+            controller.playChapter(
+              book: currentBook,
+              chapter: chapter,
+              playlist: playlist,
+            );
+          }
+
+          setState(() => _showPlaylist = false);
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          child: Row(
+            children: [
+              // 아이콘
+              if (isCurrentTrack)
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFC9A97A),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.graphic_eq,
+                    color: Color(0xFF5D2E0C),
+                    size: 22,
+                  ),
+                )
+              else
+                SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: Icon(
+                    Icons.auto_stories_outlined,
+                    color: const Color(0xFF8D7B68),
+                    size: 24,
+                  ),
+                ),
+
+              const SizedBox(width: 14),
+
+              // 트랙 정보
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      chapter.displayName,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: isCurrentTrack ? FontWeight.w700 : FontWeight.w500,
+                        color: isCurrentTrack
+                            ? const Color(0xFF3E2723)
+                            : const Color(0xFF5D4037),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      chapter.durationText,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF8D7B68),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 12),
+
+              // 재생 버튼
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: const Color(0xFF3E2723),
+                    width: 2,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.play_arrow,
+                  color: Color(0xFF3E2723),
+                  size: 20,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -195,9 +345,9 @@ class AudioPlayerBottomSheet extends ConsumerWidget {
       maxChildSize: 1.0,
       builder: (context, scrollController) {
         return Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(
+          decoration: const BoxDecoration(
+            color: Color(0xFFF5EDE0),
+            borderRadius: BorderRadius.vertical(
               top: Radius.circular(20),
             ),
           ),
@@ -242,7 +392,7 @@ class AudioPlayerUtils {
   }) async {
     try {
       final controller = ref.read(audioPlayerControllerProvider);
-      
+
       await controller.playChapter(
         book: book,
         chapter: chapter,
@@ -253,7 +403,7 @@ class AudioPlayerUtils {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${chapter.fileName} 재생 시작'),
+            content: Text('${chapter.displayName} 재생 시작'),
             duration: const Duration(seconds: 2),
             action: SnackBarAction(
               label: '플레이어 열기',
@@ -286,7 +436,7 @@ class AudioPlayerUtils {
     final hours = duration.inHours;
     final minutes = duration.inMinutes % 60;
     final seconds = duration.inSeconds % 60;
-    
+
     if (hours > 0) {
       return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
     } else {

@@ -52,13 +52,17 @@ class AudioPlayerService {
   Duration get position => _player.position;
   double get speed => _player.speed;
 
+  String? _authToken;
+
   /// 인증 토큰 설정
   void setAuthToken(String token) {
+    _authToken = token;
     _audioService.setAuthToken(token);
   }
 
   /// 인증 토큰 클리어
   void clearAuthToken() {
+    _authToken = null;
     _audioService.clearAuthToken();
   }
 
@@ -98,7 +102,12 @@ class AudioPlayerService {
         bookId: book.id,
         chapterId: chapter.id,
       );
-      await _player.setUrl(streaming.absoluteUrl);
+      await _player.setUrl(
+        streaming.absoluteUrl,
+        headers: _authToken != null
+            ? {'Authorization': 'Bearer $_authToken'}
+            : null,
+      );
 
       if (startPosition != null && startPosition > 0) {
         await _player.seek(Duration(seconds: startPosition));
@@ -108,7 +117,7 @@ class AudioPlayerService {
 
       await _player.play();
       _startProgressTracking();
-      await _feedbackService.announce('${chapter.fileName} 재생을 시작합니다', withHaptic: true);
+      await _feedbackService.announce('${chapter.displayName} 재생을 시작합니다', withHaptic: true);
     } on AudioServiceException catch (error) {
       await _handleUnauthorizedError(error);
       await _feedbackService.error('오디오 스트리밍에 실패했습니다: ${error.message}');

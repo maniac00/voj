@@ -145,21 +145,10 @@ async def get_audio_chapters(
     """
     책의 오디오 챕터 목록 조회
     - 챕터 번호 순으로 정렬
-    - 승인된 사용자만 접근 가능
+    - 승인된 사용자만 접근 가능 (공개 라이브러리 — 소유권 제한 없음)
     """
-    user_id = str(claims.get("sub") or claims.get("username") or "")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims"
-        )
-
-    # 책 소유권 확인 (관리자 우회 허용)
-    is_admin = str(claims.get("scope", "")).lower() == "admin"
-    book = (
-        BookService.get_book_any_user(db, book_id=book_id)
-        if is_admin
-        else BookService.get_book(db, user_id=user_id, book_id=book_id)
-    )
+    # 승인된 사용자는 모든 책의 챕터에 접근 가능
+    book = BookService.get_book_any_user(db, book_id=book_id)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
@@ -276,20 +265,9 @@ async def get_audio_chapter(
 ):
     """
     특정 오디오 챕터 상세 조회 (DB 기반)
+    - 인증된 사용자는 모든 책의 챕터에 접근 가능
     """
-    # 사용자 인증 및 책 소유권 확인 (관리자 우회 허용)
-    user_id = str(claims.get("sub") or claims.get("username") or "")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims"
-        )
-
-    is_admin = str(claims.get("scope", "")).lower() == "admin"
-    book = (
-        BookService.get_book_any_user(db, book_id=book_id)
-        if is_admin
-        else BookService.get_book(db, user_id=user_id, book_id=book_id)
-    )
+    book = BookService.get_book_any_user(db, book_id=book_id)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
@@ -336,20 +314,9 @@ async def get_streaming_url(
 ):
     """
     오디오 챕터 스트리밍 URL 생성
-    - 승인된 사용자만 접근 가능
+    - 승인된 사용자만 접근 가능 (공개 라이브러리 — 소유권 제한 없음)
     """
-    # 사용자 인증 및 소유권 확인 (관리자 우회 허용)
-    user_id = str(claims.get("sub") or claims.get("username") or "")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims"
-        )
-    is_admin = str(claims.get("scope", "")).lower() == "admin"
-    book = (
-        BookService.get_book_any_user(db, book_id=book_id)
-        if is_admin
-        else BookService.get_book(db, user_id=user_id, book_id=book_id)
-    )
+    book = BookService.get_book_any_user(db, book_id=book_id)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
@@ -407,19 +374,7 @@ async def update_playback_progress(
     재생 진행률 업데이트 (MVP: 수신만 하고 저장은 생략)
     - 모바일 클라이언트 호환을 위해 200 OK 반환
     """
-    user_id = str(claims.get("sub") or claims.get("username") or "")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims"
-        )
-
-    # 책 소유권 확인 (관리자 우회 허용)
-    is_admin = str(claims.get("scope", "")).lower() == "admin"
-    book = (
-        BookService.get_book_any_user(db, book_id=book_id)
-        if is_admin
-        else BookService.get_book(db, user_id=user_id, book_id=book_id)
-    )
+    book = BookService.get_book_any_user(db, book_id=book_id)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
@@ -458,19 +413,7 @@ async def get_playback_position(
     마지막 재생 위치 조회 (MVP: 저장 미구현 → 빈 객체 반환)
     - 모바일 클라이언트는 빈 응답이면 복원을 건너뜀
     """
-    user_id = str(claims.get("sub") or claims.get("username") or "")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims"
-        )
-
-    # 책 소유권 확인 (관리자 우회 허용)
-    is_admin = str(claims.get("scope", "")).lower() == "admin"
-    book = (
-        BookService.get_book_any_user(db, book_id=book_id)
-        if is_admin
-        else BookService.get_book(db, user_id=user_id, book_id=book_id)
-    )
+    book = BookService.get_book_any_user(db, book_id=book_id)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 

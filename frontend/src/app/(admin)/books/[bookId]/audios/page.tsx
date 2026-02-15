@@ -7,9 +7,11 @@ import {
   getChapters,
   reorderChapter,
   deleteChapter,
+  updateChapter,
   type ChapterDto,
   getStreamingUrlApi,
 } from "@/lib/audio";
+import { ChapterEditDialog } from "@/components/audio/chapter-edit-dialog";
 import { getBook, BookDto } from "@/lib/api";
 import { FileUploadForm } from "@/components/audio/file-upload-form";
 import {
@@ -180,9 +182,26 @@ export default function BookAudiosPage() {
     return streamData.streaming_url;
   };
 
+  const [editingChapter, setEditingChapter] = useState<ChapterDto | null>(null);
+
   const handleChapterEdit = (chapterId: string) => {
-    console.log(`Editing chapter: ${chapterId}`);
-    showError("챕터 편집 기능은 향후 구현 예정입니다.");
+    const chapter = chapters.find((c) => c.chapter_id === chapterId);
+    if (chapter) {
+      setEditingChapter(chapter);
+    }
+  };
+
+  const handleChapterSave = async (
+    chapterId: string,
+    data: { title: string },
+  ) => {
+    const updated = await updateChapter(bookId, chapterId, data);
+    const updatedChapters = chapters
+      .map((c) => (c.chapter_id === chapterId ? updated : c))
+      .sort((a, b) => a.chapter_number - b.chapter_number);
+    setChapters(updatedChapters);
+    setFilteredChapters(updatedChapters);
+    success(`"${updated.title}" 챕터가 수정되었습니다.`);
   };
 
   if (loading) {
@@ -367,6 +386,14 @@ export default function BookAudiosPage() {
           )}
         </div>
       </div>
+
+      {/* 챕터 편집 다이얼로그 */}
+      <ChapterEditDialog
+        isOpen={editingChapter !== null}
+        chapter={editingChapter}
+        onClose={() => setEditingChapter(null)}
+        onSave={handleChapterSave}
+      />
     </div>
   );
 }

@@ -32,6 +32,21 @@ export async function reorderChapter(
   );
 }
 
+export type UpdateChapterPayload = {
+  title?: string;
+};
+
+export async function updateChapter(
+  bookId: string,
+  chapterId: string,
+  payload: UpdateChapterPayload,
+): Promise<ChapterDto> {
+  return fetchJson<ChapterDto>(
+    `${apiBase()}/audio/${encodeURIComponent(bookId)}/chapters/${encodeURIComponent(chapterId)}`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+  );
+}
+
 export async function deleteChapter(
   bookId: string,
   chapterId: string,

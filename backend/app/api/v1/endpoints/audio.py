@@ -77,6 +77,12 @@ class AudioChapter(AudioChapterBase):
         json_encoders = {datetime: lambda v: v.isoformat()}
 
 
+class AudioChapterUpdate(BaseModel):
+    """오디오 챕터 수정 요청 모델"""
+
+    title: Optional[str] = Field(None, min_length=1, max_length=200, description="챕터 제목")
+
+
 class AudioUploadResponse(BaseModel):
     """오디오 업로드 응답 모델"""
 
@@ -184,6 +190,75 @@ async def get_audio_chapters(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to list chapters: {str(e)}"
+        )
+
+
+@router.patch("/{book_id}/chapters/{chapter_id}", response_model=AudioChapter)
+async def update_chapter_metadata(
+    book_id: str = Path(..., description="책 ID"),
+    chapter_id: str = Path(..., description="챕터 ID"),
+    payload: AudioChapterUpdate = None,
+    claims=Depends(get_current_user_claims),
+    db: Session = Depends(get_db),
+):
+    """
+    오디오 챕터 메타데이터 수정 (제목 등)
+    - 사용자 인증 및 소유권 검증
+    """
+    user_id = str(claims.get("sub") or claims.get("username") or "")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user claims"
+        )
+
+    is_admin = str(claims.get("scope", "")).lower() == "admin"
+    book = (
+        BookService.get_book_any_user(db, book_id=book_id)
+        if is_admin
+        else BookService.get_book(db, user_id=user_id, book_id=book_id)
+    )
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    chapter = (
+        db.query(AudioChapterSQL)
+        .filter(
+            and_(
+                AudioChapterSQL.chapter_id == chapter_id,
+                AudioChapterSQL.book_id == book_id,
+            )
+        )
+        .first()
+    )
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+
+    if not payload:
+        raise HTTPException(status_code=400, detail="No update data provided")
+
+    try:
+        if payload.title is not None:
+            chapter.chapter_title = payload.title
+        db.commit()
+        db.refresh(chapter)
+
+        return AudioChapter(
+            chapter_id=chapter.chapter_id,
+            book_id=chapter.book_id,
+            chapter_number=int(chapter.chapter_number),
+            title=chapter.chapter_title or "",
+            description="",
+            file_name=_extract_file_name(chapter.audio_key),
+            file_size=int(chapter.file_size or 0),
+            duration=int(chapter.duration or 0),
+            status="ready",
+            created_at=chapter.created_at,
+            updated_at=chapter.updated_at,
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update chapter: {str(e)}"
         )
 
 

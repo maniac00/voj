@@ -2,11 +2,13 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/book_model.dart';
+import '../../data/services/local_playback_state.dart';
+import '../providers/audio_player_provider.dart';
+import '../providers/auth_provider.dart';
 import '../providers/book_provider.dart';
-import '../widgets/accessibility_button.dart';
 import '../screens/audio_player_screen.dart';
 
-class BookDetailScreen extends ConsumerWidget {
+class BookDetailScreen extends ConsumerStatefulWidget {
   final Book book;
 
   const BookDetailScreen({
@@ -15,53 +17,86 @@ class BookDetailScreen extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final bookDetailAsync = ref.watch(bookDetailProvider(book.id));
+  ConsumerState<BookDetailScreen> createState() => _BookDetailScreenState();
+}
+
+class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
+  SavedPlaybackState? _savedState;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedState();
+  }
+
+  void _loadSavedState() {
+    final prefs = ref.read(sharedPreferencesProvider);
+    setState(() {
+      _savedState = LocalPlaybackState.load(prefs, widget.book.id);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bookDetailAsync = ref.watch(bookDetailProvider(widget.book.id));
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF5EDE0),
       appBar: AppBar(
-        title: Text(book.title),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            onPressed: null,
-            icon: const Icon(Icons.favorite_border),
-            tooltip: '즐겨찾기 (준비 중)',
-          ),
-        ],
+        backgroundColor: const Color(0xFFF5EDE0),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF3E2723)),
+        ),
       ),
       body: bookDetailAsync.when(
         data: (detailBook) => _buildBookDetail(context, ref, detailBook),
         loading: () => const Center(
-          child: CircularProgressIndicator(),
-        ),
-        error: (error, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.error_outline,
-                size: 64,
-                color: Colors.red[400],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                '오류가 발생했습니다',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                getErrorMessage(error),
-                style: Theme.of(context).textTheme.bodyMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('돌아가기'),
-              ),
-            ],
+          child: CircularProgressIndicator(
+            color: Color(0xFF5D4037),
           ),
+        ),
+        error: (error, stack) => _buildErrorWidget(context, error),
+      ),
+    );
+  }
+
+  Widget _buildErrorWidget(BuildContext context, Object error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.red[400]),
+            const SizedBox(height: 16),
+            Text(
+              '오류가 발생했습니다',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.red[600],
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              getErrorMessage(error),
+              style: const TextStyle(fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('돌아가기'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF5D4037),
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -69,316 +104,267 @@ class BookDetailScreen extends ConsumerWidget {
 
   Widget _buildBookDetail(BuildContext context, WidgetRef ref, Book book) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 책 정보 카드
-          Card(
-            elevation: 4,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+          // 책 제목
+          Text(
+            book.title,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF3E2723),
+              height: 1.3,
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 책 표지
-                  Container(
-                    width: 120,
-                    height: 180,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: book.coverUrl != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: CachedNetworkImage(
-                              imageUrl: book.coverUrl!,
-                              fit: BoxFit.cover,
-                              errorWidget: (context, url, error) =>
-                                  _buildDefaultCover(context),
-                            ),
-                          )
-                        : _buildDefaultCover(context),
-                  ),
-                  
-                  const SizedBox(width: 20),
-                  
-                  // 책 정보
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          book.title,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        
-                        const SizedBox(height: 8),
-                        
-                        Text(
-                          '저자: ${book.author}',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                        
-                        if (book.publisher != null) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            '출판사: ${book.publisher}',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                        
-                        const SizedBox(height: 12),
-                        
-                        if (book.category != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primary,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Text(
-                              book.category!.name,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        
-                        const SizedBox(height: 16),
-                        
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.access_time,
-                              size: 20,
-                              color: Colors.grey[600],
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '총 재생시간: ${book.durationText}',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                        
-                        const SizedBox(height: 8),
-                        
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.audiotrack,
-                              size: 20,
-                              color: Colors.grey[600],
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '${book.chapterCount}개 챕터',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+
+          const SizedBox(height: 24),
+
+          // 나무 액자 프레임 + 책 표지
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: const Color(0xFF8B6914),
+                width: 8,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 12,
+                  offset: const Offset(3, 5),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: SizedBox(
+                width: 160,
+                height: 200,
+                child: book.coverUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: book.coverUrl!,
+                        fit: BoxFit.cover,
+                        errorWidget: (context, url, error) =>
+                            _buildDefaultCover(),
+                      )
+                    : _buildDefaultCover(),
               ),
             ),
           ),
-          
-          const SizedBox(height: 24),
-          
-          // 재생 버튼
-          AccessibilityButton(
-            onPressed: () => _playFirstAudioFile(context, ref, book),
-            text: '재생 시작',
-            icon: Icons.play_arrow,
+
+          const SizedBox(height: 20),
+
+          // 저자 / 출판사 / 챕터 수
+          Text(
+            '저자: ${book.author}',
+            style: const TextStyle(
+              fontSize: 15,
+              color: Color(0xFF5D4037),
+              fontWeight: FontWeight.w500,
+            ),
           ),
-          
-          const SizedBox(height: 16),
-          
-          // 북마크 추가 버튼
-          AccessibilityButton(
-            onPressed: () => _showBookmarkDialog(context),
-            text: '북마크 추가',
-            icon: Icons.bookmark_add,
-            backgroundColor: Colors.grey[600],
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // 책 설명
-          if (book.description != null && book.description!.isNotEmpty) ...[
+          if (book.publisher != null) ...[
+            const SizedBox(height: 4),
             Text(
-              '내용 소개',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
+              '출판사: ${book.publisher}',
+              style: const TextStyle(
+                fontSize: 15,
+                color: Color(0xFF5D4037),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.music_note_rounded,
+                size: 16,
+                color: Color(0xFF5D4037),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '${book.chapterCount}개 챕터',
+                style: const TextStyle(
+                  fontSize: 15,
+                  color: Color(0xFF5D4037),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+
+          // 재생 버튼
+          SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: ElevatedButton(
+              onPressed: () => _playFromSavedOrFirst(context, ref, book),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF5D4037),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(
+                _savedState != null
+                    ? '\u25B6  ${_savedState!.resumeLabel}'
+                    : '\u25B6  처음부터 재생 시작',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 28),
+
+          // 내용 소개
+          if (book.description != null && book.description!.isNotEmpty) ...[
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '내용 소개',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF3E2723),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                book.description!,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF5D4037),
+                  height: 1.6,
+                ),
+              ),
+            ),
+            const SizedBox(height: 28),
+          ],
+
+          // 챕터 목록
+          if (book.chapters.isNotEmpty) ...[
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '챕터 목록',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF3E2723),
+                ),
               ),
             ),
             const SizedBox(height: 12),
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[200]!),
-              ),
-              child: Text(
-                book.description!,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  height: 1.5,
+                border: Border.all(
+                  color: const Color(0xFFC9A97A),
+                  width: 1.5,
                 ),
+                color: const Color(0xFFFFFDF8),
               ),
-            ),
-            const SizedBox(height: 24),
-          ],
-          
-          // 챕터 목록
-          if (book.chapters.isNotEmpty) ...[
-            Text(
-              '챕터 목록',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            ...book.chapters.map((chapter) {
-              return Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    child: Text(
-                      '${chapter.chapterNumber}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
+              child: Column(
+                children: [
+                  for (int i = 0; i < book.chapters.length; i++) ...[
+                    if (i > 0)
+                      const Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: Color(0xFFE8DFD0),
+                        indent: 16,
+                        endIndent: 16,
                       ),
-                    ),
-                  ),
-                  title: Text(
-                    chapter.fileName.replaceAll('.mp3', ''),
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                  subtitle: Text(
-                    '재생시간: ${chapter.durationText}',
-                  ),
-                  trailing: IconButton(
-                    onPressed: () => _playSpecificAudioFile(context, ref, book, chapter),
-                    icon: const Icon(Icons.play_arrow),
-                    tooltip: '재생',
-                  ),
-                ),
-              );
-            }),
+                    _buildChapterRow(book, book.chapters[i], ref),
+                  ],
+                ],
+              ),
+            ),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildDefaultCover(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
-            Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
-          ],
-        ),
+  Widget _buildChapterRow(Book book, AudioChapter chapter, WidgetRef ref) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              chapter.displayName,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF3E2723),
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: () => _playSpecificAudioFile(context, ref, book, chapter),
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                color: Color(0xFF3E2723),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.play_arrow,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+          ),
+        ],
       ),
-      child: Column(
+    );
+  }
+
+  Widget _buildDefaultCover() {
+    return Container(
+      color: const Color(0xFF5D4037),
+      child: const Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.book,
-            color: Colors.white,
-            size: 48,
-          ),
-          const SizedBox(height: 8),
+          Icon(Icons.book, color: Color(0xFFD7CCC8), size: 40),
+          SizedBox(height: 4),
           Text(
             '오디오북',
             style: TextStyle(
-              color: Colors.white,
-              fontSize: 14,
+              color: Color(0xFFD7CCC8),
+              fontSize: 12,
               fontWeight: FontWeight.w500,
             ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
 
-  void _showBookmarkDialog(BuildContext context) {
-    final noteController = TextEditingController();
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('북마크 추가'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('이 위치에 북마크를 추가하시겠습니까?'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: noteController,
-              decoration: const InputDecoration(
-                labelText: '메모 (선택사항)',
-                hintText: '북마크에 대한 메모를 입력하세요',
-              ),
-              maxLines: 2,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // TODO: 실제 북마크 추가 구현
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('북마크가 추가되었습니다')),
-              );
-            },
-            child: const Text('추가'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 첫 번째 오디오 파일 재생
-  void _playFirstAudioFile(BuildContext context, WidgetRef ref, Book book) {
+  /// 저장된 위치 또는 처음부터 재생
+  void _playFromSavedOrFirst(BuildContext context, WidgetRef ref, Book book) {
     if (book.chapters.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('재생할 오디오 챕터가 없습니다')),
@@ -386,24 +372,65 @@ class BookDetailScreen extends ConsumerWidget {
       return;
     }
 
-    final firstChapter = book.chapters.first;
-    AudioPlayerUtils.playAudio(
-      context,
-      ref,
-      book: book,
-      chapter: firstChapter,
-      playlist: book.chapters,
-    );
+    if (_savedState != null) {
+      // 저장된 챕터 찾기
+      final savedChapter = book.chapters.where(
+        (c) => c.id == _savedState!.chapterId,
+      );
+      if (savedChapter.isNotEmpty) {
+        _playAndNavigate(
+          context, ref, book, savedChapter.first,
+          startPosition: _savedState!.positionSeconds,
+        );
+        return;
+      }
+    }
+
+    // 첫 챕터부터 시작
+    _playAndNavigate(context, ref, book, book.chapters.first);
   }
 
   /// 특정 오디오 파일 재생
   void _playSpecificAudioFile(BuildContext context, WidgetRef ref, Book book, AudioChapter chapter) {
-    AudioPlayerUtils.playAudio(
-      context,
-      ref,
+    _playAndNavigate(context, ref, book, chapter);
+  }
+
+  /// 재생 시작 후 플레이어 화면으로 이동
+  void _playAndNavigate(
+    BuildContext context,
+    WidgetRef ref,
+    Book book,
+    AudioChapter chapter, {
+    int? startPosition,
+  }) {
+    final controller = ref.read(audioPlayerControllerProvider);
+
+    // 재생을 비동기로 시작 (await하지 않음)
+    controller.playChapter(
       book: book,
       chapter: chapter,
       playlist: book.chapters,
-    );
+      startPosition: startPosition,
+    ).catchError((e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('재생 중 오류가 발생했습니다: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    });
+
+    // 즉시 플레이어 화면으로 이동, 돌아올 때 상태 다시 로드
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AudioPlayerScreen(),
+        fullscreenDialog: true,
+      ),
+    ).then((_) {
+      _loadSavedState();
+    });
   }
 }

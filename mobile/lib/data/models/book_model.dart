@@ -246,6 +246,7 @@ class Book {
 class AudioChapter {
   final String id;
   final String bookId;
+  final String title;
   final String fileName;
   final String? streamingUrl;
   final int? duration;
@@ -260,6 +261,7 @@ class AudioChapter {
   const AudioChapter({
     required this.id,
     required this.bookId,
+    required this.title,
     required this.fileName,
     this.streamingUrl,
     this.duration,
@@ -272,10 +274,14 @@ class AudioChapter {
     this.contentPath,
   });
 
+  /// 표시용 이름: 제목이 있으면 제목, 없으면 파일명
+  String get displayName => title.isNotEmpty ? title : fileName;
+
   factory AudioChapter.fromJson(Map<String, dynamic> json) {
     return AudioChapter(
       id: json['chapter_id'] as String? ?? json['id'] as String? ?? '',
       bookId: json['book_id'] as String? ?? json['bookId'] as String? ?? '',
+      title: json['title'] as String? ?? json['chapter_title'] as String? ?? '',
       fileName: json['file_name'] as String? ?? json['fileName'] as String? ?? '',
       streamingUrl: json['streaming_url'] as String?,
       duration: json['duration'] as int? ?? json['duration_seconds'] as int?,
@@ -316,74 +322,6 @@ class AudioChapter {
     final minutes = duration! ~/ 60;
     final seconds = duration! % 60;
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-}
-
-class Bookmark {
-  final String id;
-  final String userId;
-  final String bookId;
-  final String? chapterId;
-  final int position; // in seconds
-  final String? note;
-  final DateTime createdAt;
-  final Book? book;
-  final AudioChapter? chapter;
-
-  const Bookmark({
-    required this.id,
-    required this.userId,
-    required this.bookId,
-    this.chapterId,
-    required this.position,
-    this.note,
-    required this.createdAt,
-    this.book,
-    this.chapter,
-  });
-
-  factory Bookmark.fromJson(Map<String, dynamic> json) {
-    return Bookmark(
-      id: json['id'] as String? ?? json['bookmark_id'] as String? ?? '',
-      userId: json['userId'] as String? ?? json['user_id'] as String? ?? '',
-      bookId: json['bookId'] as String? ?? json['book_id'] as String? ?? '',
-      chapterId: json['chapterId'] as String? ?? json['chapter_id'] as String?,
-      position: _parseInt(json['position'] ?? json['position_seconds']),
-      note: json['note'] as String?,
-      createdAt: _parseDateTime(json['createdAt'] ?? json['created_at']) ?? DateTime.now(),
-      book: json['book'] != null
-          ? Book.fromJson(Map<String, dynamic>.from(json['book'] as Map))
-          : null,
-      chapter: json['chapter'] != null
-          ? AudioChapter.fromJson(Map<String, dynamic>.from(json['chapter'] as Map))
-          : json['audioFile'] != null
-              ? AudioChapter.fromJson(Map<String, dynamic>.from(json['audioFile'] as Map))
-              : null,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'userId': userId,
-      'bookId': bookId,
-      'chapterId': chapterId,
-      'position': position,
-      'note': note,
-      'createdAt': createdAt.toIso8601String(),
-    };
-  }
-
-  String get positionText {
-    final hours = position ~/ 3600;
-    final minutes = (position % 3600) ~/ 60;
-    final seconds = position % 60;
-    
-    if (hours > 0) {
-      return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-    } else {
-      return '$minutes:${seconds.toString().padLeft(2, '0')}';
-    }
   }
 }
 
@@ -447,31 +385,6 @@ class CategoriesResponse {
       categories: (json['categories'] as List)
           .map((e) => Category.fromJson(e))
           .toList(),
-    );
-  }
-}
-
-class BookmarksResponse {
-  final String message;
-  final List<Bookmark> bookmarks;
-  final PaginationInfo pagination;
-
-  const BookmarksResponse({
-    required this.message,
-    required this.bookmarks,
-    required this.pagination,
-  });
-
-  factory BookmarksResponse.fromJson(Map<String, dynamic> json) {
-    return BookmarksResponse(
-      message: json['message'] as String? ?? '북마크 목록',
-      bookmarks: (json['bookmarks'] as List<dynamic>? ?? [])
-          .whereType<Map<String, dynamic>>()
-          .map(Bookmark.fromJson)
-          .toList(),
-      pagination: PaginationInfo.fromJson(
-        Map<String, dynamic>.from(json['pagination'] as Map),
-      ),
     );
   }
 }

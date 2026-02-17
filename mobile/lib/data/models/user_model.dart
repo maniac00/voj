@@ -18,12 +18,14 @@ class User {
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
-    if (json.containsKey('sub') || json.containsKey('username')) {
+    // sub/username 키가 있어도 status 필드가 함께 있으면 일반 파싱 사용
+    if ((json.containsKey('sub') || json.containsKey('username')) &&
+        !json.containsKey('status')) {
       return User._fromAuthIdentity(json);
     }
 
     return User(
-      id: (json['id'] ?? json['user_id'] ?? '') as String,
+      id: (json['id'] ?? json['sub'] ?? json['user_id'] ?? '') as String,
       name: (json['name'] ?? json['username'] ?? '') as String,
       email: json['email'] as String?,
       status: _parseStatus(json['status']),
@@ -41,10 +43,10 @@ class User {
     if (value is String) {
       return UserStatus.values.firstWhere(
         (e) => e.name == value || e.value == value,
-        orElse: () => UserStatus.approved,
+        orElse: () => UserStatus.pending,
       );
     }
-    return UserStatus.approved;
+    return UserStatus.pending;
   }
 
   factory User._fromAuthIdentity(Map<String, dynamic> json) {
@@ -53,7 +55,7 @@ class User {
       id: (json['sub'] ?? json['id'] ?? '') as String,
       name: (json['username'] ?? json['name'] ?? '') as String,
       email: json['email'] as String?,
-      status: UserStatus.approved,
+      status: _parseStatus(json['status']),
       scope: scope,
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/book_model.dart';
+import '../providers/auth_provider.dart';
 import '../providers/book_provider.dart';
 import '../widgets/book_card.dart';
 import '../widgets/search_bar_widget.dart';
@@ -15,13 +16,12 @@ class BooksScreen extends ConsumerStatefulWidget {
 
 class _BooksScreenState extends ConsumerState<BooksScreen> {
   final ScrollController _scrollController = ScrollController();
-  
+
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    
-    // 초기 데이터 로드
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(booksProvider.notifier).loadBooks();
     });
@@ -34,7 +34,7 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= 
+    if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       _loadMoreBooks();
     }
@@ -43,17 +43,16 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
   void _loadMoreBooks() {
     final booksState = ref.read(booksProvider);
     final searchState = ref.read(searchProvider);
-    
-    if (booksState is AsyncData && 
+
+    if (booksState is AsyncData &&
         booksState.value?.pagination.hasNext == true) {
-      
       final nextPage = booksState.value!.pagination.page + 1;
       String? searchQuery;
-      
+
       if (searchState is SearchSearching) {
         searchQuery = searchState.query;
       }
-      
+
       ref.read(booksProvider.notifier).loadMoreBooks(
         nextPage: nextPage,
         search: searchQuery,
@@ -69,20 +68,36 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
     final searchState = ref.watch(searchProvider);
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF5EDE0),
       appBar: AppBar(
-        title: const Text('도서 목록'),
+        backgroundColor: const Color(0xFFF5EDE0),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        leading: IconButton(
+          onPressed: () => _refreshBooks(),
+          icon: const Icon(Icons.refresh, color: Color(0xFF3E2723)),
+          tooltip: '새로고침',
+        ),
+        title: const Text(
+          '도서 목록',
+          style: TextStyle(
+            color: Color(0xFF3E2723),
+            fontWeight: FontWeight.w700,
+            fontSize: 20,
+          ),
+        ),
         centerTitle: true,
-        elevation: 1,
         actions: [
           IconButton(
             onPressed: () => _showSearchDialog(),
-            icon: const Icon(Icons.search),
+            icon: const Icon(Icons.search, color: Color(0xFF3E2723)),
             tooltip: '검색',
           ),
           IconButton(
-            onPressed: () => _refreshBooks(),
-            icon: const Icon(Icons.refresh),
-            tooltip: '새로고침',
+            onPressed: () => _showLogoutDialog(),
+            icon: const Icon(Icons.logout, color: Color(0xFF3E2723)),
+            tooltip: '로그아웃',
           ),
         ],
       ),
@@ -92,42 +107,39 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
           if (searchState is SearchSearching)
             Container(
               width: double.infinity,
-              color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-              padding: const EdgeInsets.all(12),
+              color: const Color(0xFFE8DFD0),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.search,
-                    color: Theme.of(context).primaryColor,
-                  ),
+                  const Icon(Icons.search, color: Color(0xFF5D4037), size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       '검색: "${searchState.query}"',
-                      style: TextStyle(
-                        color: Theme.of(context).primaryColor,
+                      style: const TextStyle(
+                        color: Color(0xFF5D4037),
                         fontWeight: FontWeight.w500,
+                        fontSize: 14,
                       ),
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => _clearSearch(),
-                    icon: const Icon(Icons.close),
-                    tooltip: '검색 취소',
+                  GestureDetector(
+                    onTap: () => _clearSearch(),
+                    child: const Icon(Icons.close,
+                        color: Color(0xFF5D4037), size: 20),
                   ),
                 ],
               ),
             ),
-          
-          // 카테고리 필터 제거
-          const SizedBox.shrink(),
-          
+
           // 도서 목록
           Expanded(
             child: booksState.when(
               data: (response) => _buildBookList(response),
               loading: () => const Center(
-                child: CircularProgressIndicator(),
+                child: CircularProgressIndicator(
+                  color: Color(0xFF5D4037),
+                ),
               ),
               error: (error, stack) => _buildErrorWidget(error),
             ),
@@ -143,24 +155,20 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.book_outlined,
-              size: 64,
-              color: Colors.grey[400],
-            ),
+            Icon(Icons.book_outlined, size: 64, color: Colors.grey[400]),
             const SizedBox(height: 16),
             Text(
               '도서가 없습니다',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              style: TextStyle(
+                fontSize: 18,
                 color: Colors.grey[600],
+                fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              '다른 카테고리를 선택해보세요',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[500],
-              ),
+              '다른 검색어를 시도해보세요',
+              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
             ),
           ],
         ),
@@ -168,17 +176,20 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
     }
 
     return RefreshIndicator(
+      color: const Color(0xFF5D4037),
       onRefresh: () async => _refreshBooks(),
       child: ListView.builder(
         controller: _scrollController,
-        padding: const EdgeInsets.all(16),
-        itemCount: response.books.length + (response.pagination.hasNext ? 1 : 0),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        itemCount:
+            response.books.length + (response.pagination.hasNext ? 1 : 0),
         itemBuilder: (context, index) {
           if (index >= response.books.length) {
-            // 로딩 인디케이터
             return const Padding(
               padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(
+                child: CircularProgressIndicator(color: Color(0xFF5D4037)),
+              ),
             );
           }
 
@@ -199,22 +210,20 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.red[400],
-            ),
+            Icon(Icons.error_outline, size: 64, color: Colors.red[400]),
             const SizedBox(height: 16),
             Text(
               '오류가 발생했습니다',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              style: TextStyle(
+                fontSize: 18,
                 color: Colors.red[600],
+                fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               getErrorMessage(error),
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: const TextStyle(fontSize: 14),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -222,6 +231,10 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
               onPressed: _refreshBooks,
               icon: const Icon(Icons.refresh),
               label: const Text('다시 시도'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF5D4037),
+                foregroundColor: Colors.white,
+              ),
             ),
           ],
         ),
@@ -246,7 +259,7 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
       _clearSearch();
       return;
     }
-    
+
     ref.read(searchProvider.notifier).setQuery(query);
     ref.read(booksProvider.notifier).loadBooks(
       search: query,
@@ -268,11 +281,11 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
   void _refreshBooks() {
     final searchState = ref.read(searchProvider);
     String? searchQuery;
-    
+
     if (searchState is SearchSearching) {
       searchQuery = searchState.query;
     }
-    
+
     ref.read(booksProvider.notifier).loadBooks(
       search: searchQuery,
       status: null,
@@ -286,6 +299,32 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
       MaterialPageRoute(
         builder: (context) => BookDetailScreen(book: book),
       ),
+    );
+  }
+
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('로그아웃'),
+          content: const Text('정말로 로그아웃하시겠습니까?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                ref.read(authControllerProvider.notifier).logout();
+                Navigator.of(this.context).pushReplacementNamed('/login');
+              },
+              child: const Text('로그아웃'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voice of Juan - 오디오북 앱 다운로드</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">본문으로 건너뛰기</a>
+
+  <main id="main-content" role="main">
+    <div class="container">
+      <!-- 앱 소개 -->
+      <header class="app-header">
+        <h1 class="app-title">Voice of Juan</h1>
+        <p class="app-subtitle">시각장애인을 위한 오디오북</p>
+      </header>
+
+      <!-- 앱 설명 -->
+      <section class="app-description" aria-label="앱 소개">
+        <p>
+          Voice of Juan은 시각장애인을 위해 만들어진 오디오북 앱입니다.
+          큰 버튼과 음성 안내로 누구나 쉽게 오디오북을 즐길 수 있습니다.
+        </p>
+      </section>
+
+      <!-- 다운로드 버튼 -->
+      <section class="download-section" aria-label="앱 다운로드">
+        <a
+          id="download-btn"
+          href="#"
+          class="download-button"
+          role="button"
+          aria-label="Voice of Juan 안드로이드 앱 다운로드"
+          download
+        >
+          Android APK 다운로드
+        </a>
+        <p id="version-info" class="version-info" aria-live="polite">
+          버전 정보를 불러오는 중...
+        </p>
+      </section>
+
+      <!-- 설치 안내 -->
+      <section class="install-guide" aria-label="설치 방법 안내">
+        <h2>설치 방법</h2>
+        <ol>
+          <li>위 버튼을 눌러 APK 파일을 다운로드합니다.</li>
+          <li>다운로드가 완료되면 알림을 눌러 설치를 시작합니다.</li>
+          <li>
+            <strong>"출처를 알 수 없는 앱"</strong> 설치를 허용하라는 안내가 나오면:
+            <ul>
+              <li>설정 &gt; 앱 &gt; 특별한 앱 액세스 &gt; 출처를 알 수 없는 앱 설치</li>
+              <li>사용 중인 브라우저(예: Chrome)를 선택하고 허용합니다.</li>
+            </ul>
+          </li>
+          <li>설치 완료 후 앱을 실행합니다.</li>
+        </ol>
+      </section>
+
+      <!-- 문의 -->
+      <footer class="app-footer">
+        <p>문의사항이 있으시면 관리자에게 연락해 주세요.</p>
+      </footer>
+    </div>
+  </main>
+
+  <script>
+    (async function () {
+      var btn = document.getElementById('download-btn');
+      var info = document.getElementById('version-info');
+
+      // downloadUrl이 설정되기 전에는 클릭 차단
+      btn.addEventListener('click', function (e) {
+        if (!btn.href || btn.href.endsWith('#') || btn.href === window.location.href) {
+          e.preventDefault();
+          alert('아직 다운로드 파일이 준비되지 않았습니다.');
+        }
+      });
+
+      var METADATA_URL = './metadata.json';
+      try {
+        var res = await fetch(METADATA_URL);
+        if (!res.ok) throw new Error('metadata fetch failed');
+        var data = await res.json();
+        var android = data.android;
+        if (android && android.downloadUrl) {
+          btn.href = android.downloadUrl;
+          btn.removeAttribute('download');
+          // 외부 URL이면 download 속성 대신 직접 이동
+          var size = android.fileSize
+            ? ' | ' + (android.fileSize / 1024 / 1024).toFixed(1) + 'MB'
+            : '';
+          info.textContent =
+            '버전 ' + android.latestVersion + ' (' + android.releaseDate + ')' + size;
+        } else {
+          info.textContent = '다운로드 파일이 아직 준비되지 않았습니다.';
+        }
+      } catch (e) {
+        info.textContent = '버전 정보를 불러올 수 없습니다.';
+      }
+    })();
+  </script>
+</body>
+</html>

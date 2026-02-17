@@ -1,0 +1,10 @@
+{
+  "android": {
+    "latestVersion": "1.0.0",
+    "latestBuildNumber": 1,
+    "downloadUrl": "https://voj-releases.7wario.workers.dev/android/voice-of-juan-latest.apk",
+    "fileSize": 0,
+    "releaseDate": "2026-02-15",
+    "changelog": "최초 릴리스"
+  }
+}

@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { getAuthHeaders } from "@/lib/auth/simple-auth";
 import { apiBase } from "@/lib/config";
+import { isWavFile, convertWavToM4a } from "@/lib/wav-converter";
 
 export interface UploadProgress {
   loaded: number;
@@ -155,7 +156,7 @@ export interface BatchUploadItem {
   file: File;
   chapterTitle?: string;
   progress: UploadProgress;
-  status: "pending" | "uploading" | "completed" | "error";
+  status: "pending" | "converting" | "uploading" | "completed" | "error";
   result?: UploadResult;
   error?: string;
   abortController?: AbortController;
@@ -199,18 +200,45 @@ export function useBatchFileUpload() {
       // 순차 업로드 (동시 업로드는 서버 부하 고려하여 제한)
       for (const item of pendingItems) {
         try {
+          // WAV 파일인 경우 먼저 M4A로 변환
+          let fileToUpload = item.file;
+          let chapterTitle = item.chapterTitle;
+
+          if (isWavFile(item.file)) {
+            setUploadItems((prev) =>
+              prev.map((i) =>
+                i.id === item.id
+                  ? { ...i, status: "converting", progress: { loaded: 0, total: item.file.size, percentage: 0 } }
+                  : i,
+              ),
+            );
+
+            fileToUpload = await convertWavToM4a(item.file, (ratio) => {
+              setUploadItems((prev) =>
+                prev.map((i) =>
+                  i.id === item.id
+                    ? { ...i, progress: { ...i.progress, percentage: Math.round(ratio * 100) } }
+                    : i,
+                ),
+              );
+            });
+
+            // 변환된 파일명에서 제목 추출 (.m4a 확장자 제거)
+            chapterTitle = fileToUpload.name.replace(/\.[^/.]+$/, "");
+          }
+
           // 상태 업데이트
           setUploadItems((prev) =>
             prev.map((i) =>
-              i.id === item.id ? { ...i, status: "uploading" } : i,
+              i.id === item.id ? { ...i, status: "uploading", progress: { loaded: 0, total: fileToUpload.size, percentage: 0 } } : i,
             ),
           );
 
           // 직접 업로드 로직 구현 (useFileUpload 훅 사용하지 않음)
           const result = await uploadSingleFile(
-            item.file,
+            fileToUpload,
             bookId,
-            item.chapterTitle,
+            chapterTitle,
             {
               onProgress: (progress) => {
                 setUploadItems((prev) =>

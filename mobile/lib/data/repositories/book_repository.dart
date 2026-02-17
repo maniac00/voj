@@ -125,49 +125,6 @@ class BookRepository {
     }
   }
 
-  // 북마크 목록 조회
-  Future<BookmarksResponse> getBookmarks({
-    int page = 1,
-    int limit = 20,
-  }) async {
-    try {
-      return await _bookService.getBookmarks(page: page, limit: limit);
-    } catch (e) {
-      await _handleAuthError(e);
-      rethrow;
-    }
-  }
-
-  // 북마크 추가
-  Future<Bookmark> createBookmark({
-    required String bookId,
-    String? chapterId,
-    required int position,
-    String? note,
-  }) async {
-    try {
-      return await _bookService.createBookmark(
-        bookId: bookId,
-        chapterId: chapterId,
-        position: position,
-        note: note,
-      );
-    } catch (e) {
-      await _handleAuthError(e);
-      rethrow;
-    }
-  }
-
-  // 북마크 삭제
-  Future<void> deleteBookmark(String bookmarkId) async {
-    try {
-      await _bookService.deleteBookmark(bookmarkId);
-    } catch (e) {
-      await _handleAuthError(e);
-      rethrow;
-    }
-  }
-
   // 검색 결과 캐시 클리어
   void clearSearchCache() {
     _cachedBookLists.removeWhere((key, value) => key.contains('search'));

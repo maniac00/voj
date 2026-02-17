@@ -71,6 +71,14 @@ class AuthRepository {
           );
           _setSession(session);
           await _persistSession(session);
+
+          // broadcast stream은 구독 전 이벤트를 유실하므로,
+          // 세션 갱신 시 사용자 데이터도 다시 emit
+          if (_currentUser != null) {
+            _setCurrentUser(_currentUser!);
+          } else {
+            await _restoreUserFromPrefs();
+          }
         }
       } else {
         _setSession(null);

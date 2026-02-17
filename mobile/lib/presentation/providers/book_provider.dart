@@ -6,10 +6,9 @@ import '../../data/services/book_service.dart';
 import 'auth_provider.dart';
 import '../../core/constants/app_config.dart';
 
-const _log = AppLogger('BookProvider');
-
-// Export the service exception for use in UI
 export '../../data/services/book_service.dart' show BookServiceException;
+
+const _log = AppLogger('BookProvider');
 
 // Book 서비스 프로바이더
 final bookServiceProvider = Provider<BookService>((ref) {
@@ -137,72 +136,6 @@ final booksProvider = StateNotifierProvider<BooksNotifier, AsyncValue<BooksRespo
 final bookDetailProvider = FutureProvider.family<Book, String>((ref, bookId) async {
   final bookRepo = ref.watch(bookRepositoryProvider);
   return await bookRepo.getBookById(bookId);
-});
-
-// 북마크 목록 프로바이더
-class BookmarksNotifier extends StateNotifier<AsyncValue<BookmarksResponse>> {
-  final BookRepository _bookRepository;
-  
-  BookmarksNotifier(this._bookRepository) : super(const AsyncValue.loading());
-
-  Future<void> loadBookmarks({
-    int page = 1,
-    int limit = 20,
-  }) async {
-    state = const AsyncValue.loading();
-    
-    try {
-      final response = await _bookRepository.getBookmarks(
-        page: page,
-        limit: limit,
-      );
-      state = AsyncValue.data(response);
-    } catch (error, stackTrace) {
-      state = AsyncValue.error(error, stackTrace);
-    }
-  }
-
-  Future<void> addBookmark({
-    required String bookId,
-    String? chapterId,
-    required int position,
-    String? note,
-  }) async {
-    try {
-      await _bookRepository.createBookmark(
-        bookId: bookId,
-        chapterId: chapterId,
-        position: position,
-        note: note,
-      );
-      
-      // 북마크 목록 새로고침
-      loadBookmarks();
-    } catch (error, stackTrace) {
-      state = AsyncValue.error(error, stackTrace);
-    }
-  }
-
-  Future<void> removeBookmark(String bookmarkId) async {
-    try {
-      await _bookRepository.deleteBookmark(bookmarkId);
-      
-      // 북마크 목록 새로고침
-      loadBookmarks();
-    } catch (error, stackTrace) {
-      state = AsyncValue.error(error, stackTrace);
-    }
-  }
-
-  void refresh() {
-    loadBookmarks();
-  }
-}
-
-// 북마크 목록 상태 프로바이더
-final bookmarksProvider = StateNotifierProvider<BookmarksNotifier, AsyncValue<BookmarksResponse>>((ref) {
-  final bookRepo = ref.watch(bookRepositoryProvider);
-  return BookmarksNotifier(bookRepo);
 });
 
 // 검색 상태 프로바이더

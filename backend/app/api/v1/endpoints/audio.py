@@ -27,8 +27,10 @@ from sqlalchemy.orm import Session
 
 from app.core.auth.simple import get_current_user_claims, require_approved_user
 from app.core.config import settings
+from app.models.analytics_sql import PlaybackProgressSQL
 from app.models.audio_chapter_sql import AudioChapterSQL
 from app.models.database import get_db
+from app.models.user_sql import UserSQL
 from app.services.books_sql import BookServiceSQL as BookService
 from app.core.audit import log_audio_deleted
 from app.services.storage.factory import storage_service
@@ -446,14 +448,12 @@ async def update_playback_progress(
     db: Session = Depends(get_db),
 ):
     """
-    재생 진행률 업데이트 (MVP: 수신만 하고 저장은 생략)
-    - 모바일 클라이언트 호환을 위해 200 OK 반환
+    재생 진행률 업데이트 — playback_progress 테이블에 UPSERT
     """
     book = BookService.get_book_any_user(db, book_id=book_id)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
-    # 챕터 존재 여부만 확인
     chapter = (
         db.query(AudioChapterSQL)
         .filter(
@@ -467,12 +467,44 @@ async def update_playback_progress(
     if not chapter:
         raise HTTPException(status_code=404, detail="Chapter not found")
 
-    # 수신 페이로드 검증은 완화 (모바일 클라이언트 호환)
+    position = 0
+    duration = 0
     try:
-        _ = int((payload or {}).get("position", 0))
-        _ = int((payload or {}).get("duration", 0))
+        position = int((payload or {}).get("position", 0))
+        duration = int((payload or {}).get("duration", 0))
     except Exception:
         pass
+
+    user_id = _resolve_user_id_from_claims(claims, db)
+    if not user_id:
+        return {"ok": True}
+
+    try:
+        progress = db.query(PlaybackProgressSQL).filter(
+            and_(
+                PlaybackProgressSQL.user_id == user_id,
+                PlaybackProgressSQL.book_id == book_id,
+                PlaybackProgressSQL.chapter_id == chapter_id,
+            )
+        ).first()
+
+        if progress:
+            progress.position_seconds = position
+            progress.duration_seconds = duration
+            progress.last_played_at = func.now()
+        else:
+            progress = PlaybackProgressSQL(
+                user_id=user_id,
+                book_id=book_id,
+                chapter_id=chapter_id,
+                position_seconds=position,
+                duration_seconds=duration,
+            )
+            db.add(progress)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.warning("Failed to save playback progress: %s", e)
 
     return {"ok": True}
 
@@ -485,14 +517,12 @@ async def get_playback_position(
     db: Session = Depends(get_db),
 ):
     """
-    마지막 재생 위치 조회 (MVP: 저장 미구현 → 빈 객체 반환)
-    - 모바일 클라이언트는 빈 응답이면 복원을 건너뜀
+    마지막 재생 위치 조회 — playback_progress 테이블에서 조회
     """
     book = BookService.get_book_any_user(db, book_id=book_id)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
-    # 챕터 존재 여부만 확인
     chapter_exists = (
         db.query(AudioChapterSQL)
         .filter(
@@ -507,7 +537,26 @@ async def get_playback_position(
     if not chapter_exists:
         raise HTTPException(status_code=404, detail="Chapter not found")
 
-    return {}
+    user_id = _resolve_user_id_from_claims(claims, db)
+    if not user_id:
+        return {}
+
+    progress = db.query(PlaybackProgressSQL).filter(
+        and_(
+            PlaybackProgressSQL.user_id == user_id,
+            PlaybackProgressSQL.book_id == book_id,
+            PlaybackProgressSQL.chapter_id == chapter_id,
+        )
+    ).first()
+
+    if not progress:
+        return {}
+
+    return {
+        "position": progress.position_seconds,
+        "duration": progress.duration_seconds,
+        "last_played_at": progress.last_played_at.isoformat() if progress.last_played_at else None,
+    }
 
 @router.delete("/{book_id}/chapters/{chapter_id}")
 async def delete_audio_chapter(
@@ -566,3 +615,18 @@ async def delete_audio_chapter(
         raise HTTPException(
             status_code=500, detail=f"Failed to delete chapter: {str(e)}"
         )
+
+
+def _resolve_user_id_from_claims(claims: dict, db: Session):
+    """claims에서 DB user.id를 찾는다."""
+    firebase_uid = claims.get("uid") or claims.get("sub") or ""
+    if firebase_uid:
+        user = db.query(UserSQL).filter(UserSQL.firebase_uid == str(firebase_uid)).first()
+        if user:
+            return user.id
+    username = claims.get("username") or ""
+    if username:
+        user = db.query(UserSQL).filter(UserSQL.email == username).first()
+        if user:
+            return user.id
+    return None

@@ -8,7 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/logger.dart';
 import 'presentation/screens/splash_screen.dart';
-import 'presentation/screens/home_screen.dart';
+import 'presentation/screens/login_screen.dart';
+import 'presentation/screens/pending_approval_screen.dart';
 import 'presentation/providers/auth_provider.dart';
 
 const _log = AppLogger('Main');
@@ -69,7 +70,8 @@ class VoiceOfJuanApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => const SplashScreen(),
-        '/home': (context) => const HomeScreen(),
+        '/login': (context) => const LoginScreen(),
+        '/pending-approval': (context) => const PendingApprovalScreen(),
       },
     );
   }

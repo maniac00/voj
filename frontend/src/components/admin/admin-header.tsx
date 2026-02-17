@@ -67,6 +67,13 @@ export function AdminHeader() {
               >
                 사용자 관리
               </Link>
+              <Link
+                href="/analytics"
+                className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+                aria-label="통계 페이지로 이동"
+              >
+                통계
+              </Link>
             </nav>
           </div>
 
@@ -109,6 +116,12 @@ export function AdminHeader() {
             className="block text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium"
           >
             사용자 관리
+          </Link>
+          <Link
+            href="/analytics"
+            className="block text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium"
+          >
+            통계
           </Link>
         </nav>
       </div>

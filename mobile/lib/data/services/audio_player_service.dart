@@ -4,6 +4,7 @@ import 'package:just_audio/just_audio.dart';
 import '../../core/utils/logger.dart';
 import '../../services/accessibility_feedback_service.dart';
 import '../models/book_model.dart';
+import 'analytics_service.dart';
 import 'audio_service.dart';
 
 const _log = AppLogger('AudioPlayer');
@@ -18,6 +19,7 @@ class AudioPlayerService {
   final AudioPlayer _player = AudioPlayer();
   final AudioService _audioService = AudioService();
   final AccessibilityFeedbackService _feedbackService = const AccessibilityFeedbackService();
+  final AnalyticsService _analyticsService = AnalyticsService();
 
   Future<void> Function(AudioServiceException error)? _onUnauthorized;
   Future<void> Function(String message)? _onError;
@@ -58,12 +60,14 @@ class AudioPlayerService {
   void setAuthToken(String token) {
     _authToken = token;
     _audioService.setAuthToken(token);
+    _analyticsService.setAuthToken(token);
   }
 
   /// 인증 토큰 클리어
   void clearAuthToken() {
     _authToken = null;
     _audioService.clearAuthToken();
+    _analyticsService.clearAuthToken();
   }
 
   void registerUnauthorizedHandler(
@@ -117,6 +121,7 @@ class AudioPlayerService {
 
       await _player.play();
       _startProgressTracking();
+      _analyticsService.startPlaySession(bookId: book.id, chapterId: chapter.id);
       await _feedbackService.announce('${chapter.displayName} 재생을 시작합니다', withHaptic: true);
     } on AudioServiceException catch (error) {
       await _handleUnauthorizedError(error);
@@ -140,6 +145,7 @@ class AudioPlayerService {
   Future<void> pause() async {
     await _player.pause();
     await _saveCurrentProgress();
+    await _analyticsService.endPlaySession();
     _stopProgressTracking();
   }
 
@@ -153,6 +159,7 @@ class AudioPlayerService {
   Future<void> stop() async {
     await _player.stop();
     await _saveCurrentProgress();
+    await _analyticsService.endPlaySession();
     _stopProgressTracking();
   }
 
@@ -278,9 +285,11 @@ class AudioPlayerService {
   /// 리소스 정리
   Future<void> dispose() async {
     await _saveCurrentProgress();
+    await _analyticsService.endPlaySession();
     _stopProgressTracking();
     await _player.dispose();
     _audioService.dispose();
+    _analyticsService.dispose();
   }
 
   Future<void> _handleUnauthorizedError(dynamic error) async {

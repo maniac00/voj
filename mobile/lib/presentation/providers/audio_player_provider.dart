@@ -144,21 +144,21 @@ class AudioPlayerController {
     int? startPosition,
   }) async {
     try {
+      // 상태를 먼저 업데이트하여 UI가 즉시 반영되도록 함
+      _ref.read(currentBookProvider.notifier).state = book;
+      _ref.read(currentChapterProvider.notifier).state = chapter;
+      _ref.read(playlistProvider.notifier).state = playlist ?? book.chapters;
+      _ref.read(currentIndexProvider.notifier).state =
+          (playlist ?? book.chapters).indexWhere((candidate) => candidate.id == chapter.id);
+      _ref.read(showMiniPlayerProvider.notifier).state = true;
+      _ref.read(currentChapterStatusProvider.notifier).state = '재생 준비 중';
+
       await _service.playChapter(
         book: book,
         chapter: chapter,
         playlist: playlist,
         startPosition: startPosition,
       );
-
-      // 상태 업데이트
-      _ref.read(currentBookProvider.notifier).state = book;
-      _ref.read(currentChapterProvider.notifier).state = chapter;
-      _ref.read(playlistProvider.notifier).state = playlist ?? book.chapters;
-      _ref.read(currentIndexProvider.notifier).state = 
-          (playlist ?? book.chapters).indexWhere((candidate) => candidate.id == chapter.id);
-      _ref.read(showMiniPlayerProvider.notifier).state = true;
-      _ref.read(currentChapterStatusProvider.notifier).state = '재생 준비 중';
 
       // 상태 WebSocket 구독 (기존 구독 해제 후 재구독)
       await _statusSub?.cancel();

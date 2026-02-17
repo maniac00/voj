@@ -106,11 +106,12 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> refreshProfile() async {
+  Future<User?> refreshProfile() async {
     try {
-      await _authRepository.refreshUserProfile();
+      return await _authRepository.refreshUserProfile();
     } catch (e, st) {
       _log.warning('프로필 새로고침 실패', error: e, stackTrace: st);
+      return null;
     }
   }
 

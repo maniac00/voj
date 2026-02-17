@@ -146,5 +146,12 @@ mobile/.flutter-plugins-dependencies
 mobile/.packages
 mobile/build/
 
+# Wrangler local state
+.wrangler/
+*/.wrangler/
+
+# SQLite dev DB
+voj_dev.db
+
 # Security keys
 keys/

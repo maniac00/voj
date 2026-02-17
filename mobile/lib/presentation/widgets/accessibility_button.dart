@@ -30,7 +30,7 @@ class AccessibilityButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor ?? Theme.of(context).primaryColor,
+          backgroundColor: backgroundColor ?? Theme.of(context).colorScheme.primary,
           foregroundColor: textColor ?? Colors.white,
           disabledBackgroundColor: Theme.of(context).disabledColor,
           disabledForegroundColor: Colors.white,
@@ -111,12 +111,12 @@ class AccessibilityIconButton extends StatelessWidget {
         icon: Icon(
           icon,
           size: size * 0.5,
-          color: iconColor ?? Theme.of(context).primaryColor,
+          color: iconColor ?? Theme.of(context).colorScheme.primary,
           semanticLabel: semanticLabel,
         ),
         style: IconButton.styleFrom(
           backgroundColor: backgroundColor ?? 
-              Theme.of(context).primaryColor.withValues(alpha: 0.1),
+              Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),

@@ -5,7 +5,7 @@ import { UploadProgress } from "@/hooks/use-file-upload";
 
 interface UploadProgressBarProps {
   progress: UploadProgress;
-  status: "pending" | "uploading" | "completed" | "error";
+  status: "pending" | "converting" | "uploading" | "completed" | "error";
   fileName: string;
   error?: string;
   onCancel?: () => void;
@@ -28,6 +28,8 @@ export function UploadProgressBar({
     switch (status) {
       case "pending":
         return "bg-gray-100 text-gray-800";
+      case "converting":
+        return "bg-amber-100 text-amber-800";
       case "uploading":
         return "bg-blue-100 text-blue-800";
       case "completed":
@@ -41,6 +43,8 @@ export function UploadProgressBar({
     switch (status) {
       case "pending":
         return "대기 중";
+      case "converting":
+        return "변환 중";
       case "uploading":
         return "업로드 중";
       case "completed":
@@ -52,6 +56,8 @@ export function UploadProgressBar({
 
   const getProgressBarColor = () => {
     switch (status) {
+      case "converting":
+        return "bg-amber-500";
       case "uploading":
         return "bg-blue-500";
       case "completed":
@@ -170,10 +176,14 @@ export function UploadProgressBar({
         </div>
       )}
 
-      {/* 업로드 속도 (업로드 중일 때만) */}
+      {/* 상태 메시지 */}
+      {status === "converting" && (
+        <div className="mt-2 text-xs text-amber-600">
+          <span>WAV → M4A 변환 중...</span>
+        </div>
+      )}
       {status === "uploading" && progress.loaded > 0 && (
         <div className="mt-2 text-xs text-gray-500">
-          {/* 간단한 속도 계산은 복잡하므로 생략 */}
           <span>업로드 중...</span>
         </div>
       )}
@@ -186,7 +196,7 @@ interface BatchUploadProgressProps {
     id: string;
     file: File;
     progress: UploadProgress;
-    status: "pending" | "uploading" | "completed" | "error";
+    status: "pending" | "converting" | "uploading" | "completed" | "error";
     error?: string;
   }>;
   onCancel: (id: string) => void;
@@ -208,6 +218,9 @@ export function BatchUploadProgress({
     (item) => item.status === "completed",
   ).length;
   const errorCount = items.filter((item) => item.status === "error").length;
+  const convertingCount = items.filter(
+    (item) => item.status === "converting",
+  ).length;
   const uploadingCount = items.filter(
     (item) => item.status === "uploading",
   ).length;
@@ -247,6 +260,9 @@ export function BatchUploadProgress({
         {/* 상태 요약 */}
         <div className="mt-3 flex items-center space-x-4 text-xs text-gray-600">
           {pendingCount > 0 && <span>대기: {pendingCount}개</span>}
+          {convertingCount > 0 && (
+            <span className="text-amber-600">변환 중: {convertingCount}개</span>
+          )}
           {uploadingCount > 0 && <span>업로드 중: {uploadingCount}개</span>}
           {completedCount > 0 && (
             <span className="text-green-600">완료: {completedCount}개</span>

@@ -83,8 +83,8 @@ class AudioPlayerWidget extends ConsumerWidget {
                           imageUrl: book.coverUrl!,
                           fit: BoxFit.cover,
                           httpHeaders: {
-                            if (ref.watch(authSessionProvider).valueOrNull != null)
-                              'Authorization': 'Bearer ${ref.watch(authSessionProvider).valueOrNull!.accessToken}',
+                            if (ref.watch(authRepositoryProvider).currentSession != null)
+                              'Authorization': 'Bearer ${ref.watch(authRepositoryProvider).currentSession!.accessToken}',
                           },
                           errorWidget: (context, url, error) =>
                               const Icon(Icons.book, size: 32, color: Color(0xFFD7CCC8)),
@@ -214,7 +214,8 @@ class AudioPlayerWidget extends ConsumerWidget {
     final isReady = playerState.whenOrNull(
       data: (state) =>
           state.processingState == ProcessingState.ready ||
-          state.processingState == ProcessingState.completed,
+          state.processingState == ProcessingState.completed ||
+          state.processingState == ProcessingState.buffering,
     ) ?? false;
 
     return SingleChildScrollView(
@@ -243,8 +244,8 @@ class AudioPlayerWidget extends ConsumerWidget {
                       imageUrl: book.coverUrl!,
                       fit: BoxFit.cover,
                       httpHeaders: {
-                        if (ref.watch(authSessionProvider).valueOrNull != null)
-                          'Authorization': 'Bearer ${ref.watch(authSessionProvider).valueOrNull!.accessToken}',
+                        if (ref.watch(authRepositoryProvider).currentSession != null)
+                          'Authorization': 'Bearer ${ref.watch(authRepositoryProvider).currentSession!.accessToken}',
                       },
                       errorWidget: (context, url, error) =>
                           _buildDefaultCover(),
@@ -404,8 +405,9 @@ class AudioPlayerWidget extends ConsumerWidget {
     AsyncValue<PlayerState> playerState,
     bool isReady,
   ) {
+    final hasData = playerState.hasValue;
     return GestureDetector(
-      onTap: isReady ? () {
+      onTap: hasData ? () {
         playerState.when(
           data: (state) {
             if (state.playing) {
@@ -422,7 +424,7 @@ class AudioPlayerWidget extends ConsumerWidget {
         width: 76,
         height: 76,
         decoration: BoxDecoration(
-          color: isReady ? const Color(0xFF5D2E0C) : const Color(0xFFBCAAA4),
+          color: hasData ? const Color(0xFF5D2E0C) : const Color(0xFFBCAAA4),
           shape: BoxShape.circle,
         ),
         child: playerState.when(

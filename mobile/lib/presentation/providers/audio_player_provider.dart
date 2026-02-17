@@ -125,6 +125,23 @@ final currentChapterStatusProvider = StateProvider<String?>((ref) => null);
 /// 오디오 플레이어 컨트롤러 프로바이더
 final audioPlayerControllerProvider = Provider<AudioPlayerController>((ref) {
   final controller = AudioPlayerController(ref);
+
+  // 스트림 상태 감시: playing 확인 시 로딩 플래그 해제, ready인데 미재생 시 재생 시작
+  ref.listen(playerStateProvider, (prev, next) {
+    next.whenData((state) {
+      final isInitiating = ref.read(audioPlayerLoadingProvider);
+      if (!isInitiating) return;
+
+      if (state.playing) {
+        // 스트림이 playing을 확인 → 로딩 완료
+        ref.read(audioPlayerLoadingProvider.notifier).state = false;
+      } else if (state.processingState == ProcessingState.ready) {
+        // 오디오가 ready인데 playing이 아님 → 재생 시작
+        controller.resume();
+      }
+    });
+  });
+
   ref.onDispose(() {
     controller._statusSub?.cancel();
     controller._statusWs?.dispose();
@@ -170,7 +187,8 @@ class AudioPlayerController {
         startPosition: startPosition,
       );
 
-      _ref.read(audioPlayerLoadingProvider.notifier).state = false;
+      // audioPlayerLoadingProvider는 playerStateProvider 리스너가
+      // state.playing == true를 확인한 후 해제
 
       // 상태 WebSocket 구독 (fire-and-forget — 재생 시작을 블로킹하지 않음)
       _connectStatusWebSocket(chapter.id);
@@ -189,6 +207,7 @@ class AudioPlayerController {
 
   /// 일시정지
   Future<void> pause() async {
+    _ref.read(audioPlayerLoadingProvider.notifier).state = false;
     await _service.pause();
   }
 

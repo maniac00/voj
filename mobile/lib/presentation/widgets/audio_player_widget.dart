@@ -143,13 +143,18 @@ class AudioPlayerWidget extends ConsumerWidget {
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
-                      onPressed: () {
-                        final svc = ref.read(audioPlayerServiceProvider);
-                        if (svc.isPlaying) {
-                          controller.pause();
-                        } else {
-                          controller.resume();
-                        }
+                      onPressed: ref.watch(audioPlayerLoadingProvider) ? null : () {
+                        playerState.when(
+                          data: (state) {
+                            if (state.playing) {
+                              controller.pause();
+                            } else {
+                              controller.resume();
+                            }
+                          },
+                          loading: () {},
+                          error: (error, stack) {},
+                        );
                       },
                       tooltip: playerState.when(
                         data: (state) => state.playing ? '일시정지' : '재생',
@@ -158,9 +163,18 @@ class AudioPlayerWidget extends ConsumerWidget {
                       ),
                       icon: playerState.when(
                         data: (state) {
-                          final svc = ref.read(audioPlayerServiceProvider);
+                          if (ref.watch(audioPlayerLoadingProvider)) {
+                            return const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            );
+                          }
                           return Icon(
-                            svc.isPlaying ? Icons.pause : Icons.play_arrow,
+                            state.playing ? Icons.pause : Icons.play_arrow,
                             color: Colors.white,
                             size: 22,
                           );
@@ -405,14 +419,20 @@ class AudioPlayerWidget extends ConsumerWidget {
     bool isReady,
   ) {
     final hasData = playerState.hasValue;
-    final service = ref.read(audioPlayerServiceProvider);
+    final isInitiating = ref.watch(audioPlayerLoadingProvider);
     return GestureDetector(
-      onTap: hasData ? () {
-        if (service.isPlaying) {
-          controller.pause();
-        } else {
-          controller.resume();
-        }
+      onTap: (hasData && !isInitiating) ? () {
+        playerState.when(
+          data: (state) {
+            if (state.playing) {
+              controller.pause();
+            } else {
+              controller.resume();
+            }
+          },
+          loading: () {},
+          error: (error, stack) {},
+        );
       } : null,
       child: Container(
         width: 76,
@@ -423,7 +443,8 @@ class AudioPlayerWidget extends ConsumerWidget {
         ),
         child: playerState.when(
           data: (state) {
-            if (state.processingState == ProcessingState.loading ||
+            if (isInitiating ||
+                state.processingState == ProcessingState.loading ||
                 state.processingState == ProcessingState.buffering) {
               return const Center(
                 child: SizedBox(
@@ -437,7 +458,7 @@ class AudioPlayerWidget extends ConsumerWidget {
               );
             }
             return Icon(
-              service.isPlaying ? Icons.pause : Icons.play_arrow,
+              state.playing ? Icons.pause : Icons.play_arrow,
               color: const Color(0xFFF5EDE0),
               size: 40,
             );

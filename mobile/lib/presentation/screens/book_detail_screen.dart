@@ -149,6 +149,10 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
                     ? CachedNetworkImage(
                         imageUrl: book.coverUrl!,
                         fit: BoxFit.cover,
+                        httpHeaders: {
+                          if (ref.watch(authSessionProvider).valueOrNull != null)
+                            'Authorization': 'Bearer ${ref.watch(authSessionProvider).valueOrNull!.accessToken}',
+                        },
                         errorWidget: (context, url, error) =>
                             _buildDefaultCover(),
                       )

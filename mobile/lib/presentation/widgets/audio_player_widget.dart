@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import '../providers/audio_player_provider.dart';
+import '../providers/auth_provider.dart';
 import '../../data/models/book_model.dart';
 
 /// 오디오 플레이어 위젯
@@ -81,6 +82,10 @@ class AudioPlayerWidget extends ConsumerWidget {
                         child: CachedNetworkImage(
                           imageUrl: book.coverUrl!,
                           fit: BoxFit.cover,
+                          httpHeaders: {
+                            if (ref.watch(authSessionProvider).valueOrNull != null)
+                              'Authorization': 'Bearer ${ref.watch(authSessionProvider).valueOrNull!.accessToken}',
+                          },
                           errorWidget: (context, url, error) =>
                               const Icon(Icons.book, size: 32, color: Color(0xFFD7CCC8)),
                         ),
@@ -237,6 +242,10 @@ class AudioPlayerWidget extends ConsumerWidget {
                     child: CachedNetworkImage(
                       imageUrl: book.coverUrl!,
                       fit: BoxFit.cover,
+                      httpHeaders: {
+                        if (ref.watch(authSessionProvider).valueOrNull != null)
+                          'Authorization': 'Bearer ${ref.watch(authSessionProvider).valueOrNull!.accessToken}',
+                      },
                       errorWidget: (context, url, error) =>
                           _buildDefaultCover(),
                     ),

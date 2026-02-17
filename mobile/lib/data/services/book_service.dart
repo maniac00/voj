@@ -1,5 +1,6 @@
 import 'dart:io';
 import '../models/book_model.dart';
+import '../../core/constants/app_config.dart';
 import '../../core/utils/logger.dart';
 import 'api_service.dart';
 import 'audio_service.dart';
@@ -95,86 +96,6 @@ class BookService {
     }
   }
 
-  Future<BookmarksResponse> getBookmarks({
-    int page = 1,
-    int limit = 20,
-  }) async {
-    try {
-      final response = await _apiService.get(
-        '/books/bookmarks',
-        queryParameters: {
-          'page': page,
-          'size': limit,
-        },
-      );
-      return BookmarksResponse.fromJson(response);
-    } on ApiException catch (error) {
-      throw BookServiceException.fromApiException(error);
-    } on SocketException {
-      throw const BookServiceException(
-        message: '네트워크 연결을 확인해주세요',
-        statusCode: 0,
-      );
-    } catch (e, st) {
-      _log.warning('북마크 목록 조회 중 오류', error: e, stackTrace: st);
-      throw const BookServiceException(
-        message: '북마크 목록 조회 중 오류가 발생했습니다',
-        statusCode: -1,
-      );
-    }
-  }
-
-  Future<Bookmark> createBookmark({
-    required String bookId,
-    String? chapterId,
-    required int position,
-    String? note,
-  }) async {
-    try {
-      final payload = {
-        'book_id': bookId,
-        if (chapterId != null) 'chapter_id': chapterId,
-        'position': position,
-        if (note != null) 'note': note,
-      };
-
-      final response = await _apiService.post('/books/bookmarks', body: payload);
-      return Bookmark.fromJson(response['bookmark'] ?? response);
-    } on ApiException catch (error) {
-      throw BookServiceException.fromApiException(error);
-    } on SocketException {
-      throw const BookServiceException(
-        message: '네트워크 연결을 확인해주세요',
-        statusCode: 0,
-      );
-    } catch (e, st) {
-      _log.warning('북마크 추가 중 오류', error: e, stackTrace: st);
-      throw const BookServiceException(
-        message: '북마크 추가 중 오류가 발생했습니다',
-        statusCode: -1,
-      );
-    }
-  }
-
-  Future<void> deleteBookmark(String bookmarkId) async {
-    try {
-      await _apiService.delete('/books/bookmarks/$bookmarkId');
-    } on ApiException catch (error) {
-      throw BookServiceException.fromApiException(error);
-    } on SocketException {
-      throw const BookServiceException(
-        message: '네트워크 연결을 확인해주세요',
-        statusCode: 0,
-      );
-    } catch (e, st) {
-      _log.warning('북마크 삭제 중 오류', error: e, stackTrace: st);
-      throw const BookServiceException(
-        message: '북마크 삭제 중 오류가 발생했습니다',
-        statusCode: -1,
-      );
-    }
-  }
-
   void dispose() {
     _apiService.dispose();
     _audioService.dispose();
@@ -221,6 +142,13 @@ class BookService {
   }
 
   Map<String, dynamic> _normalizeBook(Map<String, dynamic> raw) {
+    // 커버 이미지 URL 처리: 상대 경로를 절대 URL로 변환
+    String? coverUrl = raw['cover_image_url'] as String? ?? raw['coverUrl'] as String?;
+    if (coverUrl != null && coverUrl.startsWith('/')) {
+      final baseUri = Uri.parse(AppConfig.apiBaseUrl);
+      coverUrl = '${baseUri.scheme}://${baseUri.authority}$coverUrl';
+    }
+
     return {
       'id': raw['book_id'] ?? raw['id'] ?? '',
       'title': raw['title'] ?? '',
@@ -228,7 +156,7 @@ class BookService {
       'publisher': raw['publisher'],
       'categoryId': raw['category_id'] ?? raw['categoryId'] ?? '',
       'description': raw['description'],
-      'coverUrl': raw['cover_image_url'] ?? raw['coverUrl'],
+      'coverUrl': coverUrl,
       'totalDuration': raw['total_duration'] ?? raw['totalDuration'] ?? 0,
       'status': (raw['status'] as String? ?? 'draft').toLowerCase(),
       'createdAt': raw['created_at'] ?? raw['createdAt'],

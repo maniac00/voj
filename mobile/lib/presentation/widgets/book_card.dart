@@ -1,8 +1,10 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/book_model.dart';
+import '../providers/auth_provider.dart';
 
-class BookCard extends StatelessWidget {
+class BookCard extends ConsumerWidget {
   final Book book;
   final VoidCallback? onTap;
 
@@ -13,218 +15,159 @@ class BookCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(authSessionProvider).valueOrNull;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
       child: Semantics(
-        label: '도서: ${book.title}, 저자: ${book.author}, 상태: ${book.statusLabel ?? book.status.displayName}, 재생시간: ${book.durationText}',
+        label:
+            '도서: ${book.title}, 저자: ${book.author}, 상태: ${book.statusLabel ?? book.status.displayName}',
         hint: '탭하여 도서 상세 정보 보기',
         button: true,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-              // 책 표지
-              Container(
-                width: 80,
-                height: 120,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
-                  ),
+        child: Material(
+          color: const Color(0xFFFFFDF8),
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: const Color(0xFFC9A97A),
+                  width: 1.5,
                 ),
-                child: book.coverUrl != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: CachedNetworkImage(
-                          imageUrl: book.coverUrl!,
-                          fit: BoxFit.cover,
-                          errorWidget: (context, url, error) =>
-                              _buildDefaultCover(context),
-                        ),
-                      )
-                    : _buildDefaultCover(context),
               ),
-              
-              const SizedBox(width: 16),
-              
-              // 책 정보
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 제목
-                    Text(
-                      book.title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    
-                    const SizedBox(height: 4),
-                    
-                    // 저자
-                    Text(
-                      book.author,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    
-                    // 출판사
-                    if (book.publisher != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        book.publisher!,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[500],
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 책 표지
+                  Container(
+                    width: 100,
+                    height: 140,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 6,
+                          offset: const Offset(2, 3),
                         ),
-                      ),
-                    ],
-                    
-                    const SizedBox(height: 8),
-                    
-                    // 상태 및 재생시간
-                    Row(
-                      children: [
-                        // 상태 태그
-                        if (book.statusLabel != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primary,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              book.statusLabel!,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: book.coverUrl != null
+                          ? CachedNetworkImage(
+                              imageUrl: book.coverUrl!,
+                              fit: BoxFit.cover,
+                              httpHeaders: {
+                                if (session != null)
+                                  'Authorization': 'Bearer ${session.accessToken}',
+                              },
+                              errorWidget: (context, url, error) =>
+                                  _buildDefaultCover(),
+                            )
+                          : _buildDefaultCover(),
+                    ),
+                  ),
 
-                        const Spacer(),
-                        
-                        // 재생시간
+                  const SizedBox(width: 16),
+
+                  // 책 정보
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 제목
+                        Text(
+                          book.title,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF3E2723),
+                            height: 1.3,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+
+                        const SizedBox(height: 6),
+
+                        // 저자
+                        Text(
+                          book.author,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF8D7B68),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+
+                        const SizedBox(height: 10),
+
+                        // 챕터 수
                         Row(
                           children: [
-                            Icon(
-                              Icons.access_time,
+                            const Icon(
+                              Icons.music_note_rounded,
                               size: 16,
-                              color: Colors.grey[600],
+                              color: Color(0xFF8D7B68),
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              book.durationText,
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.grey[600],
-                                fontWeight: FontWeight.w500,
+                              '${book.chapterCount}개 챕터',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF8D7B68),
                               ),
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 8),
-                    
-                    // 오디오 파일 수
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.audiotrack,
-                          size: 16,
-                          color: Colors.grey[600],
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                        '${book.chapterCount}개 챕터',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey[600],
+
+                        // 설명
+                        if (book.description != null &&
+                            book.description!.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Text(
+                            book.description!,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF6D6050),
+                              height: 1.5,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
+                        ],
                       ],
                     ),
-                    
-                    // 설명 (있다면)
-                    if (book.description != null && book.description!.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        book.description!,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[700],
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
-                ),
+                  ),
+                ],
               ),
-              
-              // 화살표 아이콘
-              Icon(
-                Icons.chevron_right,
-                color: Colors.grey[400],
-                size: 24,
-              ),
-            ],
+            ),
           ),
-        ),
         ),
       ),
     );
   }
 
-  Widget _buildDefaultCover(BuildContext context) {
+  Widget _buildDefaultCover() {
     return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
-            Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
-          ],
-        ),
-      ),
-      child: Column(
+      color: const Color(0xFF5D4037),
+      child: const Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.book,
-            color: Colors.white,
-            size: 32,
-          ),
-          const SizedBox(height: 4),
+          Icon(Icons.book, color: Color(0xFFD7CCC8), size: 32),
+          SizedBox(height: 4),
           Text(
             '오디오북',
             style: TextStyle(
-              color: Colors.white,
+              color: Color(0xFFD7CCC8),
               fontSize: 10,
               fontWeight: FontWeight.w500,
             ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),

@@ -155,8 +155,8 @@ export async function uploadBookCover(
   );
 
   // Update book with cover image info
-  const coverUrl =
-    uploadResult.url || `${apiBase()}/files/${uploadResult.key}`;
+  // 항상 API 파일 엔드포인트 경로를 저장 (모바일 앱에서도 사용 가능하도록)
+  const coverUrl = `/api/v1/files/${uploadResult.key}`;
   return updateBook(bookId, {
     cover_image_url: coverUrl,
     cover_image_key: uploadResult.key,

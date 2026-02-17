@@ -144,17 +144,12 @@ class AudioPlayerWidget extends ConsumerWidget {
                     ),
                     child: IconButton(
                       onPressed: () {
-                        playerState.when(
-                          data: (state) {
-                            if (state.playing) {
-                              controller.pause();
-                            } else {
-                              controller.resume();
-                            }
-                          },
-                          loading: () {},
-                          error: (error, stack) {},
-                        );
+                        final svc = ref.read(audioPlayerServiceProvider);
+                        if (svc.isPlaying) {
+                          controller.pause();
+                        } else {
+                          controller.resume();
+                        }
                       },
                       tooltip: playerState.when(
                         data: (state) => state.playing ? '일시정지' : '재생',
@@ -162,11 +157,14 @@ class AudioPlayerWidget extends ConsumerWidget {
                         error: (_, __) => '오류',
                       ),
                       icon: playerState.when(
-                        data: (state) => Icon(
-                          state.playing ? Icons.pause : Icons.play_arrow,
-                          color: Colors.white,
-                          size: 22,
-                        ),
+                        data: (state) {
+                          final svc = ref.read(audioPlayerServiceProvider);
+                          return Icon(
+                            svc.isPlaying ? Icons.pause : Icons.play_arrow,
+                            color: Colors.white,
+                            size: 22,
+                          );
+                        },
                         loading: () => const SizedBox(
                           width: 20,
                           height: 20,
@@ -329,7 +327,7 @@ class AudioPlayerWidget extends ConsumerWidget {
               ),
 
               // 재생/일시정지 (큰 버튼)
-              _buildPlayButton(context, controller, playerState, isReady),
+              _buildPlayButton(context, ref, controller, playerState, isReady),
 
               // 10초 앞으로
               _buildControlButton(
@@ -401,24 +399,20 @@ class AudioPlayerWidget extends ConsumerWidget {
 
   Widget _buildPlayButton(
     BuildContext context,
+    WidgetRef ref,
     AudioPlayerController controller,
     AsyncValue<PlayerState> playerState,
     bool isReady,
   ) {
     final hasData = playerState.hasValue;
+    final service = ref.read(audioPlayerServiceProvider);
     return GestureDetector(
       onTap: hasData ? () {
-        playerState.when(
-          data: (state) {
-            if (state.playing) {
-              controller.pause();
-            } else {
-              controller.resume();
-            }
-          },
-          loading: () {},
-          error: (error, stack) {},
-        );
+        if (service.isPlaying) {
+          controller.pause();
+        } else {
+          controller.resume();
+        }
       } : null,
       child: Container(
         width: 76,
@@ -443,7 +437,7 @@ class AudioPlayerWidget extends ConsumerWidget {
               );
             }
             return Icon(
-              state.playing ? Icons.pause : Icons.play_arrow,
+              service.isPlaying ? Icons.pause : Icons.play_arrow,
               color: const Color(0xFFF5EDE0),
               size: 40,
             );

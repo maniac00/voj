@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../data/models/user_model.dart';
 import '../providers/auth_provider.dart';
 import 'books_screen.dart';
@@ -12,6 +13,16 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
+  String _appVersion = '';
+
+  @override
+  void initState() {
+    super.initState();
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _appVersion = 'v${info.version}');
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
@@ -37,11 +48,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           );
         }
       } else if (next is AuthError) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(next.message),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('로그인 오류'),
+            content: SelectableText(next.message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('확인'),
+              ),
+            ],
           ),
         );
       }
@@ -248,6 +265,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
 
               const SizedBox(height: 48),
+
+              // 버전 표시 (pubspec.yaml에서 자동 읽기)
+              Text(
+                _appVersion,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFFAA9B8C),
+                ),
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
         ),

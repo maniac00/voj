@@ -104,6 +104,41 @@ npm create cloudflare@latest
 # ❌ wrangler init은 레거시
 ```
 
+## 프로덕션 서비스 주소
+
+| 서비스 | URL |
+|--------|-----|
+| 백엔드 (Railway) | `https://voj-production.up.railway.app` |
+| 프론트엔드 (Vercel) | `https://voj-admin.vercel.app` |
+| 다운로드 페이지 (Workers) | `https://voj-download.7wario.workers.dev` |
+| R2 파일 서빙 (Workers) | `https://voj-releases.7wario.workers.dev` |
+
+- 모바일 APK 빌드 시 반드시 위 백엔드 주소를 사용할 것:
+  `--dart-define=VOJ_API_BASE_URL=https://voj-production.up.railway.app/api/v1`
+- ❌ `voj-api.up.railway.app`는 **존재하지 않는 잘못된 주소** — 절대 사용 금지
+
+## 배포
+
+### 배포 스크립트
+
+| 스크립트 | 용도 |
+|----------|------|
+| `scripts/deploy-app.sh` | 모바일 앱 빌드 → R2 업로드 → metadata 업데이트 → 다운로드 페이지 배포 |
+| `scripts/deploy-frontend.sh` | Vercel 프론트엔드 프로덕션 배포 |
+| `scripts/deploy-backend.sh` | Railway 백엔드 배포 안내 및 헬스체크 |
+
+- 백엔드는 main 브랜치 푸시 시 Railway가 자동 배포
+- 앱 배포(`deploy-app.sh`)는 download-page 재배포를 자동 포함
+
+### 모바일 앱 버전 관리
+
+- APK를 새로 빌드할 때마다 **반드시 버전을 올릴 것**
+- 버전은 `mobile/pubspec.yaml`의 `version` 필드에서 관리 (형식: `X.Y.Z+buildNumber`)
+- patch 수정은 Z를, 기능 추가는 Y를, 큰 변경은 X를 올림
+- `+` 뒤의 buildNumber도 매 빌드마다 1씩 증가
+- R2에는 버전별 파일(`voice-of-juan-v{VERSION}.apk`)만 업로드 (latest.apk 사용하지 않음)
+- 로그인 화면 하단 버전 표시는 `package_info_plus`로 `pubspec.yaml`에서 자동 읽기 (수동 업데이트 불필요)
+
 ## 중요 참고사항
 
 - 확실하지 않은 Cloudflare 설정이 있으면, 반드시 공식 문서를 웹 검색해서 확인할 것

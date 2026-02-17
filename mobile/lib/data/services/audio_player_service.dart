@@ -119,10 +119,11 @@ class AudioPlayerService {
         await _restorePlaybackPosition();
       }
 
-      await _player.play();
+      // play()는 await하면 오디오가 끝날 때까지 블로킹됨 → await 제거
+      _player.play();
       _startProgressTracking();
       _analyticsService.startPlaySession(bookId: book.id, chapterId: chapter.id);
-      await _feedbackService.announce('${chapter.displayName} 재생을 시작합니다', withHaptic: true);
+      _feedbackService.announce('${chapter.displayName} 재생을 시작합니다', withHaptic: true);
     } on AudioServiceException catch (error) {
       // 실패 시 stale 상태 초기화 (다음 시도에서 전체 재로드 보장)
       _currentBook = null;
@@ -147,7 +148,7 @@ class AudioPlayerService {
 
   /// 재생
   Future<void> play() async {
-    await _player.play();
+    _player.play();
     _startProgressTracking();
   }
 
@@ -161,7 +162,7 @@ class AudioPlayerService {
 
   /// 재생 재개
   Future<void> resume() async {
-    await _player.play();
+    _player.play();
     _startProgressTracking();
   }
 

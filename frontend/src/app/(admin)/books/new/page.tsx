@@ -82,10 +82,10 @@ export default function NewBookPage() {
         language: formData.language,
       });
 
-      // 성공 알림
-      success(`"${newBook.title}" 책이 성공적으로 등록되었습니다.`);
+      // 성공 알림 후 편집 페이지로 이동 (커버 이미지 등 추가 설정 가능)
+      success(`"${newBook.title}" 책이 등록되었습니다. 커버 이미지를 설정할 수 있습니다.`);
 
-      router.push("/books");
+      router.push(`/books/${newBook.book_id}`);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "책 등록에 실패했습니다.";

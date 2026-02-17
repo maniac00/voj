@@ -54,6 +54,8 @@ class BookUpdate(BaseModel):
     isbn: Optional[str] = None
     publisher: Optional[str] = Field(None, max_length=100)
     published_date: Optional[datetime] = None
+    cover_image_url: Optional[str] = Field(None, description="커버 이미지 URL")
+    cover_image_key: Optional[str] = Field(None, description="커버 이미지 스토리지 키")
 
 
 class Book(BookBase):
@@ -310,9 +312,22 @@ async def update_book(
             isbn=book_data.isbn,
             publisher=book_data.publisher,
             published_date=book_data.published_date,
+            cover_image_url=book_data.cover_image_url,
+            cover_image_key=book_data.cover_image_key,
         )
         if updated is None:
             raise HTTPException(status_code=500, detail="Failed to update book")
+
+        # 커버 이미지 명시적 null 처리 (삭제 시)
+        explicit_fields = book_data.model_fields_set if hasattr(book_data, 'model_fields_set') else set()
+        if "cover_image_url" in explicit_fields and book_data.cover_image_url is None:
+            found.cover_image_url = None
+        if "cover_image_key" in explicit_fields and book_data.cover_image_key is None:
+            found.cover_image_key = None
+        if explicit_fields & {"cover_image_url", "cover_image_key"}:
+            db.commit()
+            db.refresh(found)
+            updated = found
         return {
             "book_id": updated.book_id,
             "user_id": updated.user_id,

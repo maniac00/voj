@@ -7,9 +7,11 @@ import {
   deleteBook,
   getBook,
   updateBook,
+  uploadBookCover,
   BookDto,
   UpdateBookPayload,
 } from "@/lib/api";
+import { getStoredUser } from "@/lib/auth/simple-auth";
 import { DeleteBookDialog } from "@/components/ui/delete-book-dialog";
 import { FormSkeleton } from "@/components/ui/loading-spinner";
 import { ErrorState } from "@/components/ui/error-state";
@@ -43,6 +45,8 @@ export default function EditBookPage() {
   const [saving, setSaving] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const [coverProgress, setCoverProgress] = useState(0);
 
   useEffect(() => {
     const loadBook = async () => {
@@ -145,6 +149,68 @@ export default function EditBookPage() {
       setErrors({ general: errorMessage });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 파일 타입 검증
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      showError("JPG, PNG, WebP 형식의 이미지만 업로드 가능합니다.");
+      return;
+    }
+
+    // 파일 크기 검증 (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      showError("이미지 파일은 5MB 이하만 업로드 가능합니다.");
+      return;
+    }
+
+    const user = getStoredUser();
+    if (!user) {
+      showError("로그인이 필요합니다.");
+      return;
+    }
+
+    setCoverUploading(true);
+    setCoverProgress(0);
+
+    try {
+      const updatedBook = await uploadBookCover(
+        bookId,
+        user.sub || user.username,
+        file,
+        (percent) => setCoverProgress(percent),
+      );
+      setBook(updatedBook);
+      success("커버 이미지가 업로드되었습니다.");
+    } catch (err) {
+      showError(
+        err instanceof Error ? err.message : "커버 이미지 업로드에 실패했습니다.",
+      );
+    } finally {
+      setCoverUploading(false);
+      setCoverProgress(0);
+      // input 초기화
+      e.target.value = "";
+    }
+  };
+
+  const handleCoverRemove = async () => {
+    try {
+      const updatedBook = await updateBook(bookId, {
+        cover_image_url: null,
+        cover_image_key: null,
+      });
+      setBook(updatedBook);
+      success("커버 이미지가 삭제되었습니다.");
+    } catch (err) {
+      showError(
+        err instanceof Error ? err.message : "커버 이미지 삭제에 실패했습니다.",
+      );
     }
   };
 
@@ -477,6 +543,102 @@ export default function EditBookPage() {
 
         {/* 오른쪽: 책 정보 및 빠른 작업 */}
         <div className="space-y-6">
+          {/* 커버 이미지 */}
+          <div className="bg-white shadow-sm rounded-lg border border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">커버 이미지</h3>
+            </div>
+            <div className="p-6">
+              {b.cover_image_url ? (
+                <div className="space-y-3">
+                  <div className="relative aspect-[3/4] w-full overflow-hidden rounded-md border border-gray-200 bg-gray-50">
+                    <img
+                      src={b.cover_image_url}
+                      alt={`${b.title} 커버`}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <label className="flex-1 cursor-pointer">
+                      <span className="flex items-center justify-center w-full px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                        변경
+                      </span>
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handleCoverUpload}
+                        disabled={coverUploading}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleCoverRemove}
+                      className="flex-1 px-3 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100"
+                    >
+                      삭제
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center aspect-[3/4] w-full rounded-md border-2 border-dashed border-gray-300 bg-gray-50">
+                    <div className="text-center">
+                      <svg
+                        className="mx-auto h-10 w-10 text-gray-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z"
+                        />
+                      </svg>
+                      <p className="mt-2 text-sm text-gray-500">
+                        이미지 없음
+                      </p>
+                    </div>
+                  </div>
+                  <label className="cursor-pointer">
+                    <span className="flex items-center justify-center w-full px-3 py-2 text-sm font-medium text-white bg-black border border-transparent rounded-md hover:bg-gray-800">
+                      이미지 업로드
+                    </span>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handleCoverUpload}
+                      disabled={coverUploading}
+                    />
+                  </label>
+                </div>
+              )}
+
+              {/* 업로드 진행률 */}
+              {coverUploading && (
+                <div className="mt-3">
+                  <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
+                    <span>업로드 중...</span>
+                    <span>{coverProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-black h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${coverProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <p className="mt-2 text-xs text-gray-500">
+                JPG, PNG, WebP / 최대 5MB
+              </p>
+            </div>
+          </div>
+
           {/* 책 상태 정보 */}
           <div className="bg-white shadow-sm rounded-lg border border-gray-200">
             <div className="px-6 py-4 border-b border-gray-200">

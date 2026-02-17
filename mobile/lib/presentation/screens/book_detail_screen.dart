@@ -213,50 +213,24 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
             width: double.infinity,
             height: 54,
             child: ElevatedButton(
-              onPressed: _isLoadingPlayback
-                  ? null
-                  : () => _playFromSavedOrFirst(context, ref, book),
+              onPressed: () => _playFromSavedOrFirst(context, ref, book),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF5D4037),
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: const Color(0xFF8D7B68),
-                disabledForegroundColor: Colors.white70,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: _isLoadingPlayback
-                  ? const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
-                          ),
-                        ),
-                        SizedBox(width: 12),
-                        Text(
-                          '재생 준비 중...',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    )
-                  : Text(
-                      _savedState != null
-                          ? '\u25B6  ${_savedState!.resumeLabel}'
-                          : '\u25B6  처음부터 재생 시작',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+              child: Text(
+                _savedState != null
+                    ? '\u25B6  ${_savedState!.resumeLabel}'
+                    : '\u25B6  처음부터 재생 시작',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ),
 
@@ -354,32 +328,19 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
           ),
           const SizedBox(width: 12),
           GestureDetector(
-            onTap: _isLoadingPlayback
-                ? null
-                : () => _playSpecificAudioFile(context, ref, book, chapter),
+            onTap: () => _playSpecificAudioFile(context, ref, book, chapter),
             child: Container(
               width: 36,
               height: 36,
-              decoration: BoxDecoration(
-                color: _isLoadingPlayback
-                    ? const Color(0xFF8D7B68)
-                    : const Color(0xFF3E2723),
+              decoration: const BoxDecoration(
+                color: Color(0xFF3E2723),
                 shape: BoxShape.circle,
               ),
-              child: _isLoadingPlayback
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
-                      ),
-                    )
-                  : const Icon(
-                      Icons.play_arrow,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+              child: const Icon(
+                Icons.play_arrow,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
           ),
         ],
@@ -449,12 +410,49 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
     int? startPosition,
   }) async {
     if (_isLoadingPlayback) return;
+    _isLoadingPlayback = true;
 
-    setState(() => _isLoadingPlayback = true);
     final controller = ref.read(audioPlayerControllerProvider);
 
+    // 모달 오버레이 표시
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black54,
+      builder: (context) => PopScope(
+        canPop: false,
+        child: Center(
+          child: Card(
+            color: const Color(0xFFFFFDF8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 32, vertical: 28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(
+                    color: Color(0xFF5D4037),
+                  ),
+                  SizedBox(height: 20),
+                  Text(
+                    '재생을 준비하고 있습니다',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF3E2723),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
     try {
-      // 재생 완료를 기다린 후 화면 전환
       await controller.playChapter(
         book: book,
         chapter: chapter,
@@ -463,9 +461,8 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
       );
 
       if (!context.mounted) return;
-      setState(() => _isLoadingPlayback = false);
+      Navigator.pop(context); // 모달 닫기
 
-      // 재생 성공 시 플레이어 화면으로 이동
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -477,13 +474,15 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
       });
     } catch (e) {
       if (!context.mounted) return;
-      setState(() => _isLoadingPlayback = false);
+      Navigator.pop(context); // 모달 닫기
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('재생 중 오류가 발생했습니다: $e'),
           backgroundColor: Colors.red,
         ),
       );
+    } finally {
+      _isLoadingPlayback = false;
     }
   }
 }

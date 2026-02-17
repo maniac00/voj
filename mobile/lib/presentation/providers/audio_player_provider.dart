@@ -172,35 +172,8 @@ class AudioPlayerController {
 
       _ref.read(audioPlayerLoadingProvider.notifier).state = false;
 
-      // 상태 WebSocket 구독 (기존 구독 해제 후 재구독)
-      await _statusSub?.cancel();
-      await _statusWs?.dispose();
-      _statusWs = StatusWebSocketService(chapter.id);
-      await _statusWs!.connect();
-      _statusSub = _statusWs!.stream.listen((event) async {
-        final type = event['type'] as String?;
-        if (type == 'chapter_status') {
-          final status = (event['status'] ?? '').toString().toLowerCase();
-          String? text;
-          switch (status) {
-            case 'processing':
-              text = '인코딩 중';
-              break;
-            case 'ready':
-              text = '재생 가능';
-              break;
-            case 'failed':
-              text = '실패';
-              break;
-          }
-          _ref.read(currentChapterStatusProvider.notifier).state = text;
-        } else if (type == 'error') {
-          final msg = (event['message'] ?? '상태 채널 오류').toString();
-          _ref.read(currentChapterStatusProvider.notifier).state = '오류';
-          final accessibility = _ref.read(accessibilityFeedbackProvider);
-          await accessibility.error(msg);
-        }
-      });
+      // 상태 WebSocket 구독 (fire-and-forget — 재생 시작을 블로킹하지 않음)
+      _connectStatusWebSocket(chapter.id);
 
     } catch (e) {
       _ref.read(audioPlayerLoadingProvider.notifier).state = false;
@@ -285,6 +258,38 @@ class AudioPlayerController {
     _statusSub = null;
     _statusWs?.dispose();
     _statusWs = null;
+  }
+
+  /// 상태 WebSocket을 비동기로 연결 (fire-and-forget)
+  void _connectStatusWebSocket(String chapterId) async {
+    await _statusSub?.cancel();
+    await _statusWs?.dispose();
+    _statusWs = StatusWebSocketService(chapterId);
+    _statusWs!.connect().catchError((_) {});
+    _statusSub = _statusWs!.stream.listen((event) async {
+      final type = event['type'] as String?;
+      if (type == 'chapter_status') {
+        final status = (event['status'] ?? '').toString().toLowerCase();
+        String? text;
+        switch (status) {
+          case 'processing':
+            text = '인코딩 중';
+            break;
+          case 'ready':
+            text = '재생 가능';
+            break;
+          case 'failed':
+            text = '실패';
+            break;
+        }
+        _ref.read(currentChapterStatusProvider.notifier).state = text;
+      } else if (type == 'error') {
+        final msg = (event['message'] ?? '상태 채널 오류').toString();
+        _ref.read(currentChapterStatusProvider.notifier).state = '오류';
+        final accessibility = _ref.read(accessibilityFeedbackProvider);
+        await accessibility.error(msg);
+      }
+    });
   }
 
   /// 미니 플레이어 숨기기

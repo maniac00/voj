@@ -17,7 +17,7 @@ class AudioPlayerScreen extends ConsumerStatefulWidget {
 class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
   bool _showPlaylist = false;
 
-  void _goBack() {
+  Future<void> _goBack() async {
     // 현재 재생 위치를 로컬에 저장
     final book = ref.read(currentBookProvider);
     final chapter = ref.read(currentChapterProvider);
@@ -33,8 +33,8 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
         positionSeconds: service.position.inSeconds,
       );
     }
-    ref.read(audioPlayerControllerProvider).stop();
-    Navigator.pop(context);
+    await ref.read(audioPlayerControllerProvider).stop();
+    if (mounted) Navigator.pop(context);
   }
 
   @override

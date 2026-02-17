@@ -119,8 +119,12 @@ class AudioPlayerService {
         await _restorePlaybackPosition();
       }
 
-      // play()는 await하면 오디오가 끝날 때까지 블로킹됨 → await 제거
-      _player.play();
+      // play()를 await하면 오디오가 끝날 때까지 블로킹되므로 unawaited 처리하고,
+      // 대신 playingStream으로 "재생 시작"만 확인한 뒤 반환
+      unawaited(_player.play());
+      await _player.playingStream
+          .firstWhere((playing) => playing)
+          .timeout(const Duration(seconds: 5), onTimeout: () => true);
       _startProgressTracking();
       _analyticsService.startPlaySession(bookId: book.id, chapterId: chapter.id);
       _feedbackService.announce('${chapter.displayName} 재생을 시작합니다', withHaptic: true);

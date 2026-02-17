@@ -52,8 +52,7 @@ export function FileUploadForm({
   const [validationResults, setValidationResults] = useState<Map<string, any>>(
     new Map(),
   );
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [processingPhase, setProcessingPhase] = useState<"validating" | "uploading">("validating");
+  const [processingPhase, setProcessingPhase] = useState<"validating" | "uploading" | null>(null);
 
   const handleFileSelect = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -62,7 +61,6 @@ export function FileUploadForm({
 
     if (files.length === 0) return;
 
-    setShowUploadModal(true);
     setProcessingPhase("validating");
 
     try {
@@ -73,7 +71,7 @@ export function FileUploadForm({
         const duplicateNames = duplicates
           .map((d) => d.duplicate.name)
           .join(", ");
-        setShowUploadModal(false);
+        setProcessingPhase(null);
         showError(`중복된 파일이 있습니다: ${duplicateNames}`);
         return;
       }
@@ -93,7 +91,7 @@ export function FileUploadForm({
         });
 
         if (validationResult.validFiles.length === 0) {
-          setShowUploadModal(false);
+          setProcessingPhase(null);
           return;
         }
       }
@@ -144,9 +142,9 @@ export function FileUploadForm({
       // 9. 업로드 시작 (방금 추가한 목록으로 즉시 시작)
       setProcessingPhase("uploading");
       await uploadAll(bookId, newItems);
-      setShowUploadModal(false);
+      setProcessingPhase(null);
     } catch (error) {
-      setShowUploadModal(false);
+      setProcessingPhase(null);
       showError(
         `파일 처리 중 오류가 발생했습니다: ${error instanceof Error ? error.message : "알 수 없는 오류"}`,
       );
@@ -234,69 +232,53 @@ export function FileUploadForm({
         </div>
       </div>
 
-      {/* 업로드 진행 모달 */}
-      {showUploadModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* 배경 오버레이 */}
-          <div className="absolute inset-0 bg-black/50" />
-
-          {/* 모달 본체 */}
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              {processingPhase === "validating"
-                ? "파일 검증 중..."
-                : "업로드 처리 중..."}
-            </h3>
-
-            <p className="text-sm text-gray-500 mb-4">
-              {processingPhase === "validating"
-                ? "파일을 분석하고 검증하고 있습니다. 잠시만 기다려 주세요."
-                : "업로드가 완료될 때까지 이 창이 유지됩니다. 잠시만 기다려 주세요."}
-            </p>
-
-            {/* 업로드 항목이 있으면 진행률 표시 */}
-            {uploadItems.length > 0 && (
-              <BatchUploadProgress
-                items={uploadItems.map((item) => ({
-                  id: item.id,
-                  file: item.file,
-                  progress: item.progress,
-                  status: item.status,
-                  error: item.error,
-                }))}
-                onCancel={cancelUpload}
-                onRetry={retryItem}
-                onRemove={removeItem}
-                onClearCompleted={clearCompleted}
+      {/* 업로드 진행률 (인라인) */}
+      {processingPhase === "validating" && uploadItems.length === 0 && (
+        <div className="mt-4 bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center space-x-3">
+            <svg
+              className="animate-spin h-5 w-5 text-gray-600"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
               />
-            )}
-
-            {/* 검증 중 로딩 스피너 */}
-            {processingPhase === "validating" && uploadItems.length === 0 && (
-              <div className="flex items-center justify-center py-8">
-                <svg
-                  className="animate-spin h-8 w-8 text-gray-600"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-              </div>
-            )}
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
+            <span className="text-sm text-gray-600">파일을 검증하고 있습니다...</span>
           </div>
+        </div>
+      )}
+
+      {uploadItems.length > 0 && (
+        <div className="mt-4 bg-white rounded-lg border border-gray-200 p-4">
+          <h3 className="text-sm font-medium text-gray-900 mb-3">
+            {isUploading ? "업로드 처리 중..." : "업로드 완료"}
+          </h3>
+          <BatchUploadProgress
+            items={uploadItems.map((item) => ({
+              id: item.id,
+              file: item.file,
+              progress: item.progress,
+              status: item.status,
+              error: item.error,
+            }))}
+            onCancel={cancelUpload}
+            onRetry={retryItem}
+            onRemove={removeItem}
+            onClearCompleted={clearCompleted}
+          />
         </div>
       )}
 

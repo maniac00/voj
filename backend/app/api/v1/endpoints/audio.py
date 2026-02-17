@@ -307,11 +307,49 @@ async def update_chapter_order(
     if not chapter:
         raise HTTPException(status_code=404, detail="Chapter not found")
 
-    try:
-        chapter.chapter_number = new_number
-        db.commit()
-        db.refresh(chapter)
+    old_number = chapter.chapter_number
+    if old_number == new_number:
+        file_name = _extract_file_name(chapter.audio_key)
+        return AudioChapter(
+            chapter_id=chapter.chapter_id,
+            book_id=chapter.book_id,
+            chapter_number=int(chapter.chapter_number),
+            title=chapter.chapter_title or "",
+            description="",
+            file_name=file_name,
+            file_size=int(chapter.file_size or 0),
+            duration=int(chapter.duration or 0),
+            status="ready",
+            created_at=chapter.created_at,
+            updated_at=chapter.updated_at,
+        )
 
+    try:
+        # 충돌하는 챕터가 있는지 확인
+        conflicting = (
+            db.query(AudioChapterSQL)
+            .filter(
+                and_(
+                    AudioChapterSQL.book_id == book_id,
+                    AudioChapterSQL.chapter_number == new_number,
+                )
+            )
+            .first()
+        )
+
+        if conflicting:
+            # 임시 번호로 충돌 회피 후 스왑
+            conflicting.chapter_number = -1
+            db.flush()
+            chapter.chapter_number = new_number
+            db.flush()
+            conflicting.chapter_number = old_number
+            db.commit()
+        else:
+            chapter.chapter_number = new_number
+            db.commit()
+
+        db.refresh(chapter)
         file_name = _extract_file_name(chapter.audio_key)
 
         return AudioChapter(
@@ -328,6 +366,7 @@ async def update_chapter_order(
             updated_at=chapter.updated_at,
         )
     except Exception as e:
+        db.rollback()
         raise HTTPException(
             status_code=500, detail=f"Failed to update chapter order: {str(e)}"
         )

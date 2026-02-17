@@ -120,18 +120,15 @@ export default function BookAudiosPage() {
           ? Math.max(1, chapter.chapter_number - 1)
           : chapter.chapter_number + 1;
 
-      const updated = await reorderChapter(
-        bookId,
-        chapter.chapter_id,
-        newNumber,
+      await reorderChapter(bookId, chapter.chapter_id, newNumber);
+
+      // 스왑된 상대 챕터도 반영하기 위해 전체 목록 새로고침
+      const freshChapters = await getChapters(bookId);
+      const sortedChapters = freshChapters.sort(
+        (a, b) => a.chapter_number - b.chapter_number,
       );
-
-      const updatedChapters = chapters
-        .map((x) => (x.chapter_id === chapter.chapter_id ? updated : x))
-        .sort((a, b) => a.chapter_number - b.chapter_number);
-
-      setChapters(updatedChapters);
-      setFilteredChapters(updatedChapters);
+      setChapters(sortedChapters);
+      setFilteredChapters(sortedChapters);
     } catch (err) {
       throw err; // ChapterList에서 에러 처리
     }

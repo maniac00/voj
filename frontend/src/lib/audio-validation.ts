@@ -31,8 +31,8 @@ const DEFAULT_OPTIONS: AudioValidationOptions = {
   maxFileSize: 100 * 1024 * 1024, // 100MB
   minDuration: 10, // 10초 이상
   maxDuration: 4 * 60 * 60, // 4시간 이하
-  // MVP: mp4 컨테이너만 허용 (m4a 포함)
-  allowedFormats: [".mp4", ".m4a"],
+  // mp4 컨테이너 (m4a 포함) + MP3 + WAV (클라이언트에서 M4A로 변환)
+  allowedFormats: [".mp4", ".m4a", ".mp3", ".wav"],
   minBitrate: 32, // 32kbps 이상
   maxBitrate: 320, // 320kbps 이하
   allowedSampleRates: [8000, 11025, 16000, 22050, 44100, 48000],
@@ -110,6 +110,11 @@ function validateMimeType(file: File): string | null {
   const allowedMimeTypes = [
     "audio/mp4", // M4A/MP4 (오디오)
     "audio/x-m4a", // 일부 브라우저에서 보고
+    "audio/mpeg", // MP3
+    "audio/mp3", // MP3 (일부 브라우저)
+    "audio/wav", // WAV
+    "audio/wave", // WAV (일부 브라우저)
+    "audio/x-wav", // WAV (일부 브라우저)
   ];
 
   if (!allowedMimeTypes.includes(file.type)) {
@@ -127,9 +132,14 @@ async function validateFileHeader(file: File): Promise<string | null> {
     const buffer = await file.slice(0, 12).arrayBuffer();
     const bytes = new Uint8Array(buffer);
 
-    // ID3 태그로 시작하는 MP3는 유효로 간주 (프레임은 태그 뒤에 위치)
+    // MP3: ID3 태그로 시작하는 경우
     if (bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) {
       // 'ID3'
+      return null;
+    }
+
+    // MP3: sync word (0xFF 0xE0+ = frame sync bits)
+    if (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0) {
       return null;
     }
 
@@ -141,6 +151,20 @@ async function validateFileHeader(file: File): Promise<string | null> {
       bytes[7] === 0x70
     ) {
       return null; // 유효한 M4A
+    }
+
+    // WAV 검증 (RIFF....WAVE 매직넘버)
+    if (
+      bytes[0] === 0x52 && // R
+      bytes[1] === 0x49 && // I
+      bytes[2] === 0x46 && // F
+      bytes[3] === 0x46 && // F
+      bytes[8] === 0x57 && // W
+      bytes[9] === 0x41 && // A
+      bytes[10] === 0x56 && // V
+      bytes[11] === 0x45 // E
+    ) {
+      return null; // 유효한 WAV
     }
 
     return "파일 헤더가 올바르지 않습니다. 손상된 파일이거나 지원되지 않는 형식일 수 있습니다.";
@@ -501,9 +525,12 @@ export function quickValidateAudioFile(file: File): {
   isValid: boolean;
   error?: string;
 } {
-  // 파일 크기
-  if (file.size > 100 * 1024 * 1024) {
-    return { isValid: false, error: "파일 크기가 100MB를 초과합니다." };
+  // 파일 크기 (WAV는 500MB, 기타 100MB)
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  const maxSize = ext === "wav" ? 500 * 1024 * 1024 : 100 * 1024 * 1024;
+  if (file.size > maxSize) {
+    const maxSizeMB = Math.round(maxSize / (1024 * 1024));
+    return { isValid: false, error: `파일 크기가 ${maxSizeMB}MB를 초과합니다.` };
   }
 
   if (file.size < 1024) {
@@ -511,7 +538,7 @@ export function quickValidateAudioFile(file: File): {
   }
 
   // 파일 형식
-  const allowedTypes = ["audio/mpeg", "audio/wav", "audio/mp4", "audio/flac"];
+  const allowedTypes = ["audio/mpeg", "audio/mp3", "audio/wav", "audio/mp4", "audio/flac"];
   if (!allowedTypes.includes(file.type)) {
     return { isValid: false, error: "지원되지 않는 파일 형식입니다." };
   }

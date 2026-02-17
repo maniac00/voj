@@ -137,8 +137,8 @@ async def upload_file(
         )
 
     # 파일 형식 검증
-    # MVP: mp4 컨테이너만 허용 (audio/mp4, audio/x-m4a)
-    allowed_audio_types = ["audio/mp4", "audio/x-m4a"]
+    # MP4/M4A/MP3 허용
+    allowed_audio_types = ["audio/mp4", "audio/x-m4a", "audio/mpeg", "audio/mp3"]
     allowed_image_types = ["image/jpeg", "image/png", "image/webp"]
     allowed_types = allowed_audio_types + allowed_image_types
 
@@ -158,7 +158,7 @@ async def upload_file(
         if (
             settings.ENVIRONMENT in ("production", "railway")
             and file_type == "upload"
-            and file.content_type in ["audio/mp4", "audio/x-m4a"]
+            and file.content_type in ["audio/mp4", "audio/x-m4a", "audio/mpeg", "audio/mp3"]
         ):
             prefix = "media"
 
@@ -226,11 +226,11 @@ async def upload_audio_file(
             detail=f"File size exceeds limit. Maximum allowed: {max_size / (1024*1024):.1f}MB",
         )
 
-    # MVP: mp4/m4a만 허용 (간단 검증)
+    # MP4/M4A/MP3 허용
     filename = (file.filename or "").lower()
-    if not (filename.endswith(".mp4") or filename.endswith(".m4a")):
+    if not (filename.endswith(".mp4") or filename.endswith(".m4a") or filename.endswith(".mp3")):
         raise HTTPException(
-            status_code=400, detail="Only .mp4/.m4a files are allowed in MVP"
+            status_code=400, detail="Only .mp4/.m4a/.mp3 files are allowed"
         )
 
     try:

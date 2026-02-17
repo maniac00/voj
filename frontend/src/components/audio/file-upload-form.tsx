@@ -45,9 +45,9 @@ export function FileUploadForm({
   } = useBatchFileUpload();
 
   // 지원되는 오디오 파일 형식
-  // MVP: mp4/m4a만 업로드 허용
-  const acceptedFormats = [".mp4", ".m4a"];
-  const maxFileSize = 100 * 1024 * 1024; // 100MB
+  // mp4/m4a/mp3 직접 업로드 + WAV (클라이언트에서 M4A로 자동 변환)
+  const acceptedFormats = [".mp4", ".m4a", ".mp3", ".wav"];
+  const maxFileSize = 500 * 1024 * 1024; // 500MB (WAV 대응)
 
   const [validationResults, setValidationResults] = useState<Map<string, any>>(
     new Map(),
@@ -219,6 +219,7 @@ export function FileUploadForm({
             <p>지원 형식: {acceptedFormats.join(", ")}</p>
             <p>최대 파일 크기: {Math.round(maxFileSize / (1024 * 1024))}MB</p>
             <p>여러 파일을 동시에 선택할 수 있습니다.</p>
+            <p className="text-amber-600">WAV 파일은 자동으로 M4A로 변환됩니다. MP3는 변환 없이 업로드됩니다.</p>
           </div>
         </div>
       </div>
@@ -296,7 +297,7 @@ export function QuickUploadButton({
         ref={fileInputRef}
         type="file"
         multiple
-        accept=".mp4,.m4a"
+        accept=".mp4,.m4a,.mp3,.wav"
         onChange={handleFileChange}
         className="sr-only"
         disabled={disabled}

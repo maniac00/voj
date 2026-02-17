@@ -117,7 +117,10 @@ export function getStoredToken(): string | null {
     const match = document.cookie
       .split("; ")
       .find((row) => row.startsWith("voj_access_token="));
-    return match ? match.split("=")[1] : null;
+    if (!match) return null;
+    // indexOf로 첫 번째 '=' 이후 전체를 반환 (base64 패딩 '=' 보존)
+    const eqIdx = match.indexOf("=");
+    return eqIdx >= 0 ? match.substring(eqIdx + 1) : null;
   }
   return null;
 }

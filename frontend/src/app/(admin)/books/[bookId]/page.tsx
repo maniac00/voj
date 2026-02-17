@@ -11,7 +11,7 @@ import {
   BookDto,
   UpdateBookPayload,
 } from "@/lib/api";
-import { getStoredUser } from "@/lib/auth/simple-auth";
+import { getStoredUser, getAuthHeaders } from "@/lib/auth/simple-auth";
 import { DeleteBookDialog } from "@/components/ui/delete-book-dialog";
 import { FormSkeleton } from "@/components/ui/loading-spinner";
 import { ErrorState } from "@/components/ui/error-state";
@@ -47,6 +47,37 @@ export default function EditBookPage() {
   const [deleting, setDeleting] = useState(false);
   const [coverUploading, setCoverUploading] = useState(false);
   const [coverProgress, setCoverProgress] = useState(0);
+  const [coverBlobUrl, setCoverBlobUrl] = useState<string | null>(null);
+
+  // 인증된 이미지 로드 (img 태그는 Authorization 헤더를 전송하지 않으므로 fetch로 blob URL 생성)
+  useEffect(() => {
+    if (!book?.cover_image_url) {
+      setCoverBlobUrl(null);
+      return;
+    }
+    let revoked = false;
+    fetch(book.cover_image_url, {
+      headers: { ...getAuthHeaders() },
+      cache: "no-store",
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`${res.status}`);
+        return res.blob();
+      })
+      .then((blob) => {
+        if (!revoked) setCoverBlobUrl(URL.createObjectURL(blob));
+      })
+      .catch(() => {
+        if (!revoked) setCoverBlobUrl(null);
+      });
+    return () => {
+      revoked = true;
+      setCoverBlobUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+    };
+  }, [book?.cover_image_url]);
 
   useEffect(() => {
     const loadBook = async () => {
@@ -552,11 +583,17 @@ export default function EditBookPage() {
               {b.cover_image_url ? (
                 <div className="space-y-3">
                   <div className="relative aspect-[3/4] w-full overflow-hidden rounded-md border border-gray-200 bg-gray-50">
-                    <img
-                      src={b.cover_image_url}
-                      alt={`${b.title} 커버`}
-                      className="h-full w-full object-cover"
-                    />
+                    {coverBlobUrl ? (
+                      <img
+                        src={coverBlobUrl}
+                        alt={`${b.title} 커버`}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center">
+                        <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <label className="flex-1 cursor-pointer">

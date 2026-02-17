@@ -127,10 +127,12 @@ export async function uploadBookCover(
       const xhr = new XMLHttpRequest();
       xhr.open("POST", url);
 
-      const token = document.cookie
+      const cookieMatch = document.cookie
         .split("; ")
-        .find((row) => row.startsWith("voj_access_token="))
-        ?.split("=")[1];
+        .find((row) => row.startsWith("voj_access_token="));
+      const token = cookieMatch
+        ? cookieMatch.substring(cookieMatch.indexOf("=") + 1)
+        : undefined;
       if (token) {
         xhr.setRequestHeader("Authorization", `Bearer ${token}`);
       }

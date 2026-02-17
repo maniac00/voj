@@ -113,6 +113,12 @@ final currentIndexProvider = StateProvider<int>((ref) => 0);
 /// 미니 플레이어 표시 여부 프로바이더
 final showMiniPlayerProvider = StateProvider<bool>((ref) => false);
 
+/// 오디오 재생 에러 프로바이더 (AudioPlayerScreen에서 에러 표시용)
+final audioPlayerErrorProvider = StateProvider<String?>((ref) => null);
+
+/// 오디오 재생 로딩 상태 프로바이더
+final audioPlayerLoadingProvider = StateProvider<bool>((ref) => false);
+
 /// 현재 챕터 상태 텍스트 (WS 기반)
 final currentChapterStatusProvider = StateProvider<String?>((ref) => null);
 
@@ -144,6 +150,10 @@ class AudioPlayerController {
     int? startPosition,
   }) async {
     try {
+      // 에러 초기화, 로딩 시작
+      _ref.read(audioPlayerErrorProvider.notifier).state = null;
+      _ref.read(audioPlayerLoadingProvider.notifier).state = true;
+
       // 상태를 먼저 업데이트하여 UI가 즉시 반영되도록 함
       _ref.read(currentBookProvider.notifier).state = book;
       _ref.read(currentChapterProvider.notifier).state = chapter;
@@ -159,6 +169,8 @@ class AudioPlayerController {
         playlist: playlist,
         startPosition: startPosition,
       );
+
+      _ref.read(audioPlayerLoadingProvider.notifier).state = false;
 
       // 상태 WebSocket 구독 (기존 구독 해제 후 재구독)
       await _statusSub?.cancel();
@@ -191,6 +203,8 @@ class AudioPlayerController {
       });
 
     } catch (e) {
+      _ref.read(audioPlayerLoadingProvider.notifier).state = false;
+      _ref.read(audioPlayerErrorProvider.notifier).state = e.toString();
       rethrow;
     }
   }
@@ -265,6 +279,8 @@ class AudioPlayerController {
     _ref.read(currentIndexProvider.notifier).state = 0;
     _ref.read(showMiniPlayerProvider.notifier).state = false;
     _ref.read(currentChapterStatusProvider.notifier).state = null;
+    _ref.read(audioPlayerErrorProvider.notifier).state = null;
+    _ref.read(audioPlayerLoadingProvider.notifier).state = false;
     _statusSub?.cancel();
     _statusSub = null;
     _statusWs?.dispose();

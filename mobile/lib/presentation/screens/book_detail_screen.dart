@@ -22,6 +22,7 @@ class BookDetailScreen extends ConsumerStatefulWidget {
 
 class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
   SavedPlaybackState? _savedState;
+  bool _isLoadingPlayback = false;
 
   @override
   void initState() {
@@ -103,6 +104,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
   }
 
   Widget _buildBookDetail(BuildContext context, WidgetRef ref, Book book) {
+    final session = ref.watch(authRepositoryProvider).currentSession;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
       child: Column(
@@ -150,8 +152,8 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
                         imageUrl: book.coverUrl!,
                         fit: BoxFit.cover,
                         httpHeaders: {
-                          if (ref.watch(authSessionProvider).valueOrNull != null)
-                            'Authorization': 'Bearer ${ref.watch(authSessionProvider).valueOrNull!.accessToken}',
+                          if (session != null)
+                            'Authorization': 'Bearer ${session.accessToken}',
                         },
                         errorWidget: (context, url, error) =>
                             _buildDefaultCover(),
@@ -211,24 +213,50 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
             width: double.infinity,
             height: 54,
             child: ElevatedButton(
-              onPressed: () => _playFromSavedOrFirst(context, ref, book),
+              onPressed: _isLoadingPlayback
+                  ? null
+                  : () => _playFromSavedOrFirst(context, ref, book),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF5D4037),
                 foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFF8D7B68),
+                disabledForegroundColor: Colors.white70,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: Text(
-                _savedState != null
-                    ? '\u25B6  ${_savedState!.resumeLabel}'
-                    : '\u25B6  처음부터 재생 시작',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              child: _isLoadingPlayback
+                  ? const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          '재생 준비 중...',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Text(
+                      _savedState != null
+                          ? '\u25B6  ${_savedState!.resumeLabel}'
+                          : '\u25B6  처음부터 재생 시작',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
             ),
           ),
 
@@ -326,19 +354,32 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
           ),
           const SizedBox(width: 12),
           GestureDetector(
-            onTap: () => _playSpecificAudioFile(context, ref, book, chapter),
+            onTap: _isLoadingPlayback
+                ? null
+                : () => _playSpecificAudioFile(context, ref, book, chapter),
             child: Container(
               width: 36,
               height: 36,
-              decoration: const BoxDecoration(
-                color: Color(0xFF3E2723),
+              decoration: BoxDecoration(
+                color: _isLoadingPlayback
+                    ? const Color(0xFF8D7B68)
+                    : const Color(0xFF3E2723),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.play_arrow,
-                color: Colors.white,
-                size: 20,
-              ),
+              child: _isLoadingPlayback
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                      ),
+                    )
+                  : const Icon(
+                      Icons.play_arrow,
+                      color: Colors.white,
+                      size: 20,
+                    ),
             ),
           ),
         ],
@@ -400,41 +441,49 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
   }
 
   /// 재생 시작 후 플레이어 화면으로 이동
-  void _playAndNavigate(
+  Future<void> _playAndNavigate(
     BuildContext context,
     WidgetRef ref,
     Book book,
     AudioChapter chapter, {
     int? startPosition,
-  }) {
+  }) async {
+    if (_isLoadingPlayback) return;
+
+    setState(() => _isLoadingPlayback = true);
     final controller = ref.read(audioPlayerControllerProvider);
 
-    // 재생을 비동기로 시작 (await하지 않음)
-    controller.playChapter(
-      book: book,
-      chapter: chapter,
-      playlist: book.chapters,
-      startPosition: startPosition,
-    ).catchError((e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('재생 중 오류가 발생했습니다: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    });
+    try {
+      // 재생 완료를 기다린 후 화면 전환
+      await controller.playChapter(
+        book: book,
+        chapter: chapter,
+        playlist: book.chapters,
+        startPosition: startPosition,
+      );
 
-    // 즉시 플레이어 화면으로 이동, 돌아올 때 상태 다시 로드
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const AudioPlayerScreen(),
-        fullscreenDialog: true,
-      ),
-    ).then((_) {
-      _loadSavedState();
-    });
+      if (!context.mounted) return;
+      setState(() => _isLoadingPlayback = false);
+
+      // 재생 성공 시 플레이어 화면으로 이동
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const AudioPlayerScreen(),
+          fullscreenDialog: true,
+        ),
+      ).then((_) {
+        _loadSavedState();
+      });
+    } catch (e) {
+      if (!context.mounted) return;
+      setState(() => _isLoadingPlayback = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('재생 중 오류가 발생했습니다: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }

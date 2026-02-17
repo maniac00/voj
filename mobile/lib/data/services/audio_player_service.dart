@@ -124,11 +124,21 @@ class AudioPlayerService {
       _analyticsService.startPlaySession(bookId: book.id, chapterId: chapter.id);
       await _feedbackService.announce('${chapter.displayName} 재생을 시작합니다', withHaptic: true);
     } on AudioServiceException catch (error) {
+      // 실패 시 stale 상태 초기화 (다음 시도에서 전체 재로드 보장)
+      _currentBook = null;
+      _currentChapter = null;
+      _playlist = null;
+      _currentIndex = 0;
       await _handleUnauthorizedError(error);
       await _feedbackService.error('오디오 스트리밍에 실패했습니다: ${error.message}');
       _onError?.call(error.message);
       throw AudioPlayerException('오디오 재생 중 오류가 발생했습니다: ${error.message}');
     } catch (error) {
+      // 실패 시 stale 상태 초기화
+      _currentBook = null;
+      _currentChapter = null;
+      _playlist = null;
+      _currentIndex = 0;
       await _feedbackService.error('오디오 재생 중 알 수 없는 오류가 발생했습니다');
       _onError?.call(error.toString());
       throw AudioPlayerException('오디오 재생 중 오류가 발생했습니다: $error');

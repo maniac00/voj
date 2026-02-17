@@ -23,6 +23,7 @@ class BookDetailScreen extends ConsumerStatefulWidget {
 class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
   SavedPlaybackState? _savedState;
   bool _isLoadingPlayback = false;
+  bool _isCancelled = false;
 
   @override
   void initState() {
@@ -371,29 +372,25 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
 
   /// 저장된 위치 또는 처음부터 재생
   void _playFromSavedOrFirst(BuildContext context, WidgetRef ref, Book book) {
-    if (book.chapters.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('재생할 오디오 챕터가 없습니다')),
-      );
-      return;
-    }
+    AudioChapter? chapter;
+    int? startPosition;
 
-    if (_savedState != null) {
-      // 저장된 챕터 찾기
+    if (book.chapters.isNotEmpty && _savedState != null) {
       final savedChapter = book.chapters.where(
         (c) => c.id == _savedState!.chapterId,
       );
       if (savedChapter.isNotEmpty) {
-        _playAndNavigate(
-          context, ref, book, savedChapter.first,
-          startPosition: _savedState!.positionSeconds,
-        );
-        return;
+        chapter = savedChapter.first;
+        startPosition = _savedState!.positionSeconds;
       }
     }
 
-    // 첫 챕터부터 시작
-    _playAndNavigate(context, ref, book, book.chapters.first);
+    chapter ??= book.chapters.isNotEmpty ? book.chapters.first : null;
+
+    _playAndNavigate(
+      context, ref, book, chapter,
+      startPosition: startPosition,
+    );
   }
 
   /// 특정 오디오 파일 재생
@@ -401,16 +398,23 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
     _playAndNavigate(context, ref, book, chapter);
   }
 
+  /// 모달 로딩 취소
+  void _cancelLoading(BuildContext dialogContext) {
+    _isCancelled = true;
+    Navigator.pop(dialogContext);
+  }
+
   /// 재생 시작 후 플레이어 화면으로 이동
   Future<void> _playAndNavigate(
     BuildContext context,
     WidgetRef ref,
     Book book,
-    AudioChapter chapter, {
+    AudioChapter? chapter, {
     int? startPosition,
   }) async {
     if (_isLoadingPlayback) return;
     _isLoadingPlayback = true;
+    _isCancelled = false;
 
     final controller = ref.read(audioPlayerControllerProvider);
 
@@ -419,8 +423,11 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.black54,
-      builder: (context) => PopScope(
+      builder: (dialogContext) => PopScope(
         canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _cancelLoading(dialogContext);
+        },
         child: Center(
           child: Card(
             color: const Color(0xFFFFFDF8),
@@ -444,6 +451,14 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
                       color: Color(0xFF3E2723),
                     ),
                   ),
+                  SizedBox(height: 8),
+                  Text(
+                    '뒤로 가기를 누르면 취소합니다',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF8D6E63),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -453,6 +468,31 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
     );
 
     try {
+      // 챕터가 비어있으면 상세 데이터 재조회
+      if (chapter == null || book.chapters.isEmpty) {
+        ref.invalidate(bookDetailProvider(book.id));
+        final refreshed = await ref.read(bookDetailProvider(book.id).future);
+
+        if (_isCancelled || !context.mounted) return;
+
+        if (refreshed.chapters.isEmpty) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('재생할 오디오 챕터가 없습니다')),
+          );
+          return;
+        }
+
+        book = refreshed;
+        if (chapter == null) {
+          chapter = refreshed.chapters.first;
+        } else {
+          // 원래 지정된 챕터를 새 데이터에서 찾기
+          final match = refreshed.chapters.where((c) => c.id == chapter!.id);
+          chapter = match.isNotEmpty ? match.first : refreshed.chapters.first;
+        }
+      }
+
       await controller.playChapter(
         book: book,
         chapter: chapter,
@@ -460,7 +500,11 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
         startPosition: startPosition,
       );
 
-      if (!context.mounted) return;
+      if (_isCancelled || !context.mounted) {
+        controller.stop();
+        return;
+      }
+
       Navigator.pop(context); // 모달 닫기
 
       Navigator.push(
@@ -473,7 +517,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
         _loadSavedState();
       });
     } catch (e) {
-      if (!context.mounted) return;
+      if (_isCancelled || !context.mounted) return;
       Navigator.pop(context); // 모달 닫기
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -483,6 +527,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
       );
     } finally {
       _isLoadingPlayback = false;
+      _isCancelled = false;
     }
   }
 }

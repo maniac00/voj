@@ -8,6 +8,7 @@ on:
       - '.github/workflows/backend-deploy.yml'
       - 'pyproject.toml'
       - 'poetry.lock'
+  workflow_dispatch:
 
 jobs:
   deploy-railway:

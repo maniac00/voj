@@ -32,6 +32,7 @@ class AudioPlayerService {
 
   Future<void> Function(AudioServiceException error)? _onUnauthorized;
   Future<void> Function(String message)? _onError;
+  Future<bool> Function()? _tokenRefresher;
 
   // 현재 재생 중인 정보
   Book? _currentBook;
@@ -89,6 +90,10 @@ class AudioPlayerService {
 
   void registerErrorHandler(Future<void> Function(String message) handler) {
     _onError = handler;
+  }
+
+  void registerTokenRefresher(Future<bool> Function() refresher) {
+    _tokenRefresher = refresher;
   }
 
   /// 오디오 파일 재생 시작
@@ -178,6 +183,16 @@ class AudioPlayerService {
 
   /// 재생 재개
   Future<void> resume() async {
+    // 백그라운드에서 Firebase 토큰이 자동 갱신되지 않을 수 있으므로
+    // resume 시 강제로 토큰 갱신을 시도한다.
+    if (_tokenRefresher != null) {
+      final oldToken = _authToken;
+      await _tokenRefresher!();
+      if (_authToken != oldToken) {
+        _log.info('Token refreshed on resume');
+      }
+    }
+
     // 토큰이 갱신된 경우 — 만료된 헤더로 요청하면 401 에러 발생
     if (_authToken != _headerToken &&
         _currentBook != null &&

@@ -26,6 +26,17 @@ final audioPlayerServiceProvider = Provider<AudioPlayerService>((ref) {
     await accessibility.error('오디오 재생 오류: $message');
   });
 
+  service.registerTokenRefresher(() async {
+    final refreshed = await authRepo.refreshToken();
+    if (refreshed) {
+      final session = authRepo.currentSession;
+      if (session != null) {
+        service.setAuthToken(session.accessToken);
+      }
+    }
+    return refreshed;
+  });
+
   // 로그 WebSocket 연결 및 접근성 알림 연동
   logService.connect();
   final logSub = logService.stream.listen((event) async {

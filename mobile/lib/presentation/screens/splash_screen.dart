@@ -101,7 +101,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
                 // 앱 이름
                 const Text(
-                  'Voice of Juan',
+                  '주안의 소리',
                   style: TextStyle(
                     fontSize: 36,
                     fontWeight: FontWeight.bold,

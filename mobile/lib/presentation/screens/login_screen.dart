@@ -85,7 +85,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               // 앱 이름
               const Text(
-                'Voice of Juan',
+                '주안의 소리',
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.w800,

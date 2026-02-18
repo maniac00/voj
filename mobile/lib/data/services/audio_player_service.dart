@@ -16,7 +16,16 @@ class AudioPlayerService {
   factory AudioPlayerService() => _instance;
   AudioPlayerService._internal();
 
-  final AudioPlayer _player = AudioPlayer();
+  final AudioPlayer _player = AudioPlayer(
+    audioLoadConfiguration: AudioLoadConfiguration(
+      androidLoadControl: AndroidLoadControl(
+        minBufferDuration: const Duration(seconds: 60),
+        maxBufferDuration: const Duration(minutes: 3),
+        bufferForPlaybackDuration: const Duration(seconds: 5),
+        bufferForPlaybackAfterRebufferDuration: const Duration(seconds: 15),
+      ),
+    ),
+  );
   final AudioService _audioService = AudioService();
   final AccessibilityFeedbackService _feedbackService = const AccessibilityFeedbackService();
   final AnalyticsService _analyticsService = AnalyticsService();
@@ -55,6 +64,7 @@ class AudioPlayerService {
   double get speed => _player.speed;
 
   String? _authToken;
+  String? _headerToken; // setUrl() 시 사용한 토큰 기록
 
   /// 인증 토큰 설정
   void setAuthToken(String token) {
@@ -66,6 +76,7 @@ class AudioPlayerService {
   /// 인증 토큰 클리어
   void clearAuthToken() {
     _authToken = null;
+    _headerToken = null;
     _audioService.clearAuthToken();
     _analyticsService.clearAuthToken();
   }
@@ -102,14 +113,19 @@ class AudioPlayerService {
       _currentChapter = chapter;
       _currentIndex = _playlist!.indexWhere((candidate) => candidate.id == chapter.id);
 
+      // TalkBack 접근성 알림을 오디오 로딩 전에 실행 — play() 이후 호출 시
+      // TalkBack TTS가 Android 오디오 포커스를 빼앗아 processingState가 idle로 리셋됨
+      await _feedbackService.announce('${chapter.displayName} 재생을 시작합니다', withHaptic: true);
+
       final streaming = await _audioService.getStreamingUrl(
         bookId: book.id,
         chapterId: chapter.id,
       );
+      _headerToken = _authToken;
       await _player.setUrl(
         streaming.absoluteUrl,
-        headers: _authToken != null
-            ? {'Authorization': 'Bearer $_authToken'}
+        headers: _headerToken != null
+            ? {'Authorization': 'Bearer $_headerToken'}
             : null,
       );
 
@@ -118,7 +134,6 @@ class AudioPlayerService {
       } else {
         await _restorePlaybackPosition();
       }
-
       // play()를 await하면 오디오가 끝날 때까지 블로킹되므로 unawaited 처리하고,
       // 대신 playingStream으로 "재생 시작"만 확인한 뒤 반환
       unawaited(_player.play());
@@ -127,9 +142,7 @@ class AudioPlayerService {
           .timeout(const Duration(seconds: 5), onTimeout: () => true);
       _startProgressTracking();
       _analyticsService.startPlaySession(bookId: book.id, chapterId: chapter.id);
-      _feedbackService.announce('${chapter.displayName} 재생을 시작합니다', withHaptic: true);
     } on AudioServiceException catch (error) {
-      // 실패 시 stale 상태 초기화 (다음 시도에서 전체 재로드 보장)
       _currentBook = null;
       _currentChapter = null;
       _playlist = null;
@@ -138,8 +151,7 @@ class AudioPlayerService {
       await _feedbackService.error('오디오 스트리밍에 실패했습니다: ${error.message}');
       _onError?.call(error.message);
       throw AudioPlayerException('오디오 재생 중 오류가 발생했습니다: ${error.message}');
-    } catch (error) {
-      // 실패 시 stale 상태 초기화
+    } catch (error, stack) {
       _currentBook = null;
       _currentChapter = null;
       _playlist = null;
@@ -166,6 +178,25 @@ class AudioPlayerService {
 
   /// 재생 재개
   Future<void> resume() async {
+    // 토큰이 갱신된 경우 — 만료된 헤더로 요청하면 401 에러 발생
+    if (_authToken != _headerToken &&
+        _currentBook != null &&
+        _currentChapter != null) {
+      _log.info('Token changed since last setUrl, refreshing audio source');
+      final pos = _player.position;
+      final streaming = await _audioService.getStreamingUrl(
+        bookId: _currentBook!.id,
+        chapterId: _currentChapter!.id,
+      );
+      _headerToken = _authToken;
+      await _player.setUrl(
+        streaming.absoluteUrl,
+        headers: _headerToken != null
+            ? {'Authorization': 'Bearer $_headerToken'}
+            : null,
+      );
+      await _player.seek(pos);
+    }
     _player.play();
     _startProgressTracking();
   }

@@ -13,6 +13,7 @@ ENV POETRY_VERSION=1.8.3 \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # 작업 디렉토리

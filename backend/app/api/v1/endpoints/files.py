@@ -2,12 +2,14 @@
 VOJ Audiobooks API - 파일 관리 엔드포인트
 파일 업로드, 다운로드, 관리 기능
 """
+import asyncio
 import hashlib
 import io
 import logging
+import os
+import tempfile
 import uuid
 from datetime import datetime, timezone
-import os
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -27,6 +29,7 @@ from app.models.audio_chapter_sql import AudioChapterSQL
 from app.models.database import get_db
 from app.services.books_sql import BookServiceSQL as BookService
 from app.services.storage.factory import storage_service
+from app.utils.audio_convert import convert_to_m4a, get_audio_duration
 from app.utils.audio_validation import extract_chapter_info
 from app.utils.ffprobe import extract_audio_metadata
 
@@ -226,11 +229,12 @@ async def upload_audio_file(
             detail=f"File size exceeds limit. Maximum allowed: {max_size / (1024*1024):.1f}MB",
         )
 
-    # MP4/M4A/MP3 허용
+    # MP4/M4A/MP3/WAV 허용
     filename = (file.filename or "").lower()
-    if not (filename.endswith(".mp4") or filename.endswith(".m4a") or filename.endswith(".mp3")):
+    allowed_ext = (".mp4", ".m4a", ".mp3", ".wav")
+    if not filename.endswith(allowed_ext):
         raise HTTPException(
-            status_code=400, detail="Only .mp4/.m4a/.mp3 files are allowed"
+            status_code=400, detail=f"Only {', '.join(allowed_ext)} files are allowed"
         )
 
     try:
@@ -249,11 +253,55 @@ async def upload_audio_file(
                 status_code=404, detail="Book not found or access denied"
             )
 
-        # 파일 ID 및 키 생성
         file_id = str(uuid.uuid4())
+        needs_convert = filename.endswith((".mp3", ".wav"))
+
+        # M4A 변환이 필요한 경우: tempfile → ffmpeg → m4a bytes
+        if needs_convert:
+            original_ext = ".mp3" if filename.endswith(".mp3") else ".wav"
+            with tempfile.NamedTemporaryFile(suffix=original_ext, delete=False) as tmp_in:
+                tmp_in.write(file_content)
+                tmp_in_path = tmp_in.name
+            tmp_out_path = tmp_in_path.rsplit(".", 1)[0] + ".m4a"
+            try:
+                ok = await asyncio.to_thread(convert_to_m4a, tmp_in_path, tmp_out_path)
+                if not ok:
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Audio conversion to M4A failed. Is ffmpeg installed?",
+                    )
+                with open(tmp_out_path, "rb") as f:
+                    upload_data = f.read()
+                duration = await asyncio.to_thread(get_audio_duration, tmp_out_path)
+            finally:
+                for p in (tmp_in_path, tmp_out_path):
+                    try:
+                        os.unlink(p)
+                    except OSError:
+                        pass
+            # key의 확장자를 .m4a로 변경
+            m4a_filename = Path(file.filename or "audio.m4a").stem + ".m4a"
+            store_content_type = "audio/mp4"
+        else:
+            # m4a/mp4 파일은 그대로 저장, duration만 추출
+            upload_data = file_content
+            m4a_filename = file.filename or "audio.m4a"
+            store_content_type = "audio/mp4"
+            # duration 추출을 위해 임시 파일 사용
+            with tempfile.NamedTemporaryFile(suffix=".m4a", delete=False) as tmp:
+                tmp.write(file_content)
+                tmp_path = tmp.name
+            try:
+                duration = await asyncio.to_thread(get_audio_duration, tmp_path)
+            finally:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+
         # Store audio under media prefix for streaming
         key = storage_service.generate_key(
-            user_id, book_id, f"{file_id}_{file.filename}", "media"
+            user_id, book_id, f"{file_id}_{m4a_filename}", "media"
         )
 
         # 메타데이터 준비
@@ -263,14 +311,14 @@ async def upload_audio_file(
             "user_id": user_id,
             "book_id": book_id,
             "file_type": "upload",
-            "content_type": file.content_type,
+            "content_type": store_content_type,
         }
 
         # 파일 업로드
         upload_result = await storage_service.upload_file(
-            file_data=io.BytesIO(file_content),
+            file_data=io.BytesIO(upload_data),
             key=key,
-            content_type=file.content_type,
+            content_type=store_content_type,
             metadata=metadata,
         )
 
@@ -303,9 +351,9 @@ async def upload_audio_file(
             chapter_title=final_title,
             audio_key=key,
             audio_url=None,
-            duration=0,
-            file_size=len(file_content),
-            content_type=file.content_type,
+            duration=duration,
+            file_size=len(upload_data),
+            content_type=store_content_type,
             bitrate=None,
             sample_rate=44100,
             channels=1,
@@ -330,8 +378,10 @@ async def upload_audio_file(
             pass
 
         processing_info: Dict[str, Any] = {
-            "encoding_skipped": True,
-            "skip_reason": "encoding disabled in MVP",
+            "converted_to_m4a": needs_convert,
+            "original_size": len(file_content),
+            "final_size": len(upload_data),
+            "duration": duration,
         }
         return AudioUploadResponseDto(
             success=True,
@@ -349,6 +399,119 @@ async def upload_audio_file(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Audio upload failed: {str(e)}")
+
+
+@router.post("/convert-all-to-m4a")
+async def convert_all_to_m4a(
+    claims=Depends(require_any_scope(["admin"])),
+    db: Session = Depends(get_db),
+):
+    """
+    기존 mp3/wav 오디오 파일을 M4A(AAC)로 일괄 변환 (admin 전용).
+    - storage에서 원본 다운로드 → ffmpeg 변환 → 새 key로 업로드 → DB 업데이트
+    """
+    chapters = (
+        db.query(AudioChapterSQL)
+        .filter(
+            AudioChapterSQL.audio_key.isnot(None),
+            (
+                AudioChapterSQL.audio_key.like("%.mp3")
+                | AudioChapterSQL.audio_key.like("%.wav")
+            ),
+        )
+        .all()
+    )
+
+    if not chapters:
+        return {"success": True, "message": "No mp3/wav files to convert", "converted": 0, "failed": 0}
+
+    converted = 0
+    failed = 0
+    total_saved = 0
+
+    for ch in chapters:
+        old_key = ch.audio_key
+        try:
+            # storage에서 원본 다운로드
+            file_data = await storage_service.download_file(old_key)
+            if file_data is None:
+                logger.warning("File not found in storage: %s", old_key)
+                failed += 1
+                continue
+
+            original_size = len(file_data)
+            ext = ".mp3" if old_key.endswith(".mp3") else ".wav"
+
+            # tempfile에 원본 저장 → ffmpeg 변환
+            with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp_in:
+                tmp_in.write(file_data)
+                tmp_in_path = tmp_in.name
+            tmp_out_path = tmp_in_path.rsplit(".", 1)[0] + ".m4a"
+
+            try:
+                ok = await asyncio.to_thread(convert_to_m4a, tmp_in_path, tmp_out_path)
+                if not ok:
+                    logger.error("Conversion failed for %s", old_key)
+                    failed += 1
+                    continue
+
+                with open(tmp_out_path, "rb") as f:
+                    m4a_data = f.read()
+                duration = await asyncio.to_thread(get_audio_duration, tmp_out_path)
+            finally:
+                for p in (tmp_in_path, tmp_out_path):
+                    try:
+                        os.unlink(p)
+                    except OSError:
+                        pass
+
+            # 새 key (확장자만 .m4a로)
+            new_key = old_key.rsplit(".", 1)[0] + ".m4a"
+
+            # 변환된 파일 업로드
+            upload_result = await storage_service.upload_file(
+                file_data=io.BytesIO(m4a_data),
+                key=new_key,
+                content_type="audio/mp4",
+                metadata={"converted_from": old_key},
+            )
+            if not upload_result.success:
+                logger.error("Upload failed for %s: %s", new_key, upload_result.error)
+                failed += 1
+                continue
+
+            # DB 업데이트
+            ch.audio_key = new_key
+            ch.content_type = "audio/mp4"
+            ch.file_size = len(m4a_data)
+            if duration > 0:
+                ch.duration = duration
+            db.commit()
+
+            # 원본 삭제
+            try:
+                await storage_service.delete_file(old_key)
+            except Exception:
+                logger.warning("Could not delete old file: %s", old_key)
+
+            total_saved += original_size - len(m4a_data)
+            converted += 1
+            logger.info("Converted %s → %s (saved %d bytes)", old_key, new_key, original_size - len(m4a_data))
+
+        except Exception as e:
+            logger.error("Error converting %s: %s", old_key, e)
+            failed += 1
+            continue
+
+    return {
+        "success": True,
+        "message": f"Conversion complete: {converted} converted, {failed} failed",
+        "converted": converted,
+        "failed": failed,
+        "total_files": len(chapters),
+        "bytes_saved": total_saved,
+        "mb_saved": round(total_saved / (1024 * 1024), 2),
+    }
 
 
 @router.post("/retry-processing/{chapter_id}")

@@ -126,18 +126,20 @@ final currentChapterStatusProvider = StateProvider<String?>((ref) => null);
 final audioPlayerControllerProvider = Provider<AudioPlayerController>((ref) {
   final controller = AudioPlayerController(ref);
 
-  // 스트림 상태 감시: playing 확인 시 로딩 플래그 해제, ready인데 미재생 시 재생 시작
+  // 스트림 상태 감시
+  // 주의: resume()을 여기서 호출하면 안 됨 — setUrl 도중 ready 이벤트에 반응하여
+  // 조기 play()가 발생하고, setUrl 완료 후 processingState가 idle로 리셋되는 문제 발생
   ref.listen(playerStateProvider, (prev, next) {
     next.whenData((state) {
+      // playing 확인 시 로딩 플래그 해제
       final isInitiating = ref.read(audioPlayerLoadingProvider);
-      if (!isInitiating) return;
-
-      if (state.playing) {
-        // 스트림이 playing을 확인 → 로딩 완료
+      if (isInitiating && state.playing) {
         ref.read(audioPlayerLoadingProvider.notifier).state = false;
-      } else if (state.processingState == ProcessingState.ready) {
-        // 오디오가 ready인데 playing이 아님 → 재생 시작
-        controller.resume();
+      }
+
+      // 챕터 재생 완료 시 자동으로 다음 챕터 재생
+      if (state.processingState == ProcessingState.completed) {
+        controller._autoPlayNext();
       }
     });
   });
@@ -187,8 +189,9 @@ class AudioPlayerController {
         startPosition: startPosition,
       );
 
-      // audioPlayerLoadingProvider는 playerStateProvider 리스너가
-      // state.playing == true를 확인한 후 해제
+      // 서비스에서 play() 후 playingStream.firstWhere(playing)까지 대기 완료됨
+      // 리스너가 이미 loading flag를 해제했을 수 있지만, 안전장치로 여기서도 해제
+      _ref.read(audioPlayerLoadingProvider.notifier).state = false;
 
       // 상태 WebSocket 구독 (fire-and-forget — 재생 시작을 블로킹하지 않음)
       _connectStatusWebSocket(chapter.id);
@@ -230,6 +233,13 @@ class AudioPlayerController {
   /// 재생 속도 설정
   Future<void> setSpeed(double speed) async {
     await _service.setSpeed(speed);
+  }
+
+  /// 챕터 완료 시 자동으로 다음 챕터 재생
+  Future<void> _autoPlayNext() async {
+    if (_service.hasNext) {
+      await skipToNext();
+    }
   }
 
   /// 다음 트랙

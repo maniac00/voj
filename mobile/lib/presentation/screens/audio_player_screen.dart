@@ -24,13 +24,19 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
     final service = ref.read(audioPlayerServiceProvider);
     if (book != null && chapter != null) {
       final prefs = ref.read(sharedPreferencesProvider);
+      // 완료 상태에서 position이 0으로 리셋될 수 있으므로 duration을 사용
+      var positionSec = service.position.inSeconds;
+      final durationSec = service.duration?.inSeconds ?? 0;
+      if (positionSec <= 0 && durationSec > 0) {
+        positionSec = durationSec;
+      }
       LocalPlaybackState.save(
         prefs,
         bookId: book.id,
         chapterId: chapter.id,
         chapterNumber: chapter.chapterNumber,
         chapterFileName: chapter.displayName,
-        positionSeconds: service.position.inSeconds,
+        positionSeconds: positionSec,
       );
     }
     await ref.read(audioPlayerControllerProvider).stop();

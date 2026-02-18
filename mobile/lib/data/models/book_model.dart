@@ -285,7 +285,7 @@ class AudioChapter {
       fileName: json['file_name'] as String? ?? json['fileName'] as String? ?? '',
       streamingUrl: json['streaming_url'] as String?,
       duration: json['duration'] as int? ?? json['duration_seconds'] as int?,
-      chapterNumber: json['chapter_number'] as int? ?? json['sequence'] as int? ?? 0,
+      chapterNumber: json['chapter_number'] as int? ?? json['chapterNumber'] as int? ?? json['sequence'] as int? ?? 0,
       status: AudioChapterStatus.values.firstWhere(
         (e) => e.name == (json['status'] as String? ?? '').toLowerCase(),
         orElse: () => AudioChapterStatus.processing,

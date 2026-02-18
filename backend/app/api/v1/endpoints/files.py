@@ -403,12 +403,15 @@ async def upload_audio_file(
 
 @router.post("/convert-all-to-m4a")
 async def convert_all_to_m4a(
+    dry_run: bool = Query(False, description="True면 변환 대상만 조회"),
+    limit: int = Query(0, ge=0, description="처리할 최대 파일 수 (0=전체)"),
     claims=Depends(require_any_scope(["admin"])),
     db: Session = Depends(get_db),
 ):
     """
     기존 mp3/wav 오디오 파일을 M4A(AAC)로 일괄 변환 (admin 전용).
-    - storage에서 원본 다운로드 → ffmpeg 변환 → 새 key로 업로드 → DB 업데이트
+    - dry_run=true: 변환 대상 목록만 반환 (실제 변환 없음)
+    - limit=N: N개만 처리 (큰 배치를 나눠서 실행 가능)
     """
     chapters = (
         db.query(AudioChapterSQL)
@@ -422,12 +425,22 @@ async def convert_all_to_m4a(
         .all()
     )
 
+    total_found = len(chapters)
+
     if not chapters:
-        return {"success": True, "message": "No mp3/wav files to convert", "converted": 0, "failed": 0}
+        return {"success": True, "message": "No mp3/wav files to convert", "total_found": 0, "converted": 0, "failed": 0}
+
+    if dry_run:
+        files = [{"chapter_id": ch.chapter_id, "audio_key": ch.audio_key, "file_size": ch.file_size} for ch in chapters]
+        return {"success": True, "dry_run": True, "total_found": total_found, "files": files}
+
+    if limit > 0:
+        chapters = chapters[:limit]
 
     converted = 0
     failed = 0
     total_saved = 0
+    results = []
 
     for ch in chapters:
         old_key = ch.audio_key
@@ -436,6 +449,7 @@ async def convert_all_to_m4a(
             file_data = await storage_service.download_file(old_key)
             if file_data is None:
                 logger.warning("File not found in storage: %s", old_key)
+                results.append({"key": old_key, "status": "not_found"})
                 failed += 1
                 continue
 
@@ -452,6 +466,7 @@ async def convert_all_to_m4a(
                 ok = await asyncio.to_thread(convert_to_m4a, tmp_in_path, tmp_out_path)
                 if not ok:
                     logger.error("Conversion failed for %s", old_key)
+                    results.append({"key": old_key, "status": "convert_failed"})
                     failed += 1
                     continue
 
@@ -477,6 +492,7 @@ async def convert_all_to_m4a(
             )
             if not upload_result.success:
                 logger.error("Upload failed for %s: %s", new_key, upload_result.error)
+                results.append({"key": old_key, "status": "upload_failed"})
                 failed += 1
                 continue
 
@@ -494,23 +510,28 @@ async def convert_all_to_m4a(
             except Exception:
                 logger.warning("Could not delete old file: %s", old_key)
 
-            total_saved += original_size - len(m4a_data)
+            saved = original_size - len(m4a_data)
+            total_saved += saved
             converted += 1
-            logger.info("Converted %s → %s (saved %d bytes)", old_key, new_key, original_size - len(m4a_data))
+            results.append({"key": old_key, "new_key": new_key, "status": "ok", "saved": saved, "duration": duration})
+            logger.info("Converted %s → %s (saved %d bytes)", old_key, new_key, saved)
 
         except Exception as e:
             logger.error("Error converting %s: %s", old_key, e)
+            results.append({"key": old_key, "status": "error", "detail": str(e)})
             failed += 1
             continue
 
     return {
         "success": True,
         "message": f"Conversion complete: {converted} converted, {failed} failed",
+        "total_found": total_found,
+        "processed": len(chapters),
         "converted": converted,
         "failed": failed,
-        "total_files": len(chapters),
         "bytes_saved": total_saved,
         "mb_saved": round(total_saved / (1024 * 1024), 2),
+        "results": results,
     }
 
 

@@ -1,7 +1,10 @@
 import 'dart:async';
+import '../../core/utils/logger.dart';
 import '../models/book_model.dart';
 import '../services/book_service.dart';
 import 'auth_repository.dart';
+
+const _log = AppLogger('BookRepository');
 
 /// TTL 기반 캐시 항목
 class _CacheEntry<T> {
@@ -80,7 +83,7 @@ class BookRepository {
       );
     }
 
-    try {
+    Future<BooksResponse> fetchBooks() async {
       final response = await _bookService.getBooks(
         page: page,
         limit: limit,
@@ -98,8 +101,14 @@ class BookRepository {
       }
 
       return response;
+    }
+
+    try {
+      return await fetchBooks();
     } catch (e) {
-      await _handleAuthError(e);
+      if (await _tryRefreshToken(e)) {
+        return await fetchBooks();
+      }
       rethrow;
     }
   }
@@ -115,12 +124,18 @@ class BookRepository {
       // fallthrough to refresh when chapters are empty
     }
 
-    try {
+    Future<Book> fetchBook() async {
       final book = await _bookService.getBookById(bookId);
       _cachedBooks[bookId] = _CacheEntry(book);
       return book;
+    }
+
+    try {
+      return await fetchBook();
     } catch (e) {
-      await _handleAuthError(e);
+      if (await _tryRefreshToken(e)) {
+        return await fetchBook();
+      }
       rethrow;
     }
   }
@@ -140,9 +155,22 @@ class BookRepository {
     _bookService.dispose();
   }
 
-  Future<void> _handleAuthError(dynamic error) async {
-    if (error is BookServiceException && (error.isUnauthorized || error.isForbidden)) {
-      await _authRepository.handleUnauthorized();
+  /// 401 에러 시 토큰 갱신을 시도한다.
+  /// 갱신 성공하면 true (호출자가 재시도), 실패하면 false (세션 삭제 후 에러 전파).
+  Future<bool> _tryRefreshToken(dynamic error) async {
+    if (error is! BookServiceException || !error.isUnauthorized) {
+      return false;
     }
+
+    _log.info('401 에러 발생 — 토큰 갱신 시도');
+    final refreshed = await _authRepository.refreshToken();
+    if (refreshed) {
+      return true;
+    }
+
+    // 갱신 실패 → 세션 삭제
+    _log.warning('토큰 갱신 실패 — 세션 삭제');
+    await _authRepository.handleUnauthorized();
+    return false;
   }
 }

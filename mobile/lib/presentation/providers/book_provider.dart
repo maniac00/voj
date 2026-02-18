@@ -172,6 +172,15 @@ class SearchSearching extends SearchState {
   const SearchSearching(this.query);
 }
 
+// 도서 정렬 순서
+enum BookSortOrder {
+  newest, // 최신순 (createdAt 내림차순)
+  alphabetical, // 가나다순 (title 오름차순)
+}
+
+// 정렬 순서 프로바이더
+final bookSortOrderProvider = StateProvider<BookSortOrder>((ref) => BookSortOrder.newest);
+
 // 현재 재생 중인 책 프로바이더 (추후 오디오 플레이어와 연동)
 final currentPlayingBookProvider = StateProvider<Book?>((ref) => null);
 

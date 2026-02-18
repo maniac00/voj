@@ -149,7 +149,7 @@ class ApiService {
 
     final errorData = json.decode(body) as Map<String, dynamic>;
     throw ApiException(
-      message: errorData['message'] as String? ?? errorData['error'] as String? ?? 'Unknown error',
+      message: errorData['message'] as String? ?? errorData['detail'] as String? ?? errorData['error'] as String? ?? 'Unknown error',
       statusCode: response.statusCode,
       details: errorData['details'],
     );

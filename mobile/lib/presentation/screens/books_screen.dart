@@ -132,6 +132,9 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
               ),
             ),
 
+          // 정렬 선택
+          _buildSortBar(),
+
           // 도서 목록
           Expanded(
             child: booksState.when(
@@ -147,6 +150,69 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildSortBar() {
+    final sortOrder = ref.watch(bookSortOrderProvider);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          _buildSortChip(
+            label: '최신순',
+            selected: sortOrder == BookSortOrder.newest,
+            onTap: () => ref.read(bookSortOrderProvider.notifier).state = BookSortOrder.newest,
+          ),
+          const SizedBox(width: 8),
+          _buildSortChip(
+            label: '가나다순',
+            selected: sortOrder == BookSortOrder.alphabetical,
+            onTap: () => ref.read(bookSortOrderProvider.notifier).state = BookSortOrder.alphabetical,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSortChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF5D4037) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? const Color(0xFF5D4037) : const Color(0xFFBCAAA4),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : const Color(0xFF5D4037),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Book> _sortBooks(List<Book> books) {
+    final sortOrder = ref.read(bookSortOrderProvider);
+    final sorted = List<Book>.from(books);
+    switch (sortOrder) {
+      case BookSortOrder.newest:
+        sorted.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      case BookSortOrder.alphabetical:
+        sorted.sort((a, b) => a.title.compareTo(b.title));
+    }
+    return sorted;
   }
 
   Widget _buildBookList(BooksResponse response) {
@@ -175,6 +241,8 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
       );
     }
 
+    final sortedBooks = _sortBooks(response.books);
+
     return RefreshIndicator(
       color: const Color(0xFF5D4037),
       onRefresh: () async => _refreshBooks(),
@@ -182,9 +250,9 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
         controller: _scrollController,
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         itemCount:
-            response.books.length + (response.pagination.hasNext ? 1 : 0),
+            sortedBooks.length + (response.pagination.hasNext ? 1 : 0),
         itemBuilder: (context, index) {
-          if (index >= response.books.length) {
+          if (index >= sortedBooks.length) {
             return const Padding(
               padding: EdgeInsets.all(16),
               child: Center(
@@ -193,7 +261,7 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
             );
           }
 
-          final book = response.books[index];
+          final book = sortedBooks[index];
           return BookCard(
             book: book,
             onTap: () => _navigateToBookDetail(book),

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 
 import '../../core/utils/logger.dart';
 import '../../services/accessibility_feedback_service.dart';
@@ -14,15 +15,17 @@ const _log = AppLogger('AudioPlayer');
 class AudioPlayerService {
   static final AudioPlayerService _instance = AudioPlayerService._internal();
   factory AudioPlayerService() => _instance;
-  AudioPlayerService._internal();
+  AudioPlayerService._internal() {
+    _initErrorRecovery();
+  }
 
   final AudioPlayer _player = AudioPlayer(
     audioLoadConfiguration: AudioLoadConfiguration(
       androidLoadControl: AndroidLoadControl(
-        minBufferDuration: const Duration(seconds: 60),
-        maxBufferDuration: const Duration(minutes: 3),
+        minBufferDuration: const Duration(seconds: 120),
+        maxBufferDuration: const Duration(minutes: 10),
         bufferForPlaybackDuration: const Duration(seconds: 5),
-        bufferForPlaybackAfterRebufferDuration: const Duration(seconds: 15),
+        bufferForPlaybackAfterRebufferDuration: const Duration(seconds: 30),
       ),
     ),
   );
@@ -42,7 +45,20 @@ class AudioPlayerService {
 
   // 진행률 업데이트 타이머
   Timer? _progressTimer;
-  
+
+  // 로컬 position 추적 — player.position이 stale할 수 있으므로 별도 관리
+  Duration _lastKnownPosition = Duration.zero;
+  StreamSubscription<Duration>? _positionSub;
+
+  // 에러 자동 복구
+  StreamSubscription<Object>? _errorSub;
+  StreamSubscription<PlayerState>? _playerStateSub;
+  Timer? _bufferingStallTimer;
+  int _retryCount = 0;
+  static const int _maxRetries = 3;
+  bool _isRecovering = false;
+  String? _lastStreamingUrl;
+
   // 스트림
   Stream<PlayerState> get playerStateStream => _player.playerStateStream;
   Stream<Duration?> get durationStream => _player.durationStream;
@@ -61,11 +77,125 @@ class AudioPlayerService {
   bool get isPlaying => _player.playing;
   bool get isPaused => _player.processingState == ProcessingState.ready && !_player.playing;
   Duration? get duration => _player.duration;
-  Duration get position => _player.position;
+  Duration get position => _lastKnownPosition;
   double get speed => _player.speed;
 
   String? _authToken;
-  String? _headerToken; // setUrl() 시 사용한 토큰 기록
+  String? _headerToken; // setAudioSource() 시 사용한 토큰 기록
+
+  /// 에러 복구 및 position 추적 초기화
+  void _initErrorRecovery() {
+    // position 추적: 1초마다 기록
+    _positionSub = _player.positionStream.listen((pos) {
+      if (pos > Duration.zero) {
+        _lastKnownPosition = pos;
+      }
+    });
+
+    // 에러 스트림 리스닝
+    _errorSub = _player.playerStateStream
+        .where((state) => state.processingState == ProcessingState.idle)
+        .listen((_) {
+      // idle 상태로 돌아갔으면 에러 발생일 수 있음
+      if (_currentChapter != null && !_isRecovering) {
+        _log.warning('Player went idle unexpectedly, attempting recovery');
+        _attemptRecovery();
+      }
+    });
+
+    // buffering stall 감지
+    _playerStateSub = _player.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.buffering) {
+        _bufferingStallTimer?.cancel();
+        _bufferingStallTimer = Timer(const Duration(seconds: 30), () {
+          if (_player.processingState == ProcessingState.buffering &&
+              !_isRecovering) {
+            _log.warning('Buffering stall detected (30s), attempting recovery');
+            _attemptRecovery();
+          }
+        });
+      } else {
+        _bufferingStallTimer?.cancel();
+        _bufferingStallTimer = null;
+        if (state.processingState == ProcessingState.ready) {
+          _retryCount = 0;
+        }
+      }
+    });
+  }
+
+  /// 자동 재연결 시도
+  Future<void> _attemptRecovery() async {
+    if (_isRecovering ||
+        _currentBook == null ||
+        _currentChapter == null ||
+        _lastStreamingUrl == null) {
+      return;
+    }
+
+    if (_retryCount >= _maxRetries) {
+      _log.severe('Max retries exceeded, giving up recovery');
+      _retryCount = 0;
+      _onError?.call('네트워크 연결이 불안정합니다. 다시 시도해 주세요.');
+      return;
+    }
+
+    _isRecovering = true;
+    _retryCount++;
+    final posToRestore = _lastKnownPosition;
+    _log.info('Recovery attempt $_retryCount/$_maxRetries at position ${posToRestore.inSeconds}s');
+
+    try {
+      await Future.delayed(const Duration(seconds: 3));
+
+      // 토큰 갱신 시도
+      if (_tokenRefresher != null) {
+        await _tokenRefresher!();
+      }
+
+      final streaming = await _audioService.getStreamingUrl(
+        bookId: _currentBook!.id,
+        chapterId: _currentChapter!.id,
+      );
+      _headerToken = _authToken;
+      _lastStreamingUrl = streaming.absoluteUrl;
+
+      await _setAudioSourceWithTag(streaming.absoluteUrl);
+      await _player.seek(posToRestore);
+      unawaited(_player.play());
+      _startProgressTracking();
+      _log.info('Recovery successful');
+    } catch (e) {
+      _log.warning('Recovery attempt $_retryCount failed', error: e);
+      // 다음 재시도는 에러 스트림이나 stall 타이머가 트리거
+    } finally {
+      _isRecovering = false;
+    }
+  }
+
+  /// AudioSource.uri + MediaItem 태그로 오디오 소스 설정
+  Future<void> _setAudioSourceWithTag(String url) async {
+    final chapter = _currentChapter;
+    final book = _currentBook;
+
+    await _player.setAudioSource(
+      AudioSource.uri(
+        Uri.parse(url),
+        headers: _headerToken != null
+            ? {'Authorization': 'Bearer $_headerToken'}
+            : null,
+        tag: MediaItem(
+          id: chapter?.id ?? '',
+          title: chapter?.displayName ?? '오디오',
+          artist: book?.author ?? '',
+          album: book?.title ?? '',
+          duration: chapter?.duration != null
+              ? Duration(seconds: chapter!.duration!)
+              : null,
+        ),
+      ),
+    );
+  }
 
   /// 인증 토큰 설정
   void setAuthToken(String token) {
@@ -117,6 +247,7 @@ class AudioPlayerService {
       _playlist = playlist ?? book.chapters;
       _currentChapter = chapter;
       _currentIndex = _playlist!.indexWhere((candidate) => candidate.id == chapter.id);
+      _retryCount = 0;
 
       // TalkBack 접근성 알림을 오디오 로딩 전에 실행 — play() 이후 호출 시
       // TalkBack TTS가 Android 오디오 포커스를 빼앗아 processingState가 idle로 리셋됨
@@ -127,15 +258,12 @@ class AudioPlayerService {
         chapterId: chapter.id,
       );
       _headerToken = _authToken;
-      await _player.setUrl(
-        streaming.absoluteUrl,
-        headers: _headerToken != null
-            ? {'Authorization': 'Bearer $_headerToken'}
-            : null,
-      );
+      _lastStreamingUrl = streaming.absoluteUrl;
+      await _setAudioSourceWithTag(streaming.absoluteUrl);
 
       if (startPosition != null && startPosition > 0) {
         await _player.seek(Duration(seconds: startPosition));
+        _lastKnownPosition = Duration(seconds: startPosition);
       } else {
         await _restorePlaybackPosition();
       }
@@ -156,7 +284,7 @@ class AudioPlayerService {
       await _feedbackService.error('오디오 스트리밍에 실패했습니다: ${error.message}');
       _onError?.call(error.message);
       throw AudioPlayerException('오디오 재생 중 오류가 발생했습니다: ${error.message}');
-    } catch (error, stack) {
+    } catch (error) {
       _currentBook = null;
       _currentChapter = null;
       _playlist = null;
@@ -175,6 +303,7 @@ class AudioPlayerService {
 
   /// 일시정지
   Future<void> pause() async {
+    _lastKnownPosition = _player.position;
     await _player.pause();
     await _saveCurrentProgress();
     await _analyticsService.endPlaySession();
@@ -197,19 +326,15 @@ class AudioPlayerService {
     if (_authToken != _headerToken &&
         _currentBook != null &&
         _currentChapter != null) {
-      _log.info('Token changed since last setUrl, refreshing audio source');
-      final pos = _player.position;
+      _log.info('Token changed since last setAudioSource, refreshing audio source');
+      final pos = _lastKnownPosition;
       final streaming = await _audioService.getStreamingUrl(
         bookId: _currentBook!.id,
         chapterId: _currentChapter!.id,
       );
       _headerToken = _authToken;
-      await _player.setUrl(
-        streaming.absoluteUrl,
-        headers: _headerToken != null
-            ? {'Authorization': 'Bearer $_headerToken'}
-            : null,
-      );
+      _lastStreamingUrl = streaming.absoluteUrl;
+      await _setAudioSourceWithTag(streaming.absoluteUrl);
       await _player.seek(pos);
     }
     _player.play();
@@ -227,6 +352,7 @@ class AudioPlayerService {
   /// 특정 위치로 이동
   Future<void> seek(Duration position) async {
     await _player.seek(position);
+    _lastKnownPosition = position;
     await _saveCurrentProgress();
   }
 
@@ -277,7 +403,7 @@ class AudioPlayerService {
       await _audioService.updatePlaybackProgress(
         bookId: _currentBook!.id,
         chapterId: _currentChapter!.id,
-        position: _player.position.inSeconds,
+        position: _lastKnownPosition.inSeconds,
         duration: _player.duration!.inSeconds,
       );
     } catch (e) {
@@ -298,7 +424,9 @@ class AudioPlayerService {
       );
 
       if (position != null && position.position > 0) {
-        await _player.seek(Duration(seconds: position.position));
+        final dur = Duration(seconds: position.position);
+        await _player.seek(dur);
+        _lastKnownPosition = dur;
       }
     } catch (e) {
       await _handleUnauthorizedError(e);
@@ -310,7 +438,7 @@ class AudioPlayerService {
   /// 진행률 추적 시작
   void _startProgressTracking() {
     _stopProgressTracking();
-    
+
     _progressTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (_player.playing) {
         _saveCurrentProgress();
@@ -330,6 +458,9 @@ class AudioPlayerService {
     _currentChapter = null;
     _playlist = null;
     _currentIndex = 0;
+    _lastKnownPosition = Duration.zero;
+    _lastStreamingUrl = null;
+    _retryCount = 0;
     _stopProgressTracking();
   }
 
@@ -348,6 +479,10 @@ class AudioPlayerService {
     await _saveCurrentProgress();
     await _analyticsService.endPlaySession();
     _stopProgressTracking();
+    _bufferingStallTimer?.cancel();
+    _positionSub?.cancel();
+    _errorSub?.cancel();
+    _playerStateSub?.cancel();
     await _player.dispose();
     _audioService.dispose();
     _analyticsService.dispose();

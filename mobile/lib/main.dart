@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/logger.dart';
@@ -32,6 +33,13 @@ void main() async {
     _log.severe('Platform error', error: error, stackTrace: stack);
     return true;
   };
+
+  // 오디오 백그라운드 서비스 초기화 (foreground service + 알림바 미디어 컨트롤)
+  await JustAudioBackground.init(
+    androidNotificationChannelId: 'com.voiceofjuan.audio',
+    androidNotificationChannelName: '주안의 소리',
+    androidNotificationOngoing: true,
+  );
 
   // Firebase 초기화
   await Firebase.initializeApp();

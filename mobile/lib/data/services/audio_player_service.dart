@@ -57,6 +57,7 @@ class AudioPlayerService {
   int _retryCount = 0;
   static const int _maxRetries = 3;
   bool _isRecovering = false;
+  bool _isChangingSource = false; // 의도적 소스 변경 중 에러 복구 억제
   String? _lastStreamingUrl;
 
   // 스트림
@@ -97,7 +98,8 @@ class AudioPlayerService {
         .where((state) => state.processingState == ProcessingState.idle)
         .listen((_) {
       // idle 상태로 돌아갔으면 에러 발생일 수 있음
-      if (_currentChapter != null && !_isRecovering) {
+      // _isChangingSource가 true면 의도적 소스 변경(챕터 전환, resume 등)이므로 무시
+      if (_currentChapter != null && !_isRecovering && !_isChangingSource) {
         _log.warning('Player went idle unexpectedly, attempting recovery');
         _attemptRecovery();
       }
@@ -109,7 +111,8 @@ class AudioPlayerService {
         _bufferingStallTimer?.cancel();
         _bufferingStallTimer = Timer(const Duration(seconds: 30), () {
           if (_player.processingState == ProcessingState.buffering &&
-              !_isRecovering) {
+              !_isRecovering &&
+              !_isChangingSource) {
             _log.warning('Buffering stall detected (30s), attempting recovery');
             _attemptRecovery();
           }
@@ -160,12 +163,15 @@ class AudioPlayerService {
       _headerToken = _authToken;
       _lastStreamingUrl = streaming.absoluteUrl;
 
+      _isChangingSource = true;
       await _setAudioSourceWithTag(streaming.absoluteUrl);
+      _isChangingSource = false;
       await _player.seek(posToRestore);
       unawaited(_player.play());
       _startProgressTracking();
       _log.info('Recovery successful');
     } catch (e) {
+      _isChangingSource = false;
       _log.warning('Recovery attempt $_retryCount failed', error: e);
       // 다음 재시도는 에러 스트림이나 stall 타이머가 트리거
     } finally {
@@ -233,8 +239,10 @@ class AudioPlayerService {
     List<AudioChapter>? playlist,
     int? startPosition,
   }) async {
+    _isChangingSource = true;
     try {
       if (_currentChapter?.id == chapter.id) {
+        _isChangingSource = false;
         if (isPlaying) {
           await pause();
         } else {
@@ -248,6 +256,7 @@ class AudioPlayerService {
       _currentChapter = chapter;
       _currentIndex = _playlist!.indexWhere((candidate) => candidate.id == chapter.id);
       _retryCount = 0;
+      _lastKnownPosition = Duration.zero;
 
       // TalkBack 접근성 알림을 오디오 로딩 전에 실행 — play() 이후 호출 시
       // TalkBack TTS가 Android 오디오 포커스를 빼앗아 processingState가 idle로 리셋됨
@@ -260,6 +269,7 @@ class AudioPlayerService {
       _headerToken = _authToken;
       _lastStreamingUrl = streaming.absoluteUrl;
       await _setAudioSourceWithTag(streaming.absoluteUrl);
+      _isChangingSource = false;
 
       if (startPosition != null && startPosition > 0) {
         await _player.seek(Duration(seconds: startPosition));
@@ -276,6 +286,7 @@ class AudioPlayerService {
       _startProgressTracking();
       _analyticsService.startPlaySession(bookId: book.id, chapterId: chapter.id);
     } on AudioServiceException catch (error) {
+      _isChangingSource = false;
       _currentBook = null;
       _currentChapter = null;
       _playlist = null;
@@ -285,6 +296,7 @@ class AudioPlayerService {
       _onError?.call(error.message);
       throw AudioPlayerException('오디오 재생 중 오류가 발생했습니다: ${error.message}');
     } catch (error) {
+      _isChangingSource = false;
       _currentBook = null;
       _currentChapter = null;
       _playlist = null;
@@ -327,6 +339,7 @@ class AudioPlayerService {
         _currentBook != null &&
         _currentChapter != null) {
       _log.info('Token changed since last setAudioSource, refreshing audio source');
+      _isChangingSource = true;
       final pos = _lastKnownPosition;
       final streaming = await _audioService.getStreamingUrl(
         bookId: _currentBook!.id,
@@ -335,6 +348,7 @@ class AudioPlayerService {
       _headerToken = _authToken;
       _lastStreamingUrl = streaming.absoluteUrl;
       await _setAudioSourceWithTag(streaming.absoluteUrl);
+      _isChangingSource = false;
       await _player.seek(pos);
     }
     _player.play();
@@ -461,6 +475,7 @@ class AudioPlayerService {
     _lastKnownPosition = Duration.zero;
     _lastStreamingUrl = null;
     _retryCount = 0;
+    _isChangingSource = false;
     _stopProgressTracking();
   }
 

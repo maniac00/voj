@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { fetchUsers, updateUserStatus, type UserDto } from "@/lib/users";
+import { deleteUser, fetchUsers, updateUserStatus, type UserDto } from "@/lib/users";
 
 type StatusFilter = "" | "pending" | "approved" | "suspended";
 
@@ -23,6 +23,7 @@ export default function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
   const [updating, setUpdating] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState<number | null>(null);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -40,6 +41,23 @@ export default function UsersPage() {
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
+
+  const handleDelete = async (user: UserDto) => {
+    const confirmed = window.confirm(
+      `정말 삭제하시겠습니까?\n\n이메일: ${user.email}\n이름: ${user.display_name || "-"}\n\n삭제 후 복구할 수 없습니다.`,
+    );
+    if (!confirmed) return;
+
+    setDeleting(user.id);
+    try {
+      await deleteUser(user.id);
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+    } catch (e: any) {
+      alert(`삭제 실패: ${e.message}`);
+    } finally {
+      setDeleting(null);
+    }
+  };
 
   const handleStatusChange = async (
     userId: number,
@@ -172,15 +190,24 @@ export default function UsersPage() {
                         </button>
                       )}
                       {user.status === "suspended" && (
-                        <button
-                          onClick={() =>
-                            handleStatusChange(user.id, "pending")
-                          }
-                          disabled={updating === user.id}
-                          className="px-3 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50"
-                        >
-                          대기로
-                        </button>
+                        <>
+                          <button
+                            onClick={() =>
+                              handleStatusChange(user.id, "pending")
+                            }
+                            disabled={updating === user.id}
+                            className="px-3 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50"
+                          >
+                            대기로
+                          </button>
+                          <button
+                            onClick={() => handleDelete(user)}
+                            disabled={deleting === user.id}
+                            className="px-3 py-1 text-xs bg-red-800 text-white rounded hover:bg-red-900 disabled:opacity-50"
+                          >
+                            {deleting === user.id ? "삭제 중..." : "삭제"}
+                          </button>
+                        </>
                       )}
                     </div>
                   </td>

@@ -43,6 +43,9 @@ export async function fetchJson<T>(
       const text = await res.text().catch(() => "");
       throw new Error(`Request failed: ${res.status} ${res.statusText} ${text}`);
     }
+    if (res.status === 204) {
+      return undefined as T;
+    }
     return (await res.json()) as T;
   } finally {
     clearTimeout(timeoutId);

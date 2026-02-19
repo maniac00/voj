@@ -28,3 +28,9 @@ export async function updateUserStatus(
     body: JSON.stringify({ status }),
   });
 }
+
+export async function deleteUser(userId: number): Promise<void> {
+  await fetchJson<void>(`${apiBase()}/users/${userId}`, {
+    method: "DELETE",
+  });
+}

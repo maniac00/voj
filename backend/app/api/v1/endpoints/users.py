@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.auth.simple import get_current_user_claims, require_admin_scope
-from app.core.audit import log_user_status_change
+from app.core.audit import log_user_delete, log_user_status_change
 from app.models.database import get_db
 from app.services.user_service import UserService
 
@@ -89,6 +89,30 @@ async def update_user_status(
         created_at=user.created_at.isoformat() if user.created_at else "",
         updated_at=user.updated_at.isoformat() if user.updated_at else "",
     )
+
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(
+    user_id: int = Path(..., description="사용자 ID"),
+    claims: Dict[str, Any] = Depends(require_admin_scope()),
+    db: Session = Depends(get_db),
+) -> None:
+    """사용자 삭제 (관리자 전용) — suspended 상태인 경우에만 허용"""
+    user = UserService.get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.status.value != "suspended":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="정지된 사용자만 삭제할 수 있습니다.",
+        )
+
+    email = user.email
+    UserService.delete_user(db, user_id)
+
+    admin_name = claims.get("username", claims.get("email", "unknown"))
+    log_user_delete(admin_name, user_id, email)
 
 
 @router.get("/me")

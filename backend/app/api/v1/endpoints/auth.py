@@ -134,6 +134,15 @@ async def firebase_login(body: FirebaseLoginRequest) -> FirebaseLoginResponse:
 
         log_firebase_login(email, firebase_uid, is_new)
 
+        # 신규 사용자(pending)인 경우 Telegram으로 관리자에게 알림
+        if is_new and user.status.value == "pending":
+            from app.core import telegram as tg
+            tg.send_new_user_notification(
+                user_id=user.id,
+                email=user.email,
+                display_name=user.display_name,
+            )
+
         return FirebaseLoginResponse(
             user_id=user.id,
             email=user.email,

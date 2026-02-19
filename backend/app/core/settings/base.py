@@ -91,6 +91,19 @@ class BaseAppSettings(BaseSettings):
     FIREBASE_SERVICE_ACCOUNT_JSON: str = ""
     ADMIN_EMAILS: str = ""
 
+    # Telegram Bot 설정
+    TELEGRAM_BOT_TOKEN: str = ""
+    TELEGRAM_ADMIN_CHAT_IDS: str = ""  # 콤마 구분 chat ID (관리자 2명)
+    TELEGRAM_WEBHOOK_SECRET: str = ""  # Webhook 보안 시크릿
+
+    @property
+    def telegram_admin_chat_ids(self) -> List[str]:
+        """TELEGRAM_ADMIN_CHAT_IDS를 리스트로 파싱"""
+        s = self.TELEGRAM_ADMIN_CHAT_IDS.strip()
+        if not s:
+            return []
+        return [cid.strip() for cid in s.split(",") if cid.strip()]
+
     @property
     def admin_emails_list(self) -> List[str]:
         """ADMIN_EMAILS 문자열을 리스트로 파싱 (콤마 구분 또는 JSON 배열)"""

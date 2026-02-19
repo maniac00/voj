@@ -4,7 +4,7 @@ VOJ Audiobooks API - v1 API 라우터
 """
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import analytics, audio, auth, books, files, health, logs, users, websocket
+from app.api.v1.endpoints import analytics, audio, auth, books, files, health, logs, telegram, users, websocket
 
 # API v1 메인 라우터
 api_router = APIRouter()
@@ -19,3 +19,4 @@ api_router.include_router(files.router, prefix="/files", tags=["files"])
 api_router.include_router(websocket.router, prefix="/ws", tags=["websocket"])
 api_router.include_router(logs.router, prefix="/logs", tags=["logs"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
+api_router.include_router(telegram.router, prefix="/telegram", tags=["telegram"])

@@ -83,6 +83,16 @@ class UserService:
         return query.all()
 
     @staticmethod
+    def delete_user(db: Session, user_id: int) -> Optional[UserSQL]:
+        """사용자를 삭제한다. suspended 상태인 경우에만 허용."""
+        user = db.query(UserSQL).filter(UserSQL.id == user_id).first()
+        if not user:
+            return None
+        db.delete(user)
+        db.commit()
+        return user
+
+    @staticmethod
     def update_user_status(
         db: Session,
         user_id: int,

@@ -62,6 +62,14 @@ def log_firebase_login(email: str, firebase_uid: str, is_new: bool) -> None:
     )
 
 
+def log_user_delete(admin: str, target_user_id: int, email: str) -> None:
+    _log(
+        "user.delete",
+        user=admin,
+        detail={"target_user_id": target_user_id, "email": email},
+    )
+
+
 def log_user_status_change(
     admin: str, target_user_id: int, old_status: str, new_status: str
 ) -> None:

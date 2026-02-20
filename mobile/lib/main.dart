@@ -64,12 +64,27 @@ void main() async {
   );
 }
 
-class VoiceOfJuanApp extends StatelessWidget {
+final _navigatorKey = GlobalKey<NavigatorState>();
+
+class VoiceOfJuanApp extends ConsumerWidget {
   const VoiceOfJuanApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 로그인 상태가 true → false로 전환되면 로그인 화면으로 이동
+    // (토큰 만료, 세션 강제 해제 등 모든 로그아웃 경로 처리)
+    ref.listen<bool>(isLoggedInProvider, (previous, next) {
+      if (previous == true && !next) {
+        _log.info('세션 만료 감지 — 로그인 화면으로 이동');
+        _navigatorKey.currentState?.pushNamedAndRemoveUntil(
+          '/login',
+          (route) => false,
+        );
+      }
+    });
+
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       title: '주안의 소리',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,

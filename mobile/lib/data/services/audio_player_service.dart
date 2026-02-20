@@ -291,7 +291,11 @@ class AudioPlayerService {
       _currentChapter = null;
       _playlist = null;
       _currentIndex = 0;
-      await _handleUnauthorizedError(error);
+      if (error.isUnauthorized || error.isForbidden) {
+        // 인증 에러: 로그인 화면으로 이동 처리 — 에러 토스트 없이 조용히 처리
+        await _handleUnauthorizedError(error);
+        return;
+      }
       await _feedbackService.error('오디오 스트리밍에 실패했습니다: ${error.message}');
       _onError?.call(error.message);
       throw AudioPlayerException('오디오 재생 중 오류가 발생했습니다: ${error.message}');
@@ -324,35 +328,54 @@ class AudioPlayerService {
 
   /// 재생 재개
   Future<void> resume() async {
-    // 백그라운드에서 Firebase 토큰이 자동 갱신되지 않을 수 있으므로
-    // resume 시 강제로 토큰 갱신을 시도한다.
-    if (_tokenRefresher != null) {
-      final oldToken = _authToken;
-      await _tokenRefresher!();
-      if (_authToken != oldToken) {
-        _log.info('Token refreshed on resume');
+    try {
+      // 백그라운드에서 Firebase 토큰이 자동 갱신되지 않을 수 있으므로
+      // resume 시 강제로 토큰 갱신을 시도한다.
+      if (_tokenRefresher != null) {
+        final oldToken = _authToken;
+        await _tokenRefresher!();
+        if (_authToken != oldToken) {
+          _log.info('Token refreshed on resume');
+        }
       }
-    }
 
-    // 토큰이 갱신된 경우 — 만료된 헤더로 요청하면 401 에러 발생
-    if (_authToken != _headerToken &&
-        _currentBook != null &&
-        _currentChapter != null) {
-      _log.info('Token changed since last setAudioSource, refreshing audio source');
-      _isChangingSource = true;
-      final pos = _lastKnownPosition;
-      final streaming = await _audioService.getStreamingUrl(
-        bookId: _currentBook!.id,
-        chapterId: _currentChapter!.id,
-      );
-      _headerToken = _authToken;
-      _lastStreamingUrl = streaming.absoluteUrl;
-      await _setAudioSourceWithTag(streaming.absoluteUrl);
+      // 토큰이 갱신된 경우 — 만료된 헤더로 요청하면 401 에러 발생
+      if (_authToken != _headerToken &&
+          _currentBook != null &&
+          _currentChapter != null) {
+        _log.info('Token changed since last setAudioSource, refreshing audio source');
+        _isChangingSource = true;
+        final pos = _lastKnownPosition;
+        final streaming = await _audioService.getStreamingUrl(
+          bookId: _currentBook!.id,
+          chapterId: _currentChapter!.id,
+        );
+        _headerToken = _authToken;
+        _lastStreamingUrl = streaming.absoluteUrl;
+        await _setAudioSourceWithTag(streaming.absoluteUrl);
+        _isChangingSource = false;
+        await _player.seek(pos);
+      }
+      _player.play();
+      _startProgressTracking();
+    } catch (e) {
       _isChangingSource = false;
-      await _player.seek(pos);
+      if (e is AudioServiceException) {
+        if (e.isUnauthorized || e.isForbidden) {
+          // 인증 에러: 로그인 화면으로 이동 — 에러 토스트 없이 조용히 처리
+          _log.warning('resume() 중 인증 오류: $e');
+          await _handleUnauthorizedError(e);
+          return;
+        }
+        if (e.isNetworkError) {
+          // 네트워크 에러: 접근성 알림만 표시
+          _log.warning('resume() 중 네트워크 오류: $e');
+          _onError?.call('네트워크 연결을 확인해주세요.');
+          return;
+        }
+      }
+      rethrow;
     }
-    _player.play();
-    _startProgressTracking();
   }
 
   /// 정지

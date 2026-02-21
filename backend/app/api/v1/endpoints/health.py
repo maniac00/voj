@@ -578,3 +578,85 @@ async def migrate_covers_to_r2_status(claims=Depends(get_current_user_claims)):
 
     with open(_COVER_MIGRATION_STATUS_FILE) as f:
         return json.load(f)
+
+
+@router.get("/debug-r2-audio")
+async def debug_r2_audio(
+    chapter_id: str = Query(None, description="특정 챕터 ID (없으면 첫 번째 챕터)"),
+    claims=Depends(get_current_user_claims),
+):
+    """R2 Worker 오디오 스트리밍 진단 (admin 전용).
+    - DB에서 audio_key 조회
+    - HMAC 서명 URL 생성
+    - Worker에 Range 요청으로 실제 테스트
+    """
+    import hashlib
+    import hmac as _hmac
+    import time
+    from urllib.parse import quote
+
+    if str(claims.get("scope", "")).lower() != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    if not settings.R2_WORKER_URL or not settings.R2_AUTH_SECRET:
+        return {"error": "R2_WORKER_URL 또는 R2_AUTH_SECRET 미설정"}
+
+    from app.models.database import SessionLocal
+    from app.models.audio_chapter_sql import AudioChapterSQL
+
+    db = SessionLocal()
+    try:
+        q = db.query(AudioChapterSQL).filter(AudioChapterSQL.audio_key.isnot(None))
+        if chapter_id:
+            q = q.filter(AudioChapterSQL.chapter_id == chapter_id)
+        chapter = q.first()
+        if not chapter:
+            return {"error": "오디오 챕터를 찾을 수 없습니다"}
+        audio_key = chapter.audio_key.lstrip("/")
+        chapter_info = {
+            "chapter_id": chapter.chapter_id,
+            "book_id": chapter.book_id,
+            "audio_key": audio_key,
+        }
+    finally:
+        db.close()
+
+    # HMAC 서명 URL 생성 (audio.py와 동일 로직)
+    exp = int(time.time()) + 3600
+    message = f"{audio_key}:{exp}".encode()
+    secret = settings.R2_AUTH_SECRET.encode()
+    token = _hmac.new(secret, message, hashlib.sha256).hexdigest()
+    worker_url = settings.R2_WORKER_URL.rstrip("/")
+    encoded_key = quote(audio_key, safe="/")
+    signed_url = f"{worker_url}/{encoded_key}?token={token}&exp={exp}"
+
+    # Worker에 실제 요청 (Range: bytes=0-1023)
+    worker_result = {}
+    try:
+        import httpx
+        async with httpx.AsyncClient(follow_redirects=False, timeout=10.0) as client:
+            resp = await client.get(
+                signed_url,
+                headers={"Range": "bytes=0-1023"},
+            )
+            worker_result = {
+                "status_code": resp.status_code,
+                "content_type": resp.headers.get("content-type", ""),
+                "content_length": resp.headers.get("content-length", ""),
+                "content_range": resp.headers.get("content-range", ""),
+                "accept_ranges": resp.headers.get("accept-ranges", ""),
+                "body_preview": resp.text[:200] if resp.status_code >= 400 else f"<{len(resp.content)} bytes>",
+            }
+    except Exception as e:
+        worker_result = {"error": str(e)}
+
+    return {
+        "chapter": chapter_info,
+        "signed_url": signed_url,
+        "worker_test": worker_result,
+        "r2_config": {
+            "worker_url": settings.R2_WORKER_URL,
+            "auth_secret_len": len(settings.R2_AUTH_SECRET),
+            "bucket": settings.R2_BUCKET_NAME,
+        },
+    }

@@ -43,12 +43,16 @@ class R2StorageService(BaseStorageService):
     def _sign_worker_url(self, key: str, expires_in: int = 3600) -> str:
         """R2 Worker HMAC 서명 URL 생성.
         Worker 검증 로직: message = "{key}:{exp_unix}", token = HMAC-SHA256 hex
+        URL 경로는 percent-encode하여 비ASCII 문자(한국어 등)를 올바르게 처리
         """
+        from urllib.parse import quote
         exp = int(time.time()) + expires_in
+        # HMAC 서명은 raw key로 계산 (Worker에서 decodeURIComponent 후 검증)
         message = f"{key}:{exp}".encode()
         secret = self.auth_secret.encode()
         token = hmac.new(secret, message, hashlib.sha256).hexdigest()
-        return f"{self.worker_url}/{key}?token={token}&exp={exp}"
+        encoded_key = quote(key, safe="/")
+        return f"{self.worker_url}/{encoded_key}?token={token}&exp={exp}"
 
     async def upload_file(
         self,

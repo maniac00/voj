@@ -466,13 +466,17 @@ async def get_streaming_url(
             import hashlib
             import hmac
             import time as _time
+            from urllib.parse import quote
 
             exp = int(_time.time()) + 3600
+            # HMAC 서명은 raw key (한국어 포함)로 계산
             message = f"{storage_file_key}:{exp}".encode()
             secret = settings.R2_AUTH_SECRET.encode()
             token = hmac.new(secret, message, hashlib.sha256).hexdigest()
             worker_url = settings.R2_WORKER_URL.rstrip("/")
-            signed_url = f"{worker_url}/{storage_file_key}?token={token}&exp={exp}"
+            # URL 경로는 percent-encode (비ASCII 문자를 Flutter/ExoPlayer가 올바르게 처리하도록)
+            encoded_key = quote(storage_file_key, safe="/")
+            signed_url = f"{worker_url}/{encoded_key}?token={token}&exp={exp}"
             logger.info("R2 Worker URL 반환: %s", storage_file_key)
             return StreamingUrlResponse(streaming_url=signed_url, expires_at=expires, duration=duration)
 

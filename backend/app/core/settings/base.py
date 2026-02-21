@@ -96,6 +96,10 @@ class BaseAppSettings(BaseSettings):
     TELEGRAM_ADMIN_CHAT_IDS: str = ""  # 콤마 구분 chat ID (관리자 2명)
     TELEGRAM_WEBHOOK_SECRET: str = ""  # Webhook 보안 시크릿
 
+    # R2 Worker 설정 (오디오 직접 스트리밍)
+    R2_WORKER_URL: str = ""  # ex: https://voj-releases.7wario.workers.dev
+    R2_AUTH_SECRET: str = ""  # R2 Worker HMAC 서명 시크릿 (Worker와 공유)
+
     @property
     def telegram_admin_chat_ids(self) -> List[str]:
         """TELEGRAM_ADMIN_CHAT_IDS를 리스트로 파싱"""

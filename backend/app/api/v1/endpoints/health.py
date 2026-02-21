@@ -6,7 +6,7 @@ import asyncio
 import os
 from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from app.core.auth.simple import get_current_user_claims
@@ -239,41 +239,14 @@ async def auto_configure():
         )
 
 
-@router.post("/migrate-audio-to-r2")
-async def migrate_audio_to_r2(
-    dry_run: bool = Query(False, description="True면 업로드 없이 대상 목록만 반환"),
-    claims=Depends(get_current_user_claims),
-):
-    """
-    로컬 볼륨의 오디오 파일을 Cloudflare R2로 마이그레이션 (관리자 전용).
-    dry_run=true 이면 실제 업로드 없이 대상 파일 목록만 반환한다.
-    """
-    if str(claims.get("scope", "")).lower() != "admin":
-        raise HTTPException(status_code=403, detail="Admin only")
+_MIGRATION_STATUS_FILE = "/tmp/r2_migration_status.json"
 
-    if not settings.R2_ACCOUNT_ID:
-        raise HTTPException(status_code=400, detail="R2_ACCOUNT_ID not configured")
 
-    import hashlib as _hashlib
+def _run_migration_background(audio_keys: list, local_root: str):
+    """백그라운드에서 실행되는 마이그레이션 작업."""
+    import json
     import boto3
     from botocore.exceptions import ClientError
-    from app.models.database import SessionLocal
-    from app.models.audio_chapter_sql import AudioChapterSQL
-    from app.services.storage.local import LocalStorageService
-
-    # 로컬 스토리지 경로 확인
-    local_svc = LocalStorageService()
-    local_root = local_svc.base_path
-
-    # DB에서 audio_key 목록 조회
-    db = SessionLocal()
-    try:
-        rows = db.query(AudioChapterSQL.audio_key).filter(
-            AudioChapterSQL.audio_key.isnot(None)
-        ).all()
-        audio_keys = [r.audio_key.lstrip("/") for r in rows if r.audio_key]
-    finally:
-        db.close()
 
     ext_to_ct = {
         ".mp3": "audio/mpeg", ".wav": "audio/wav", ".m4a": "audio/mp4",
@@ -284,7 +257,6 @@ async def migrate_audio_to_r2(
         _, ext = os.path.splitext(path.lower())
         return ext_to_ct.get(ext, "application/octet-stream")
 
-    # R2 클라이언트
     endpoint = f"https://{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
     s3 = boto3.client(
         "s3", endpoint_url=endpoint, region_name="auto",
@@ -293,54 +265,113 @@ async def migrate_audio_to_r2(
     )
     bucket = settings.R2_BUCKET_NAME
 
-    results = {"dry_run": dry_run, "local_root": local_root,
-               "total": len(audio_keys), "ok": 0, "skipped": 0, "failed": 0, "files": []}
+    status = {"state": "running", "total": len(audio_keys),
+              "ok": 0, "skipped": 0, "failed": 0, "current": 0, "errors": []}
 
-    for key in audio_keys:
+    def _save():
+        with open(_MIGRATION_STATUS_FILE, "w") as f:
+            json.dump(status, f)
+
+    _save()
+
+    for i, key in enumerate(audio_keys, 1):
+        status["current"] = i
         local_path = os.path.join(local_root, key)
-        entry: Dict[str, Any] = {"key": key}
 
         if not os.path.exists(local_path):
-            entry["status"] = "skipped"
-            entry["reason"] = "local file not found"
-            results["skipped"] += 1
-            results["files"].append(entry)
+            status["skipped"] += 1
+            _save()
             continue
 
-        entry["size"] = os.path.getsize(local_path)
-
-        if dry_run:
-            entry["status"] = "pending"
-            results["files"].append(entry)
-            continue
-
-        # R2에 이미 존재하면 건너뜀
         try:
             s3.head_object(Bucket=bucket, Key=key)
-            entry["status"] = "skipped"
-            entry["reason"] = "already in R2"
-            results["skipped"] += 1
-            results["files"].append(entry)
+            status["skipped"] += 1
+            _save()
             continue
         except ClientError as e:
             if e.response["Error"]["Code"] not in ("404", "NoSuchKey"):
-                entry["status"] = "failed"
-                entry["error"] = str(e)
-                results["failed"] += 1
-                results["files"].append(entry)
+                status["failed"] += 1
+                status["errors"].append({"key": key, "error": str(e)})
+                _save()
                 continue
 
         try:
             with open(local_path, "rb") as f:
                 s3.put_object(Bucket=bucket, Key=key, Body=f,
                               ContentType=content_type(local_path))
-            entry["status"] = "ok"
-            results["ok"] += 1
+            status["ok"] += 1
         except Exception as exc:
-            entry["status"] = "failed"
-            entry["error"] = str(exc)
-            results["failed"] += 1
+            status["failed"] += 1
+            status["errors"].append({"key": key, "error": str(exc)})
 
-        results["files"].append(entry)
+        # 10개마다 상태 저장
+        if i % 10 == 0:
+            _save()
 
-    return results
+    status["state"] = "done"
+    _save()
+
+
+@router.post("/migrate-audio-to-r2")
+async def migrate_audio_to_r2(
+    background_tasks: BackgroundTasks,
+    dry_run: bool = Query(False, description="True면 업로드 없이 대상 목록만 반환"),
+    claims=Depends(get_current_user_claims),
+):
+    """
+    로컬 볼륨의 오디오 파일을 Cloudflare R2로 백그라운드 마이그레이션 (관리자 전용).
+    즉시 반환 후 /health/migrate-audio-to-r2/status 로 진행 상황 확인.
+    """
+    if str(claims.get("scope", "")).lower() != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    if not settings.R2_ACCOUNT_ID:
+        raise HTTPException(status_code=400, detail="R2_ACCOUNT_ID not configured")
+
+    import json
+    from app.models.database import SessionLocal
+    from app.models.audio_chapter_sql import AudioChapterSQL
+    from app.services.storage.local import LocalStorageService
+
+    local_svc = LocalStorageService()
+    local_root = local_svc.base_path
+
+    db = SessionLocal()
+    try:
+        rows = db.query(AudioChapterSQL.audio_key).filter(
+            AudioChapterSQL.audio_key.isnot(None)
+        ).all()
+        audio_keys = [r.audio_key.lstrip("/") for r in rows if r.audio_key]
+    finally:
+        db.close()
+
+    if dry_run:
+        return {"dry_run": True, "total": len(audio_keys),
+                "local_root": local_root, "files": audio_keys}
+
+    # 이미 실행 중인지 확인
+    import os as _os
+    if _os.path.exists(_MIGRATION_STATUS_FILE):
+        with open(_MIGRATION_STATUS_FILE) as f:
+            prev = json.load(f)
+        if prev.get("state") == "running":
+            return {"message": "이미 마이그레이션이 실행 중입니다.", "status": prev}
+
+    background_tasks.add_task(_run_migration_background, audio_keys, local_root)
+    return {"message": f"마이그레이션 시작 ({len(audio_keys)}개 파일). "
+                       "GET /api/v1/health/migrate-audio-to-r2/status 로 진행 상황 확인.",
+            "total": len(audio_keys)}
+
+
+@router.get("/migrate-audio-to-r2/status")
+async def migrate_audio_to_r2_status(claims=Depends(get_current_user_claims)):
+    """R2 마이그레이션 진행 상황 조회."""
+    if str(claims.get("scope", "")).lower() != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    import json
+    if not os.path.exists(_MIGRATION_STATUS_FILE):
+        return {"state": "not_started"}
+
+    with open(_MIGRATION_STATUS_FILE) as f:
+        return json.load(f)

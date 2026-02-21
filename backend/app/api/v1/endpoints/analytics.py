@@ -307,17 +307,22 @@ async def admin_user_stats(
 
 def _resolve_user_id(claims: dict, db: Session) -> Optional[int]:
     """claims에서 DB user.id를 찾는다."""
-    # Firebase UID 기반
-    firebase_uid = claims.get("uid") or claims.get("sub") or ""
+    # 1. Firebase JWT 경로: _verify_firebase_jwt가 user_id를 이미 넣어줌
+    user_id = claims.get("user_id")
+    if user_id is not None:
+        return int(user_id)
+
+    # 2. Firebase UID 기반 (직접 uid가 있는 경우)
+    firebase_uid = claims.get("uid") or ""
     if firebase_uid:
         user = db.query(UserSQL).filter(UserSQL.firebase_uid == str(firebase_uid)).first()
         if user:
             return user.id
 
-    # username(HMAC) 기반 → email로 fallback
-    username = claims.get("username") or ""
-    if username:
-        user = db.query(UserSQL).filter(UserSQL.email == username).first()
+    # 3. email 기반 fallback (HMAC 관리자 토큰 등)
+    email = claims.get("email") or ""
+    if email and "@" in email:
+        user = db.query(UserSQL).filter(UserSQL.email == email).first()
         if user:
             return user.id
 

@@ -163,8 +163,8 @@ export default function AdminDashboardPage() {
             <div className="font-medium">{dep("database")}</div>
           </div>
           <div className="rounded-lg border p-4">
-            <div className="text-gray-500">Local Storage</div>
-            <div className="font-medium">{dep("local_storage")}</div>
+            <div className="text-gray-500">Storage (R2)</div>
+            <div className="font-medium">{dep("storage_service")}</div>
           </div>
           <div className="rounded-lg border p-4">
             <div className="text-gray-500">Environment</div>

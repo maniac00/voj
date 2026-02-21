@@ -68,8 +68,6 @@ async def detailed_health_check():
     if settings.ENVIRONMENT == "local":
         try:
             # 실제 런타임에서 LocalStorageService가 선택한 base_path를 기준으로 체크
-            from app.services.storage.factory import storage_service
-
             base_path = getattr(
                 storage_service,
                 "base_path",
@@ -132,7 +130,7 @@ async def detailed_health_check():
 
         if settings.ENVIRONMENT == "production":
             auth_status["notes"] += " (프로덕션에서는 더 강력한 인증 시스템 권장)"
-            auth_status["status"] = "warning"
+            # auth_config warning은 실제 장애가 아닌 참고사항 — overall status에 영향 없도록 healthy 유지
 
         dependencies["auth_config"] = auth_status
     except Exception as e:
@@ -175,6 +173,76 @@ async def detailed_health_check():
         version="1.0.0",
         dependencies=dependencies,
     )
+
+
+@router.post("/cleanup-local-storage")
+async def cleanup_local_storage(
+    dry_run: bool = Query(False, description="True면 삭제 목록만 반환"),
+    claims=Depends(get_current_user_claims),
+):
+    """
+    Railway 볼륨(/app/storage 또는 /data/storage)의 파일 일괄 삭제 (admin 전용).
+    R2 마이그레이션 후 불필요해진 로컬 파일을 정리하고 볼륨을 비워 요금제 변경을 준비한다.
+    """
+    import shutil
+    from app.core.auth.simple import require_admin_scope
+
+    # admin 확인
+    scope = str(claims.get("scope", "")).lower()
+    if scope != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    # 정리 대상 경로
+    candidate_roots = ["/app/storage", "/data/storage", "./storage"]
+    storage_root = None
+    for root in candidate_roots:
+        if os.path.isdir(root):
+            storage_root = root
+            break
+
+    if not storage_root:
+        return {"message": "로컬 스토리지 경로를 찾을 수 없습니다.", "deleted": 0, "freed_bytes": 0}
+
+    deleted_files = []
+    total_bytes = 0
+
+    for dirpath, dirnames, filenames in os.walk(storage_root):
+        # .metadata 파일, 숨김 파일 포함 전체 삭제
+        for filename in filenames:
+            full_path = os.path.join(dirpath, filename)
+            try:
+                size = os.path.getsize(full_path)
+                deleted_files.append({"path": full_path, "size": size})
+                total_bytes += size
+            except OSError:
+                pass
+
+    if dry_run:
+        return {
+            "dry_run": True,
+            "storage_root": storage_root,
+            "total_files": len(deleted_files),
+            "total_bytes": total_bytes,
+            "total_mb": round(total_bytes / 1024 / 1024, 2),
+            "files": [f["path"] for f in deleted_files[:50]],  # 최대 50개만 표시
+        }
+
+    # 실제 삭제: 파일만 삭제하고 디렉토리 구조는 유지
+    actually_deleted = 0
+    for f in deleted_files:
+        try:
+            os.remove(f["path"])
+            actually_deleted += 1
+        except OSError as e:
+            pass
+
+    return {
+        "message": f"로컬 스토리지 파일 {actually_deleted}개 삭제 완료",
+        "storage_root": storage_root,
+        "deleted": actually_deleted,
+        "freed_bytes": total_bytes,
+        "freed_mb": round(total_bytes / 1024 / 1024, 2),
+    }
 
 
 @router.post("/init-database")

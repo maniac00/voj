@@ -375,3 +375,138 @@ async def migrate_audio_to_r2_status(claims=Depends(get_current_user_claims)):
 
     with open(_MIGRATION_STATUS_FILE) as f:
         return json.load(f)
+
+
+_COVER_MIGRATION_STATUS_FILE = "/tmp/r2_cover_migration_status.json"
+
+
+def _run_cover_migration_background(cover_keys: list, local_root: str):
+    """백그라운드에서 실행되는 커버 이미지 마이그레이션 작업."""
+    import json
+    import boto3
+    from botocore.exceptions import ClientError
+
+    ext_to_ct = {
+        ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+        ".webp": "image/webp", ".gif": "image/gif",
+    }
+
+    def content_type(path: str) -> str:
+        _, ext = os.path.splitext(path.lower())
+        return ext_to_ct.get(ext, "image/jpeg")
+
+    endpoint = f"https://{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+    s3 = boto3.client(
+        "s3", endpoint_url=endpoint, region_name="auto",
+        aws_access_key_id=settings.R2_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.R2_SECRET_ACCESS_KEY,
+    )
+    bucket = settings.R2_BUCKET_NAME
+
+    status = {"state": "running", "total": len(cover_keys),
+              "ok": 0, "skipped": 0, "failed": 0, "current": 0, "errors": []}
+
+    def _save():
+        with open(_COVER_MIGRATION_STATUS_FILE, "w") as f:
+            json.dump(status, f)
+
+    _save()
+
+    for i, key in enumerate(cover_keys, 1):
+        status["current"] = i
+        local_path = os.path.join(local_root, key)
+
+        if not os.path.exists(local_path):
+            status["skipped"] += 1
+            _save()
+            continue
+
+        try:
+            s3.head_object(Bucket=bucket, Key=key)
+            status["skipped"] += 1
+            _save()
+            continue
+        except ClientError as e:
+            if e.response["Error"]["Code"] not in ("404", "NoSuchKey"):
+                status["failed"] += 1
+                status["errors"].append({"key": key, "error": str(e)})
+                _save()
+                continue
+
+        try:
+            with open(local_path, "rb") as f:
+                s3.put_object(Bucket=bucket, Key=key, Body=f,
+                              ContentType=content_type(local_path))
+            status["ok"] += 1
+        except Exception as exc:
+            status["failed"] += 1
+            status["errors"].append({"key": key, "error": str(exc)})
+
+        if i % 10 == 0:
+            _save()
+
+    status["state"] = "done"
+    _save()
+
+
+@router.post("/migrate-covers-to-r2")
+async def migrate_covers_to_r2(
+    background_tasks: BackgroundTasks,
+    dry_run: bool = Query(False, description="True면 업로드 없이 대상 목록만 반환"),
+    claims=Depends(get_current_user_claims),
+):
+    """
+    로컬 볼륨의 커버 이미지를 Cloudflare R2로 백그라운드 마이그레이션 (관리자 전용).
+    즉시 반환 후 /health/migrate-covers-to-r2/status 로 진행 상황 확인.
+    """
+    if str(claims.get("scope", "")).lower() != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    if not settings.R2_ACCOUNT_ID:
+        raise HTTPException(status_code=400, detail="R2_ACCOUNT_ID not configured")
+
+    import json
+    from app.models.database import SessionLocal
+    from app.models.book_sql import BookSQL
+    from app.services.storage.local import LocalStorageService
+
+    local_svc = LocalStorageService()
+    local_root = local_svc.base_path
+
+    db = SessionLocal()
+    try:
+        rows = db.query(BookSQL.cover_image_key).filter(
+            BookSQL.cover_image_key.isnot(None)
+        ).all()
+        cover_keys = [r.cover_image_key.lstrip("/") for r in rows if r.cover_image_key]
+    finally:
+        db.close()
+
+    if dry_run:
+        return {"dry_run": True, "total": len(cover_keys),
+                "local_root": local_root, "files": cover_keys}
+
+    if os.path.exists(_COVER_MIGRATION_STATUS_FILE):
+        with open(_COVER_MIGRATION_STATUS_FILE) as f:
+            prev = json.load(f)
+        if prev.get("state") == "running":
+            return {"message": "이미 커버 마이그레이션이 실행 중입니다.", "status": prev}
+
+    background_tasks.add_task(_run_cover_migration_background, cover_keys, local_root)
+    return {"message": f"커버 마이그레이션 시작 ({len(cover_keys)}개 파일). "
+                       "GET /api/v1/health/migrate-covers-to-r2/status 로 진행 상황 확인.",
+            "total": len(cover_keys)}
+
+
+@router.get("/migrate-covers-to-r2/status")
+async def migrate_covers_to_r2_status(claims=Depends(get_current_user_claims)):
+    """커버 이미지 R2 마이그레이션 진행 상황 조회."""
+    if str(claims.get("scope", "")).lower() != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    import json
+    if not os.path.exists(_COVER_MIGRATION_STATUS_FILE):
+        return {"state": "not_started"}
+
+    with open(_COVER_MIGRATION_STATUS_FILE) as f:
+        return json.load(f)

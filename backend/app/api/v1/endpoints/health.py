@@ -6,9 +6,10 @@ import asyncio
 import os
 from typing import Any, Dict
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
+from app.core.auth.simple import get_current_user_claims
 from app.core.config import settings
 from app.core.environment.detector import (
     auto_configure_environment,
@@ -236,3 +237,110 @@ async def auto_configure():
         raise HTTPException(
             status_code=500, detail=f"Auto-configuration failed: {str(e)}"
         )
+
+
+@router.post("/migrate-audio-to-r2")
+async def migrate_audio_to_r2(
+    dry_run: bool = Query(False, description="True면 업로드 없이 대상 목록만 반환"),
+    claims=Depends(get_current_user_claims),
+):
+    """
+    로컬 볼륨의 오디오 파일을 Cloudflare R2로 마이그레이션 (관리자 전용).
+    dry_run=true 이면 실제 업로드 없이 대상 파일 목록만 반환한다.
+    """
+    if str(claims.get("scope", "")).lower() != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    if not settings.R2_ACCOUNT_ID:
+        raise HTTPException(status_code=400, detail="R2_ACCOUNT_ID not configured")
+
+    import hashlib as _hashlib
+    import boto3
+    from botocore.exceptions import ClientError
+    from app.models.database import SessionLocal
+    from app.models.audio_chapter_sql import AudioChapterSQL
+    from app.services.storage.local import LocalStorageService
+
+    # 로컬 스토리지 경로 확인
+    local_svc = LocalStorageService()
+    local_root = local_svc.base_path
+
+    # DB에서 audio_key 목록 조회
+    db = SessionLocal()
+    try:
+        rows = db.query(AudioChapterSQL.audio_key).filter(
+            AudioChapterSQL.audio_key.isnot(None)
+        ).all()
+        audio_keys = [r.audio_key.lstrip("/") for r in rows if r.audio_key]
+    finally:
+        db.close()
+
+    ext_to_ct = {
+        ".mp3": "audio/mpeg", ".wav": "audio/wav", ".m4a": "audio/mp4",
+        ".flac": "audio/flac", ".aac": "audio/aac", ".ogg": "audio/ogg",
+    }
+
+    def content_type(path: str) -> str:
+        _, ext = os.path.splitext(path.lower())
+        return ext_to_ct.get(ext, "application/octet-stream")
+
+    # R2 클라이언트
+    endpoint = f"https://{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+    s3 = boto3.client(
+        "s3", endpoint_url=endpoint, region_name="auto",
+        aws_access_key_id=settings.R2_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.R2_SECRET_ACCESS_KEY,
+    )
+    bucket = settings.R2_BUCKET_NAME
+
+    results = {"dry_run": dry_run, "local_root": local_root,
+               "total": len(audio_keys), "ok": 0, "skipped": 0, "failed": 0, "files": []}
+
+    for key in audio_keys:
+        local_path = os.path.join(local_root, key)
+        entry: Dict[str, Any] = {"key": key}
+
+        if not os.path.exists(local_path):
+            entry["status"] = "skipped"
+            entry["reason"] = "local file not found"
+            results["skipped"] += 1
+            results["files"].append(entry)
+            continue
+
+        entry["size"] = os.path.getsize(local_path)
+
+        if dry_run:
+            entry["status"] = "pending"
+            results["files"].append(entry)
+            continue
+
+        # R2에 이미 존재하면 건너뜀
+        try:
+            s3.head_object(Bucket=bucket, Key=key)
+            entry["status"] = "skipped"
+            entry["reason"] = "already in R2"
+            results["skipped"] += 1
+            results["files"].append(entry)
+            continue
+        except ClientError as e:
+            if e.response["Error"]["Code"] not in ("404", "NoSuchKey"):
+                entry["status"] = "failed"
+                entry["error"] = str(e)
+                results["failed"] += 1
+                results["files"].append(entry)
+                continue
+
+        try:
+            with open(local_path, "rb") as f:
+                s3.put_object(Bucket=bucket, Key=key, Body=f,
+                              ContentType=content_type(local_path))
+            entry["status"] = "ok"
+            results["ok"] += 1
+        except Exception as exc:
+            entry["status"] = "failed"
+            entry["error"] = str(exc)
+            results["failed"] += 1
+
+        results["files"].append(entry)
+
+    return results

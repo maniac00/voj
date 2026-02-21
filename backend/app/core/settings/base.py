@@ -100,6 +100,12 @@ class BaseAppSettings(BaseSettings):
     R2_WORKER_URL: str = ""  # ex: https://voj-releases.7wario.workers.dev
     R2_AUTH_SECRET: str = ""  # R2 Worker HMAC 서명 시크릿 (Worker와 공유)
 
+    # R2 스토리지 설정 (boto3 via S3-compatible API)
+    R2_ACCOUNT_ID: str = ""
+    R2_ACCESS_KEY_ID: str = ""       # R2 API 토큰 Access Key
+    R2_SECRET_ACCESS_KEY: str = ""   # R2 API 토큰 Secret Key
+    R2_BUCKET_NAME: str = "voj-releases"
+
     @property
     def telegram_admin_chat_ids(self) -> List[str]:
         """TELEGRAM_ADMIN_CHAT_IDS를 리스트로 파싱"""

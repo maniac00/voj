@@ -460,10 +460,23 @@ async def get_streaming_url(
     )
     duration = int(chapter.duration or 0)
 
-    # Production: Railway 서버를 통한 스트리밍
-    # NOTE: 오디오 파일은 Railway 로컬 볼륨(LocalStorageService)에 저장되므로
-    # Cloudflare R2 Worker를 통한 직접 서빙 불가 → Railway 스트리밍 유지
     if settings.ENVIRONMENT == "production":
+        # R2 Worker HMAC 서명 URL 반환 (이그레스 무료)
+        if settings.R2_WORKER_URL and settings.R2_AUTH_SECRET:
+            import hashlib
+            import hmac
+            import time as _time
+
+            exp = int(_time.time()) + 3600
+            message = f"{storage_file_key}:{exp}".encode()
+            secret = settings.R2_AUTH_SECRET.encode()
+            token = hmac.new(secret, message, hashlib.sha256).hexdigest()
+            worker_url = settings.R2_WORKER_URL.rstrip("/")
+            signed_url = f"{worker_url}/{storage_file_key}?token={token}&exp={exp}"
+            logger.info("R2 Worker URL 반환: %s", storage_file_key)
+            return StreamingUrlResponse(streaming_url=signed_url, expires_at=expires, duration=duration)
+
+        # R2 미설정 시 Railway 직접 스트리밍 fallback
         base = os.getenv("BACKEND_ORIGIN") or os.getenv("RAILWAY_PUBLIC_DOMAIN")
         if not base and request is not None:
             base = str(request.base_url)

@@ -72,8 +72,10 @@ jspm_packages/
 .cache
 .parcel-cache
 
-# Local storage
-storage/
+# Local storage (오디오 파일 저장 디렉토리, 소스코드 제외)
+/storage/
+/backend/storage/
+!/backend/app/services/storage/
 
 # SST & OpenNext build artifacts
 .sst/

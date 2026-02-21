@@ -369,10 +369,11 @@ async def delete_book(
         )
 
     # 소유권 확인
-    if not BookService.get_book(db, user_id=user_id, book_id=book_id):
+    book = BookService.get_book(db, user_id=user_id, book_id=book_id)
+    if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
-    # 연관 리소스 정리: 챕터별 스토리지 파일 삭제
+    # 연관 리소스 정리: 챕터별 오디오 파일 삭제
     chapters = (
         db.query(AudioChapterSQL)
         .filter(AudioChapterSQL.book_id == book_id)
@@ -384,6 +385,14 @@ async def delete_book(
                 await storage_service.delete_file(chapter.audio_key)
             except Exception as e:
                 logger.warning("Failed to delete storage file %s: %s", chapter.audio_key, e)
+
+    # 커버 이미지 삭제
+    cover_key = getattr(book, "cover_image_key", None)
+    if cover_key:
+        try:
+            await storage_service.delete_file(cover_key)
+        except Exception as e:
+            logger.warning("Failed to delete cover image %s: %s", cover_key, e)
     # DB CASCADE가 챕터 레코드를 자동 삭제함
     try:
         ok = BookService.delete_book(db, user_id=user_id, book_id=book_id)

@@ -2,8 +2,6 @@
 VOJ Audiobooks API - 오디오 관리 엔드포인트
 오디오 파일 업로드, 챕터 관리, 스트리밍 URL 생성
 """
-import hashlib
-import hmac
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -462,20 +460,9 @@ async def get_streaming_url(
     )
     duration = int(chapter.duration or 0)
 
-    # Production: R2 Worker 직접 서빙 (Railway 메모리/대역폭 절약)
-    if settings.ENVIRONMENT == "production" and settings.R2_WORKER_URL and settings.R2_AUTH_SECRET:
-        expiry_unix = int(expires.timestamp())
-        message = f"{storage_file_key}:{expiry_unix}"
-        token = hmac.new(
-            settings.R2_AUTH_SECRET.encode(),
-            message.encode(),
-            hashlib.sha256,
-        ).hexdigest()
-        worker_url = settings.R2_WORKER_URL.rstrip("/")
-        signed_url = f"{worker_url}/{storage_file_key}?token={token}&exp={expiry_unix}"
-        return StreamingUrlResponse(streaming_url=signed_url, expires_at=expires, duration=duration)
-
-    # Fallback: Railway 서버를 통한 스트리밍 (R2 Worker 미설정 시)
+    # Production: Railway 서버를 통한 스트리밍
+    # NOTE: 오디오 파일은 Railway 로컬 볼륨(LocalStorageService)에 저장되므로
+    # Cloudflare R2 Worker를 통한 직접 서빙 불가 → Railway 스트리밍 유지
     if settings.ENVIRONMENT == "production":
         base = os.getenv("BACKEND_ORIGIN") or os.getenv("RAILWAY_PUBLIC_DOMAIN")
         if not base and request is not None:

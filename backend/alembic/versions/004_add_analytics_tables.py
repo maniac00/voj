@@ -28,7 +28,7 @@ def upgrade() -> None:
         sa.Column("device_model", sa.String(100), nullable=True),
         sa.Column("first_installed_at", sa.DateTime(), server_default=sa.func.now(), nullable=False),
         sa.Column("last_seen_at", sa.DateTime(), server_default=sa.func.now(), nullable=False),
-        sa.Column("is_active", sa.Boolean(), server_default=sa.text("1"), nullable=False),
+        sa.Column("is_active", sa.Boolean(), server_default=sa.true(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="SET NULL"),
     )
@@ -63,7 +63,7 @@ def upgrade() -> None:
         sa.Column("started_at", sa.DateTime(), nullable=False),
         sa.Column("ended_at", sa.DateTime(), nullable=True),
         sa.Column("duration_seconds", sa.Integer(), server_default=sa.text("0"), nullable=False),
-        sa.Column("completed", sa.Boolean(), server_default=sa.text("0"), nullable=False),
+        sa.Column("completed", sa.Boolean(), server_default=sa.false(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
     )

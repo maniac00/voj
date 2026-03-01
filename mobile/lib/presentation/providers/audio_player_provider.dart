@@ -14,9 +14,13 @@ final audioPlayerServiceProvider = Provider<AudioPlayerService>((ref) {
   final service = AudioPlayerService();
   final authRepo = ref.watch(authRepositoryProvider);
   final accessibility = ref.watch(accessibilityFeedbackProvider);
+  final prefs = ref.watch(sharedPreferencesProvider);
   final logService = LogWebSocketService();
 
+  service.setSharedPreferences(prefs);
+
   service.registerUnauthorizedHandler((error) async {
+    await service.saveProgressLocally();
     await authRepo.handleUnauthorized(
       message: '세션이 만료되었습니다. 다시 로그인해주세요.',
     );

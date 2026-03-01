@@ -12,6 +12,7 @@ import 'presentation/screens/splash_screen.dart';
 import 'presentation/screens/login_screen.dart';
 import 'presentation/screens/pending_approval_screen.dart';
 import 'presentation/providers/auth_provider.dart';
+import 'presentation/providers/audio_player_provider.dart';
 
 const _log = AppLogger('Main');
 
@@ -66,11 +67,37 @@ void main() async {
 
 final _navigatorKey = GlobalKey<NavigatorState>();
 
-class VoiceOfJuanApp extends ConsumerWidget {
+class VoiceOfJuanApp extends ConsumerStatefulWidget {
   const VoiceOfJuanApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<VoiceOfJuanApp> createState() => _VoiceOfJuanAppState();
+}
+
+class _VoiceOfJuanAppState extends ConsumerState<VoiceOfJuanApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      ref.read(audioPlayerServiceProvider).saveProgressLocally();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // 로그인 상태가 true → false로 전환되면 로그인 화면으로 이동
     // (토큰 만료, 세션 강제 해제 등 모든 로그아웃 경로 처리)
     ref.listen<bool>(isLoggedInProvider, (previous, next) {

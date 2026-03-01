@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/utils/logger.dart';
 import '../../services/accessibility_feedback_service.dart';
 import '../models/book_model.dart';
 import 'analytics_service.dart';
 import 'audio_service.dart';
+import 'local_playback_state.dart';
 
 const _log = AppLogger('AudioPlayer');
 
@@ -80,6 +82,8 @@ class AudioPlayerService {
   Duration? get duration => _player.duration;
   Duration get position => _lastKnownPosition;
   double get speed => _player.speed;
+
+  SharedPreferences? _localPrefs;
 
   String? _authToken;
   String? _headerToken; // setAudioSource() 시 사용한 토큰 기록
@@ -218,6 +222,29 @@ class AudioPlayerService {
     _analyticsService.clearAuthToken();
   }
 
+  /// SharedPreferences 주입 (Provider에서 호출)
+  void setSharedPreferences(SharedPreferences prefs) {
+    _localPrefs = prefs;
+  }
+
+  /// 현재 재생 위치를 로컬(SharedPreferences)에 저장
+  Future<void> saveProgressLocally() async {
+    final prefs = _localPrefs;
+    final book = _currentBook;
+    final chapter = _currentChapter;
+    if (prefs == null || book == null || chapter == null) return;
+    if (_lastKnownPosition.inSeconds <= 0) return;
+
+    await LocalPlaybackState.save(
+      prefs,
+      bookId: book.id,
+      chapterId: chapter.id,
+      chapterNumber: chapter.chapterNumber,
+      chapterFileName: chapter.fileName,
+      positionSeconds: _lastKnownPosition.inSeconds,
+    );
+  }
+
   void registerUnauthorizedHandler(
     Future<void> Function(AudioServiceException error) handler,
   ) {
@@ -322,6 +349,7 @@ class AudioPlayerService {
     _lastKnownPosition = _player.position;
     await _player.pause();
     await _saveCurrentProgress();
+    await saveProgressLocally();
     await _analyticsService.endPlaySession();
     _stopProgressTracking();
   }
@@ -382,6 +410,7 @@ class AudioPlayerService {
   Future<void> stop() async {
     await _player.stop();
     await _saveCurrentProgress();
+    await saveProgressLocally();
     await _analyticsService.endPlaySession();
     _stopProgressTracking();
   }
@@ -391,6 +420,7 @@ class AudioPlayerService {
     await _player.seek(position);
     _lastKnownPosition = position;
     await _saveCurrentProgress();
+    await saveProgressLocally();
   }
 
   /// 재생 속도 설정
@@ -479,6 +509,7 @@ class AudioPlayerService {
     _progressTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (_player.playing) {
         _saveCurrentProgress();
+        saveProgressLocally();
       }
     });
   }
@@ -515,6 +546,7 @@ class AudioPlayerService {
   /// 리소스 정리
   Future<void> dispose() async {
     await _saveCurrentProgress();
+    await saveProgressLocally();
     await _analyticsService.endPlaySession();
     _stopProgressTracking();
     _bufferingStallTimer?.cancel();

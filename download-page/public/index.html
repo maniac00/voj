@@ -24,39 +24,99 @@
         </p>
       </section>
 
-      <!-- 다운로드 버튼 -->
-      <section class="download-section" aria-label="앱 다운로드">
-        <a
-          id="download-btn"
-          href="#"
-          class="download-button"
-          role="button"
-          aria-label="주안의 소리 안드로이드 앱 다운로드"
-          download
+      <!-- 플랫폼 탭 -->
+      <div class="platform-tabs" role="tablist" aria-label="플랫폼 선택">
+        <button
+          id="tab-android"
+          class="tab-button active"
+          role="tab"
+          aria-selected="true"
+          aria-controls="panel-android"
         >
-          Android APK 다운로드
-        </a>
-        <p id="version-info" class="version-info" aria-live="polite">
-          버전 정보를 불러오는 중...
-        </p>
-      </section>
+          Android
+        </button>
+        <button
+          id="tab-ios"
+          class="tab-button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="panel-ios"
+        >
+          iOS
+        </button>
+      </div>
 
-      <!-- 설치 안내 -->
-      <section class="install-guide" aria-label="설치 방법 안내">
-        <h2>설치 방법</h2>
-        <ol>
-          <li>위 버튼을 눌러 APK 파일을 다운로드합니다.</li>
-          <li>다운로드가 완료되면 알림을 눌러 설치를 시작합니다.</li>
-          <li>
-            <strong>"출처를 알 수 없는 앱"</strong> 설치를 허용하라는 안내가 나오면:
-            <ul>
-              <li>설정 &gt; 앱 &gt; 특별한 앱 액세스 &gt; 출처를 알 수 없는 앱 설치</li>
-              <li>사용 중인 브라우저(예: Chrome)를 선택하고 허용합니다.</li>
-            </ul>
-          </li>
-          <li>설치 완료 후 앱을 실행합니다.</li>
-        </ol>
-      </section>
+      <!-- Android 패널 -->
+      <div id="panel-android" class="tab-panel active" role="tabpanel" aria-labelledby="tab-android">
+        <section class="download-section" aria-label="Android 앱 다운로드">
+          <a
+            id="download-btn"
+            href="#"
+            class="download-button"
+            role="button"
+            aria-label="주안의 소리 안드로이드 앱 다운로드"
+            download
+          >
+            Android APK 다운로드
+          </a>
+          <p id="version-info" class="version-info" aria-live="polite">
+            버전 정보를 불러오는 중...
+          </p>
+        </section>
+
+        <section class="install-guide" aria-label="Android 설치 방법 안내">
+          <h2>Android 설치 방법</h2>
+          <ol>
+            <li>위 버튼을 눌러 APK 파일을 다운로드합니다.</li>
+            <li>다운로드가 완료되면 알림을 눌러 설치를 시작합니다.</li>
+            <li>
+              <strong>"출처를 알 수 없는 앱"</strong> 설치를 허용하라는 안내가 나오면:
+              <ul>
+                <li>설정 &gt; 앱 &gt; 특별한 앱 액세스 &gt; 출처를 알 수 없는 앱 설치</li>
+                <li>사용 중인 브라우저(예: Chrome)를 선택하고 허용합니다.</li>
+              </ul>
+            </li>
+            <li>설치 완료 후 앱을 실행합니다.</li>
+          </ol>
+        </section>
+      </div>
+
+      <!-- iOS 패널 -->
+      <div id="panel-ios" class="tab-panel" role="tabpanel" aria-labelledby="tab-ios">
+        <section class="download-section" aria-label="iOS 앱 안내">
+          <p class="ios-notice">
+            iOS 버전은 Apple TestFlight를 통해 설치할 수 있습니다.
+          </p>
+        </section>
+
+        <section class="install-guide" aria-label="iOS 설치 방법 안내">
+          <h2>iOS 설치 방법</h2>
+          <ol>
+            <li>
+              App Store에서 <strong>TestFlight</strong> 앱을 설치합니다.
+              <ul>
+                <li>
+                  <a href="https://apps.apple.com/app/testflight/id899247664" class="guide-link" target="_blank" rel="noopener">
+                    TestFlight 설치하기 (App Store)
+                  </a>
+                </li>
+              </ul>
+            </li>
+            <li>
+              아래 이메일로 <strong>Apple ID(이메일)</strong>를 보내 테스터 등록을 신청합니다.
+              <ul>
+                <li>
+                  <a href="mailto:7wario@gmail.com?subject=주안의 소리 iOS 테스터 신청" class="guide-link">
+                    7wario@gmail.com
+                  </a>
+                </li>
+              </ul>
+            </li>
+            <li>테스터 등록이 완료되면 이메일로 초대 링크가 발송됩니다.</li>
+            <li>초대 이메일의 링크를 눌러 TestFlight에서 앱을 설치합니다.</li>
+          </ol>
+        </section>
+      </div>
 
       <!-- 문의 -->
       <footer class="app-footer">
@@ -66,11 +126,48 @@
   </main>
 
   <script>
+    // 탭 전환
+    (function () {
+      var tabs = document.querySelectorAll('.tab-button');
+      var panels = document.querySelectorAll('.tab-panel');
+
+      tabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          tabs.forEach(function (t) {
+            t.classList.remove('active');
+            t.setAttribute('aria-selected', 'false');
+          });
+          panels.forEach(function (p) {
+            p.classList.remove('active');
+          });
+
+          tab.classList.add('active');
+          tab.setAttribute('aria-selected', 'true');
+          var panelId = tab.getAttribute('aria-controls');
+          document.getElementById(panelId).classList.add('active');
+        });
+
+        // 키보드 좌우 화살표로 탭 전환
+        tab.addEventListener('keydown', function (e) {
+          var tabList = Array.from(tabs);
+          var idx = tabList.indexOf(tab);
+          if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+            e.preventDefault();
+            var next = e.key === 'ArrowRight'
+              ? tabList[(idx + 1) % tabList.length]
+              : tabList[(idx - 1 + tabList.length) % tabList.length];
+            next.click();
+            next.focus();
+          }
+        });
+      });
+    })();
+
+    // Android metadata 로드
     (async function () {
       var btn = document.getElementById('download-btn');
       var info = document.getElementById('version-info');
 
-      // downloadUrl이 설정되기 전에는 클릭 차단
       btn.addEventListener('click', function (e) {
         if (!btn.href || btn.href.endsWith('#') || btn.href === window.location.href) {
           e.preventDefault();
@@ -87,7 +184,6 @@
         if (android && android.downloadUrl) {
           btn.href = android.downloadUrl;
           btn.removeAttribute('download');
-          // 외부 URL이면 download 속성 대신 직접 이동
           var size = android.fileSize
             ? ' | ' + (android.fileSize / 1024 / 1024).toFixed(1) + 'MB'
             : '';

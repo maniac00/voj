@@ -64,7 +64,7 @@ body {
 
 /* 앱 설명 */
 .app-description {
-  margin-bottom: 40px;
+  margin-bottom: 32px;
   text-align: center;
 }
 
@@ -74,10 +74,58 @@ body {
   line-height: 1.8;
 }
 
+/* 플랫폼 탭 */
+.platform-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 36px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid #444444;
+}
+
+.tab-button {
+  flex: 1;
+  background-color: #2a2a2a;
+  color: #909090;
+  border: none;
+  padding: 16px 0;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+  min-height: 56px;
+}
+
+.tab-button:focus {
+  outline: 3px solid #4da6ff;
+  outline-offset: -3px;
+  z-index: 1;
+}
+
+.tab-button.active {
+  background-color: #ffffff;
+  color: #000000;
+}
+
+.tab-button:not(.active):hover {
+  background-color: #3a3a3a;
+  color: #d0d0d0;
+}
+
+/* 탭 패널 */
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: block;
+}
+
 /* 다운로드 섹션 */
 .download-section {
   text-align: center;
-  margin-bottom: 48px;
+  margin-bottom: 32px;
 }
 
 .download-button {
@@ -113,6 +161,14 @@ body {
   margin-top: 16px;
   font-size: 16px;
   color: #909090;
+}
+
+/* iOS 안내 텍스트 */
+.ios-notice {
+  font-size: 20px;
+  color: #d0d0d0;
+  line-height: 1.8;
+  margin-bottom: 8px;
 }
 
 /* 설치 안내 */
@@ -156,6 +212,22 @@ body {
   color: #ffffff;
 }
 
+/* 가이드 내 링크 */
+.guide-link {
+  color: #6db3f2;
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.guide-link:hover {
+  color: #9dcbf7;
+}
+
+.guide-link:focus {
+  outline: 2px solid #4da6ff;
+  outline-offset: 2px;
+}
+
 /* 푸터 */
 .app-footer {
   text-align: center;
@@ -182,11 +254,24 @@ body {
   .install-guide {
     border: 2px solid #ffffff;
   }
+
+  .platform-tabs {
+    border-color: #ffffff;
+  }
+
+  .tab-button.active {
+    border: 2px solid #ffffff;
+  }
+
+  .guide-link {
+    color: #99ccff;
+  }
 }
 
 /* 큰 글씨 선호 */
 @media (prefers-reduced-motion: reduce) {
-  .download-button {
+  .download-button,
+  .tab-button {
     transition: none;
   }
 }

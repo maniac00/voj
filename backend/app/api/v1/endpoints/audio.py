@@ -486,7 +486,14 @@ async def get_streaming_url(
         # R2 미설정 시 Railway 직접 스트리밍 fallback
         base = os.getenv("BACKEND_ORIGIN") or os.getenv("RAILWAY_PUBLIC_DOMAIN")
         if not base and request is not None:
-            base = str(request.base_url)
+            # request.base_url은 리버스 프록시 뒤에서 내부 주소(0.0.0.0)를 반환할 수 있음
+            # X-Forwarded-Host / Host 헤더로 공개 주소를 구성
+            forwarded_host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+            forwarded_proto = request.headers.get("x-forwarded-proto", "https")
+            if forwarded_host:
+                base = f"{forwarded_proto}://{forwarded_host}"
+            else:
+                base = str(request.base_url)
         if base:
             base = base.strip()
             if not (base.startswith("http://") or base.startswith("https://")):

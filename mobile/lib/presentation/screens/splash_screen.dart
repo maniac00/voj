@@ -26,6 +26,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
     if (!mounted) return;
 
+    // 자동 로그인이 꺼져 있으면 로그인 화면으로 이동
+    final autoLogin = ref.read(autoLoginProvider);
+    if (!autoLogin) {
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/login');
+      }
+      return;
+    }
+
     // Stream이 아직 로딩 중일 수 있으므로 데이터가 올 때까지 대기
     User? user;
     final currentValue = ref.read(currentUserProvider);

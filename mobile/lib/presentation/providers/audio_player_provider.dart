@@ -212,6 +212,11 @@ class AudioPlayerController {
       _connectStatusWebSocket(chapter.id);
 
     } catch (e) {
+      // Loading interrupted — 사용자가 빠르게 다른 트랙을 선택한 경우
+      // 에러 상태를 설정하지 않고 조용히 반환
+      if (e is AudioPlayerException && e.message == 'Loading interrupted') {
+        return;
+      }
       _ref.read(audioPlayerLoadingProvider.notifier).state = false;
       _ref.read(audioPlayerErrorProvider.notifier).state = e.toString();
       rethrow;

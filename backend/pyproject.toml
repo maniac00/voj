@@ -61,6 +61,9 @@ fastapi-cors = "^0.0.6"
 # 파일 처리
 aiofiles = "^23.2.1"
 
+# 오디오 메타데이터 추출 (pure Python — ffprobe fallback)
+mutagen = "^1.47.0"
+
 # JSON 처리
 orjson = "^3.9.10"
 

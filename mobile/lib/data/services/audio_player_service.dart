@@ -328,6 +328,12 @@ class AudioPlayerService {
       throw AudioPlayerException('오디오 재생 중 오류가 발생했습니다: ${error.message}');
     } catch (error) {
       _isChangingSource = false;
+      // "Loading interrupted" — 사용자가 빠르게 다른 트랙을 선택한 경우 발생하는 정상 동작
+      // 새 playChapter() 호출이 이미 상태를 설정했으므로 리셋하지 않음
+      if (error.toString().contains('Loading interrupted')) {
+        _log.info('Loading interrupted by new playback request');
+        throw const AudioPlayerException('Loading interrupted');
+      }
       _currentBook = null;
       _currentChapter = null;
       _playlist = null;

@@ -16,7 +16,9 @@ class BookCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final session = ref.watch(authSessionProvider).valueOrNull;
+    // authSessionProvider(StreamProvider)는 broadcast stream이라 초기 값을 놓칠 수 있음
+    // currentSession은 동기적으로 항상 최신 세션을 반환
+    final session = ref.watch(authRepositoryProvider).currentSession;
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Semantics(

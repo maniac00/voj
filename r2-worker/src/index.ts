@@ -38,7 +38,8 @@ async function validateToken(
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    const key = url.pathname.slice(1); // 앞의 "/" 제거
+    // 한글 등 비ASCII 문자가 URL 인코딩된 경우 디코딩하여 R2 키와 일치시킴
+    const key = decodeURIComponent(url.pathname.slice(1));
 
     if (!key) {
       return new Response("Not Found", { status: 404 });

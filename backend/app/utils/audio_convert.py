@@ -43,11 +43,12 @@ def convert_to_m4a(input_path: str, output_path: str) -> bool:
 
 
 def get_audio_duration(file_path: str) -> int:
-    """ffprobe로 오디오 duration(초)을 추출한다.
+    """ffprobe로 오디오 duration(초)을 추출한다. 실패 시 mutagen fallback.
 
     Returns:
         Duration in seconds (rounded). 0 on failure.
     """
+    # 1차: ffprobe
     cmd = [
         "ffprobe",
         "-v", "quiet",
@@ -59,13 +60,27 @@ def get_audio_duration(file_path: str) -> int:
         result = subprocess.run(
             cmd, capture_output=True, text=True, timeout=30,
         )
-        if result.returncode != 0:
+        if result.returncode == 0:
+            raw = result.stdout.strip()
+            if raw:
+                dur = round(float(raw))
+                if dur > 0:
+                    return dur
+        else:
             logger.warning("ffprobe failed for %s: %s", file_path, result.stderr[:200] if result.stderr else "")
-            return 0
-        raw = result.stdout.strip()
-        if not raw:
-            return 0
-        return round(float(raw))
     except (subprocess.TimeoutExpired, FileNotFoundError, ValueError) as e:
         logger.warning("ffprobe duration extraction failed: %s", e)
-        return 0
+
+    # 2차: mutagen fallback
+    try:
+        from app.utils.audio_metadata import extract_audio_metadata
+
+        meta = extract_audio_metadata(file_path)
+        dur = meta.get("duration")
+        if dur and dur > 0:
+            logger.info("mutagen fallback succeeded for %s: %d s", file_path, dur)
+            return int(dur)
+    except Exception as e:
+        logger.warning("mutagen fallback also failed for %s: %s", file_path, e)
+
+    return 0

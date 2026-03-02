@@ -18,7 +18,7 @@
 1. https://console.firebase.google.com 접속 → VOJ 프로젝트 선택
 2. 프로젝트 설정 → **앱 추가** → iOS 선택
 3. 아래 정보 입력:
-   - **Bundle ID**: Apple Developer에서 등록한 Bundle ID와 동일하게 입력
+   - **Bundle ID**: 앱의 고유 식별자를 직접 정합니다 (예: `com.voiceofjuan.app`). 이 값을 Xcode(3단계), App Store Connect(5단계)에서도 동일하게 사용합니다.
    - **앱 닉네임**: 주안의 소리 iOS
 4. `GoogleService-Info.plist` 다운로드
 5. 다운로드한 파일을 아래 경로에 저장:
@@ -27,7 +27,8 @@
    ```
 6. Xcode에서 파일 추가 확인:
    - `mobile/ios/Runner.xcworkspace` 열기
-   - Runner 타겟에 `GoogleService-Info.plist`가 포함되어 있는지 확인
+   - 좌측 Navigator에서 **Runner** 폴더를 펼쳐 `GoogleService-Info.plist`가 보이는지 확인
+   - 없으면: Runner 폴더 우클릭 → **Add Files to "Runner"** → 파일 선택 → **Copy items if needed** 체크 → Add
 
 ---
 
@@ -66,20 +67,33 @@
 
 ---
 
-## 5단계: App Store Connect에서 앱 등록
+## 5단계: Apple Developer에서 App ID 등록
+
+> App Store Connect에서 Bundle ID를 선택하려면 먼저 여기서 등록해야 합니다.
+
+1. https://developer.apple.com/account/resources/identifiers/list 접속
+2. **+** 클릭 → **App IDs** 선택 → Continue
+3. **App** 선택 → Continue
+4. **Description**: `Voice of Juan`
+5. **Bundle ID**: Explicit 선택 → 2~3단계에서 사용한 Bundle ID와 동일하게 입력 (예: `com.voiceofjuan.app`)
+6. **Register** 클릭
+
+---
+
+## 6단계: App Store Connect에서 앱 등록
 
 1. https://appstoreconnect.apple.com 접속
 2. **나의 앱** → **+** → **새로운 앱**
 3. 아래 정보 입력:
    - **플랫폼**: iOS
    - **이름**: 주안의 소리
-   - **번들 ID**: 3단계에서 설정한 Bundle ID 선택
+   - **번들 ID**: 5단계에서 등록한 Bundle ID가 드롭다운에 표시됨 → 선택
    - **SKU**: `voice-of-juan-ios` (임의 문자열)
 4. 앱 생성 완료
 
 ---
 
-## 6단계: ExportOptions.plist 생성
+## 7단계: ExportOptions.plist 생성
 
 `mobile/ios/ExportOptions.plist` 파일 생성:
 
@@ -104,7 +118,7 @@
 
 ---
 
-## 7단계: App Store Connect API 키 발급
+## 8단계: App Store Connect API 키 발급
 
 `deploy-ios.sh` 스크립트가 TestFlight 업로드에 사용합니다.
 
@@ -136,7 +150,7 @@
 
 ---
 
-## 8단계: iOS 배포 실행
+## 9단계: iOS 배포 실행
 
 모든 준비가 완료되면 배포 스크립트를 실행합니다.
 
@@ -148,7 +162,7 @@ bash scripts/deploy-ios.sh
 
 ---
 
-## 9단계: TestFlight 내부 테스터 초대
+## 10단계: TestFlight 내부 테스터 초대
 
 1. App Store Connect → **주안의 소리** → **TestFlight** 탭
 2. 빌드 처리 완료 후 (보통 10~30분)
@@ -166,4 +180,4 @@ bash scripts/deploy-ios.sh
 - [x] 배포 스크립트 (`scripts/deploy-ios.sh`)
 - [ ] `GoogleService-Info.plist` (2단계 완료 후)
 - [ ] Google Sign-In URL Scheme (4단계 완료 후)
-- [ ] `ExportOptions.plist` (6단계 완료 후)
+- [ ] `ExportOptions.plist` (7단계 완료 후)

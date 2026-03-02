@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/book_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/book_provider.dart';
@@ -93,6 +94,11 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
             onPressed: () => _showSearchDialog(),
             icon: const Icon(Icons.search, color: Color(0xFF3E2723)),
             tooltip: '검색',
+          ),
+          IconButton(
+            onPressed: () => _showSettingsDialog(),
+            icon: const Icon(Icons.settings, color: Color(0xFF3E2723)),
+            tooltip: '설정',
           ),
           IconButton(
             onPressed: () => _showLogoutDialog(),
@@ -367,6 +373,47 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
       MaterialPageRoute(
         builder: (context) => BookDetailScreen(book: book),
       ),
+    );
+  }
+
+  void _showSettingsDialog() {
+    final prefs = ref.read(sharedPreferencesProvider);
+    var autoLogin = prefs.getBool('auto_login') ?? true;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('설정'),
+          content: StatefulBuilder(
+            builder: (context, setDialogState) {
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('자동 로그인'),
+                  Switch(
+                    value: autoLogin,
+                    activeColor: const Color(0xFF5D4037),
+                    onChanged: (value) {
+                      setDialogState(() {
+                        autoLogin = value;
+                      });
+                      prefs.setBool('auto_login', value);
+                      ref.invalidate(autoLoginProvider);
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('닫기'),
+            ),
+          ],
+        );
+      },
     );
   }
 

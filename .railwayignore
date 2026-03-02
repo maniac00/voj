@@ -1,0 +1,39 @@
+# Only upload what Dockerfile needs: pyproject.toml, backend/app, backend/alembic, backend/alembic.ini, backend/entrypoint.sh
+frontend/
+mobile/
+download-page/
+r2-worker/
+stitch-assets/
+.github/
+.git/
+node_modules/
+*.db
+.next/
+.wrangler/
+.sst/
+.mypy_cache/
+.pytest_cache/
+dist/
+infra/
+tmp_test_media/
+.lambda-build-host/
+/storage/
+/docker/
+/tests/
+/scripts/
+/docs/
+/tasks/
+
+# Backend internals not needed
+backend/.venv/
+backend/.pytest_cache/
+backend/storage/
+backend/tests/
+backend/tmp_test_media/
+backend/docs/
+backend/scripts/
+backend/Dockerfile.old
+backend/Dockerfile.lambda
+
+# Explicitly include the storage service module
+!backend/app/services/storage/

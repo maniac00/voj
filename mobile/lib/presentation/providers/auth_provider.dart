@@ -20,6 +20,12 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('SharedPreferences must be initialized');
 });
 
+// 자동 로그인 프로바이더
+final autoLoginProvider = Provider<bool>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return prefs.getBool('auto_login') ?? true;
+});
+
 // 접근성 피드백 서비스 프로바이더
 final accessibilityFeedbackProvider = Provider<AccessibilityFeedbackService>((ref) {
   return const AccessibilityFeedbackService();

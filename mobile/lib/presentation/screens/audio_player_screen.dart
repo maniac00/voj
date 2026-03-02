@@ -419,6 +419,8 @@ class AudioPlayerUtils {
         );
       }
     } catch (e) {
+      // Loading interrupted — 사용자가 빠르게 다른 트랙을 선택한 경우 무시
+      if (e.toString().contains('Loading interrupted')) return;
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

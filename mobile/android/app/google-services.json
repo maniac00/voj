@@ -14,6 +14,30 @@
       },
       "oauth_client": [
         {
+          "client_id": "731128991571-0ktgehke1gkr1j4n8t0m4ij63otj6j2b.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.voiceofjuan.app",
+            "certificate_hash": "d9f973f34c607421b47b72e821f8516fd077aa27"
+          }
+        },
+        {
+          "client_id": "731128991571-fgdco3fliirdmfh8m6iv9g4vddrtgmri.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.voiceofjuan.app",
+            "certificate_hash": "4c39db96cd8515599da7757f36578d7921950e06"
+          }
+        },
+        {
+          "client_id": "731128991571-h6oci2cq3jqrtm9rmivnlgn9vc5a1lq8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.voiceofjuan.app",
+            "certificate_hash": "aa99656880d44652961954b7f90839cbc28b14ab"
+          }
+        },
+        {
           "client_id": "731128991571-evuscn1g07f0lpa3fjhj8faf1mrb239p.apps.googleusercontent.com",
           "client_type": 3
         }

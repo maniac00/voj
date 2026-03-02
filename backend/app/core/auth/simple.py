@@ -104,9 +104,13 @@ def _detect_token_type(token: str) -> str:
 
 
 async def get_current_user_claims(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> Dict[str, Any]:
-    """통합 인증: Firebase JWT 또는 HMAC 토큰 모두 처리"""
+    """통합 인증: Firebase JWT 또는 HMAC 토큰 모두 처리
+    Bearer 헤더가 없을 경우 voj_access_token 쿠키에서 토큰을 읽는다.
+    (브라우저 <img> 태그 등 헤더를 직접 설정할 수 없는 요청 지원)
+    """
 
     # 로컬 바이패스
     if settings.ENVIRONMENT == "local" and settings.LOCAL_BYPASS_ENABLED:
@@ -119,14 +123,19 @@ async def get_current_user_claims(
                 "auth_type": "bypass",
             }
 
-    if not credentials:
+    # Bearer 헤더가 없으면 쿠키에서 토큰 읽기 (img/video 태그 등)
+    token: Optional[str] = None
+    if credentials:
+        token = credentials.credentials
+    else:
+        token = request.cookies.get("voj_access_token")
+
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing authorization credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
-    token = credentials.credentials
     token_type = _detect_token_type(token)
 
     if token_type == "firebase":

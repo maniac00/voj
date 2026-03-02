@@ -2,11 +2,13 @@
 VOJ Audiobooks API - 오디오 관리 엔드포인트
 오디오 파일 업로드, 챕터 관리, 스트리밍 URL 생성
 """
+import asyncio
 import logging
+import os
+import tempfile
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
-import os
 
 logger = logging.getLogger(__name__)
 
@@ -22,10 +24,10 @@ from fastapi import (
     status,
 )
 from pydantic import BaseModel, Field
-from sqlalchemy import and_, func
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
-from app.core.auth.simple import get_current_user_claims, require_approved_user
+from app.core.auth.simple import get_current_user_claims, require_any_scope, require_approved_user
 from app.core.config import settings
 from app.models.analytics_sql import PlaybackProgressSQL
 from app.models.audio_chapter_sql import AudioChapterSQL
@@ -34,6 +36,7 @@ from app.models.user_sql import UserSQL
 from app.services.books_sql import BookServiceSQL as BookService
 from app.core.audit import log_audio_deleted
 from app.services.storage.factory import storage_service
+from app.utils.audio_convert import get_audio_duration
 
 
 def _extract_file_name(audio_key: Optional[str]) -> str:
@@ -688,3 +691,115 @@ def _resolve_user_id_from_claims(claims: dict, db: Session):
         if user:
             return user.id
     return None
+
+
+@router.post("/backfill-durations")
+async def backfill_durations(
+    dry_run: bool = Query(True, description="True면 대상만 조회, False면 실제 업데이트"),
+    claims=Depends(require_any_scope(["admin"])),
+    db: Session = Depends(get_db),
+):
+    """
+    duration이 0이거나 NULL인 챕터들의 duration을 재계산 (admin 전용).
+
+    각 챕터의 오디오 파일을 스토리지에서 다운로드하여 ffprobe + mutagen으로 duration을 추출한 뒤
+    DB를 업데이트한다.
+    """
+    chapters = (
+        db.query(AudioChapterSQL)
+        .filter(
+            AudioChapterSQL.audio_key.isnot(None),
+            or_(
+                AudioChapterSQL.duration.is_(None),
+                AudioChapterSQL.duration <= 0,
+            ),
+        )
+        .all()
+    )
+
+    total = len(chapters)
+
+    if not chapters:
+        return {
+            "success": True,
+            "message": "No chapters with missing duration",
+            "total": 0,
+            "updated": 0,
+            "failed": 0,
+            "skipped": 0,
+        }
+
+    if dry_run:
+        files = [
+            {
+                "chapter_id": ch.chapter_id,
+                "book_id": ch.book_id,
+                "audio_key": ch.audio_key,
+                "current_duration": ch.duration,
+            }
+            for ch in chapters
+        ]
+        return {
+            "success": True,
+            "dry_run": True,
+            "total": total,
+            "files": files,
+        }
+
+    updated = 0
+    failed = 0
+    skipped = 0
+    results = []
+
+    for ch in chapters:
+        audio_key = ch.audio_key
+        try:
+            file_data = await storage_service.download_file(audio_key)
+            if file_data is None:
+                logger.warning("backfill: file not found in storage: %s", audio_key)
+                results.append({"chapter_id": ch.chapter_id, "audio_key": audio_key, "status": "not_found"})
+                skipped += 1
+                continue
+
+            # 확장자 결정
+            ext = os.path.splitext(audio_key)[1] or ".m4a"
+
+            # 임시 파일에 저장 → get_audio_duration (ffprobe + mutagen fallback)
+            with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+                tmp.write(file_data)
+                tmp_path = tmp.name
+
+            try:
+                duration = await asyncio.to_thread(get_audio_duration, tmp_path)
+            finally:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+
+            if duration > 0:
+                ch.duration = duration
+                db.commit()
+                updated += 1
+                results.append({"chapter_id": ch.chapter_id, "audio_key": audio_key, "status": "ok", "duration": duration})
+                logger.info("backfill: %s → %d s", audio_key, duration)
+            else:
+                skipped += 1
+                results.append({"chapter_id": ch.chapter_id, "audio_key": audio_key, "status": "duration_zero"})
+                logger.warning("backfill: could not extract duration for %s", audio_key)
+
+        except Exception as e:
+            db.rollback()
+            logger.error("backfill error for %s: %s", audio_key, e)
+            results.append({"chapter_id": ch.chapter_id, "audio_key": audio_key, "status": "error", "detail": str(e)})
+            failed += 1
+
+    return {
+        "success": True,
+        "message": f"Backfill complete: {updated} updated, {failed} failed, {skipped} skipped",
+        "total": total,
+        "updated": updated,
+        "failed": failed,
+        "skipped": skipped,
+        "results": results,
+    }

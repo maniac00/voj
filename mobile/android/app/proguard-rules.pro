@@ -9,6 +9,11 @@
 # Firebase
 -keep class com.google.firebase.** { *; }
 
+# Google Sign-In / Play Services
+-keep class com.google.android.gms.** { *; }
+-keep class com.google.android.gms.auth.** { *; }
+-keep class com.google.android.gms.common.** { *; }
+
 # Keep just_audio classes
 -keep class com.google.android.exoplayer2.** { *; }
 

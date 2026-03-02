@@ -8,6 +8,7 @@ import io
 import logging
 import os
 import tempfile
+import urllib.parse
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -171,7 +172,7 @@ async def upload_file(
 
         # 메타데이터 준비
         metadata = {
-            "original_filename": file.filename,
+            "original_filename": urllib.parse.quote(file.filename or "", safe=""),
             "file_id": file_id,
             "user_id": user_id,
             "book_id": book_id,
@@ -306,7 +307,7 @@ async def upload_audio_file(
 
         # 메타데이터 준비
         metadata = {
-            "original_filename": file.filename,
+            "original_filename": urllib.parse.quote(file.filename or "", safe=""),
             "file_id": file_id,
             "user_id": user_id,
             "book_id": book_id,

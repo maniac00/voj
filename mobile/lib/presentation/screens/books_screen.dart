@@ -1,6 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/book_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/book_provider.dart';
@@ -96,11 +96,6 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
             tooltip: '검색',
           ),
           IconButton(
-            onPressed: () => _showSettingsDialog(),
-            icon: const Icon(Icons.settings, color: Color(0xFF3E2723)),
-            tooltip: '설정',
-          ),
-          IconButton(
             onPressed: () => _showLogoutDialog(),
             icon: const Icon(Icons.logout, color: Color(0xFF3E2723)),
             tooltip: '로그아웃',
@@ -166,6 +161,12 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
       child: Row(
         children: [
           _buildSortChip(
+            label: '최근 재생순',
+            selected: sortOrder == BookSortOrder.recentlyPlayed,
+            onTap: () => ref.read(bookSortOrderProvider.notifier).state = BookSortOrder.recentlyPlayed,
+          ),
+          const SizedBox(width: 8),
+          _buildSortChip(
             label: '최신순',
             selected: sortOrder == BookSortOrder.newest,
             onTap: () => ref.read(bookSortOrderProvider.notifier).state = BookSortOrder.newest,
@@ -213,6 +214,20 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
     final sortOrder = ref.read(bookSortOrderProvider);
     final sorted = List<Book>.from(books);
     switch (sortOrder) {
+      case BookSortOrder.recentlyPlayed:
+        final prefs = ref.read(sharedPreferencesProvider);
+        final recentlyPlayedJson = prefs.getString('recently_played_books');
+        final Map<String, int> recentlyPlayedMap = recentlyPlayedJson != null
+            ? Map<String, int>.from(json.decode(recentlyPlayedJson))
+            : {};
+        sorted.sort((a, b) {
+          final aTime = recentlyPlayedMap[a.id] ?? 0;
+          final bTime = recentlyPlayedMap[b.id] ?? 0;
+          if (aTime == 0 && bTime == 0) return b.createdAt.compareTo(a.createdAt);
+          if (aTime == 0) return 1;
+          if (bTime == 0) return -1;
+          return bTime.compareTo(aTime);
+        });
       case BookSortOrder.newest:
         sorted.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       case BookSortOrder.alphabetical:
@@ -373,47 +388,6 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
       MaterialPageRoute(
         builder: (context) => BookDetailScreen(book: book),
       ),
-    );
-  }
-
-  void _showSettingsDialog() {
-    final prefs = ref.read(sharedPreferencesProvider);
-    var autoLogin = prefs.getBool('auto_login') ?? true;
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('설정'),
-          content: StatefulBuilder(
-            builder: (context, setDialogState) {
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('자동 로그인'),
-                  Switch(
-                    value: autoLogin,
-                    activeColor: const Color(0xFF5D4037),
-                    onChanged: (value) {
-                      setDialogState(() {
-                        autoLogin = value;
-                      });
-                      prefs.setBool('auto_login', value);
-                      ref.invalidate(autoLoginProvider);
-                    },
-                  ),
-                ],
-              );
-            },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('닫기'),
-            ),
-          ],
-        );
-      },
     );
   }
 

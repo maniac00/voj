@@ -158,38 +158,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       number: '3',
                       text: '승인 완료 후 모든 오디오북을 자유롭게 이용하실 수 있습니다.',
                     ),
-                    const SizedBox(height: 16),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5EDE0),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(
-                            Icons.schedule,
-                            color: Color(0xFF8D7B68),
-                            size: 18,
-                          ),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              '승인은 보통 1영업일 이내에 처리됩니다.',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Color(0xFF6D6050),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -262,6 +230,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                   ),
                 ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // 자동 로그인 체크박스
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: Checkbox(
+                      value: ref.watch(autoLoginProvider),
+                      activeColor: const Color(0xFF5D4037),
+                      onChanged: (value) {
+                        final prefs = ref.read(sharedPreferencesProvider);
+                        prefs.setBool('auto_login', value ?? true);
+                        ref.invalidate(autoLoginProvider);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    '자동 로그인',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF5D4037),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 48),

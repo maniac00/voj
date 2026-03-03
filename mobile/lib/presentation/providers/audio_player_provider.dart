@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../data/services/audio_player_service.dart';
@@ -207,6 +208,15 @@ class AudioPlayerController {
       // 서비스에서 play() 후 playingStream.firstWhere(playing)까지 대기 완료됨
       // 리스너가 이미 loading flag를 해제했을 수 있지만, 안전장치로 여기서도 해제
       _ref.read(audioPlayerLoadingProvider.notifier).state = false;
+
+      // 최근 재생 기록 저장
+      final prefs = _ref.read(sharedPreferencesProvider);
+      final recentlyPlayedJson = prefs.getString('recently_played_books');
+      final Map<String, dynamic> recentlyPlayed = recentlyPlayedJson != null
+          ? Map<String, dynamic>.from(json.decode(recentlyPlayedJson))
+          : {};
+      recentlyPlayed[book.id] = DateTime.now().millisecondsSinceEpoch;
+      await prefs.setString('recently_played_books', json.encode(recentlyPlayed));
 
       // 상태 WebSocket 구독 (fire-and-forget — 재생 시작을 블로킹하지 않음)
       _connectStatusWebSocket(chapter.id);

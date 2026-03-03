@@ -80,6 +80,18 @@ class AuthRepository {
             _setCurrentUser(_currentUser!);
           } else {
             await _restoreUserFromPrefs();
+            // 로컬 복원 실패 시 백엔드에서 프로필 fetch (세션 만료 후 자동 로그인)
+            if (_currentUser == null) {
+              try {
+                final response = await _apiService.getCurrentUser();
+                final user = User.fromJson(response);
+                await _prefs.setString(_userKey, json.encode(user.toStorageJson()));
+                _setCurrentUser(user);
+                _log.info('백엔드에서 사용자 정보 복원 성공: ${user.email}');
+              } catch (e) {
+                _log.warning('백엔드에서 사용자 정보 복원 실패', error: e);
+              }
+            }
           }
         }
       } else {

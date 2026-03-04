@@ -14,7 +14,9 @@ const _log = AppLogger('AuthRepository');
 
 class AuthRepository {
   static const String _userKey = 'user_data';
-  static const String _sessionStorageKey = 'secure_auth_session_v1';
+  static const String _refreshTokenStorageKey = 'secure_refresh_token_v2';
+  static const String _legacySessionStorageKey = 'secure_auth_session_v1';
+  static const String _deviceIdKey = 'voj_device_id';
 
   final ApiService _apiService;
   final SharedPreferences _prefs;
@@ -23,25 +25,26 @@ class AuthRepository {
 
   final fb.FirebaseAuth _firebaseAuth = fb.FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    serverClientId: '731128991571-evuscn1g07f0lpa3fjhj8faf1mrb239p.apps.googleusercontent.com',
+    serverClientId:
+        '731128991571-evuscn1g07f0lpa3fjhj8faf1mrb239p.apps.googleusercontent.com',
   );
 
   User? _currentUser;
   AuthSession? _currentSession;
+  String? _refreshToken;
+
   final _userController = StreamController<User?>.broadcast();
   final _sessionController = StreamController<AuthSession?>.broadcast();
-
-  StreamSubscription<fb.User?>? _idTokenSubscription;
 
   AuthRepository({
     required ApiService apiService,
     required SharedPreferences prefs,
     required FlutterSecureStorage secureStorage,
     required AccessibilityFeedbackService accessibilityFeedback,
-  })  : _apiService = apiService,
-        _prefs = prefs,
-        _secureStorage = secureStorage,
-        _accessibilityFeedback = accessibilityFeedback {
+  }) : _apiService = apiService,
+       _prefs = prefs,
+       _secureStorage = secureStorage,
+       _accessibilityFeedback = accessibilityFeedback {
     _initializeAuth();
   }
 
@@ -57,63 +60,18 @@ class AuthRepository {
       return;
     }
 
-    // Firebase idTokenChanges로 자동 토큰 갱신
-    _idTokenSubscription = _firebaseAuth.idTokenChanges().listen((fbUser) async {
-      if (fbUser != null) {
-        final idToken = await fbUser.getIdToken();
-        if (idToken != null) {
-          _apiService.setAuthToken(idToken);
-          final now = DateTime.now().toUtc();
-          final session = AuthSession(
-            accessToken: idToken,
-            tokenType: 'bearer',
-            issuedAt: now,
-            expiresAt: now.add(const Duration(hours: 48)),
-            username: fbUser.displayName ?? fbUser.email,
-          );
-          _setSession(session);
-          await _persistSession(session);
+    final autoLogin = _prefs.getBool('auto_login') ?? true;
+    if (!autoLogin) {
+      _setSession(null);
+      _setCurrentUser(null);
+      _apiService.clearAuthToken();
+      return;
+    }
 
-          // broadcast stream은 구독 전 이벤트를 유실하므로,
-          // 세션 갱신 시 사용자 데이터도 다시 emit
-          if (_currentUser != null) {
-            _setCurrentUser(_currentUser!);
-          } else {
-            await _restoreUserFromPrefs();
-            // 로컬 복원 실패 시 백엔드에서 프로필 fetch (세션 만료 후 자동 로그인)
-            if (_currentUser == null) {
-              try {
-                final response = await _apiService.getCurrentUser();
-                final user = User.fromJson(response);
-                await _prefs.setString(_userKey, json.encode(user.toStorageJson()));
-                _setCurrentUser(user);
-                _log.info('백엔드에서 사용자 정보 복원 성공: ${user.email}');
-              } catch (e) {
-                _log.warning('백엔드에서 사용자 정보 복원 실패', error: e);
-              }
-            }
-          }
-        }
-      } else {
-        _setSession(null);
-        _setCurrentUser(null);
-      }
-    });
-
-    // 기존 세션 복원
-    await _restoreUserFromPrefs();
-
-    // Firebase 현재 사용자가 있으면 토큰 갱신
-    final fbUser = _firebaseAuth.currentUser;
-    if (fbUser != null) {
-      try {
-        final idToken = await fbUser.getIdToken(true);
-        if (idToken != null) {
-          _apiService.setAuthToken(idToken);
-        }
-      } catch (e) {
-        _log.warning('토큰 갱신 실패', error: e);
-      }
+    final refreshed = await refreshToken();
+    if (!refreshed) {
+      _setSession(null);
+      _setCurrentUser(null);
     }
   }
 
@@ -139,24 +97,6 @@ class AuthRepository {
     _setCurrentUser(user);
   }
 
-  Future<void> _restoreUserFromPrefs() async {
-    final userJson = _prefs.getString(_userKey);
-    if (userJson == null) {
-      _userController.add(_currentUser);
-      return;
-    }
-
-    try {
-      final userData = json.decode(userJson) as Map<String, dynamic>;
-      final user = User.fromJson(userData);
-      _setCurrentUser(user);
-    } catch (e, st) {
-      _log.warning('사용자 정보 복원 실패', error: e, stackTrace: st);
-      await _prefs.remove(_userKey);
-      _setCurrentUser(null);
-    }
-  }
-
   void _setCurrentUser(User? user) {
     _currentUser = user;
     if (!_userController.isClosed) {
@@ -171,105 +111,17 @@ class AuthRepository {
     }
   }
 
-  /// Google 소셜 로그인 → Firebase → 백엔드 등록/로그인
-  Future<AuthResponse> signInWithGoogle() async {
-    try {
-      // 1. Google Sign-In
-      _log.info('[로그인 1/5] Google Sign-In 시작...');
-      final googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        throw const ApiException(
-          message: 'Google 로그인이 취소되었습니다.',
-          statusCode: -1,
-        );
-      }
-      _log.info('[로그인 2/5] Google 계정 선택 완료: ${googleUser.email}');
-
-      final googleAuth = await googleUser.authentication;
-      _log.info('[로그인 2/5] Google 인증 토큰 획득 완료');
-
-      // 2. Firebase signInWithCredential
-      _log.info('[로그인 3/5] Firebase 인증 시작...');
-      final credential = fb.GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final userCredential = await _firebaseAuth.signInWithCredential(credential);
-      final fbUser = userCredential.user;
-      if (fbUser == null) {
-        throw const ApiException(
-          message: 'Firebase 인증에 실패했습니다.',
-          statusCode: -1,
-        );
-      }
-      _log.info('[로그인 3/5] Firebase 인증 성공: ${fbUser.uid}');
-
-      // 3. Firebase ID 토큰 획득
-      _log.info('[로그인 4/5] Firebase ID 토큰 획득 중...');
-      final idToken = await fbUser.getIdToken();
-      if (idToken == null) {
-        throw const ApiException(
-          message: 'Firebase ID 토큰을 가져올 수 없습니다.',
-          statusCode: -1,
-        );
-      }
-      _log.info('[로그인 4/5] Firebase ID 토큰 획득 완료');
-
-      _apiService.setAuthToken(idToken);
-
-      // 4. 백엔드에 Firebase 로그인 전송
-      _log.info('[로그인 5/5] 백엔드 로그인 요청 중...');
-      final response = await _apiService.post('/auth/firebase-login', body: {
-        'id_token': idToken,
-      });
-      _log.info('[로그인 5/5] 백엔드 로그인 성공');
-
-      // 5. 사용자 정보 구성
-      final userStatus = _parseUserStatus(response['status'] as String?);
-      final user = User(
-        id: (response['user_id'] ?? '').toString(),
-        name: response['display_name'] as String? ?? fbUser.displayName ?? '',
-        email: response['email'] as String? ?? fbUser.email ?? '',
-        status: userStatus,
-        scope: response['role'] as String?,
-      );
-
-      final now = DateTime.now().toUtc();
-      final session = AuthSession(
-        accessToken: idToken,
-        tokenType: 'bearer',
-        issuedAt: now,
-        expiresAt: now.add(const Duration(hours: 48)),
-        username: user.name,
-      );
-
-      await _persistSession(session);
-      _setSession(session);
-      await _prefs.setString(_userKey, json.encode(user.toStorageJson()));
-      _setCurrentUser(user);
-
-      return AuthResponse(
-        message: response['is_new_user'] == true ? 'new_user' : 'existing_user',
-        user: user,
-        session: session,
-      );
-    } on fb.FirebaseAuthException catch (e) {
-      _log.severe('[로그인 실패] Firebase 오류: ${e.code} - ${e.message}');
-      throw ApiException(
-        message: '[단계3 Firebase] ${e.code}: ${e.message}',
-        statusCode: -1,
-      );
-    } on ApiException catch (e) {
-      _log.severe('[로그인 실패] API 오류: ${e.message}');
-      rethrow;
-    } catch (e, st) {
-      _log.severe('[로그인 실패] 예외: ${e.runtimeType}: $e', error: e, stackTrace: st);
-      throw ApiException(
-        message: '[${e.runtimeType}] $e',
-        statusCode: -1,
-      );
+  Future<String> _getOrCreateDeviceId() async {
+    final existing = _prefs.getString(_deviceIdKey);
+    if (existing != null && existing.isNotEmpty) {
+      return existing;
     }
+
+    final nowMicros = DateTime.now().microsecondsSinceEpoch;
+    final generated =
+        '${nowMicros.toRadixString(16)}-${DateTime.now().millisecondsSinceEpoch.toRadixString(16)}-${nowMicros.hashCode.abs().toRadixString(16)}';
+    await _prefs.setString(_deviceIdKey, generated);
+    return generated;
   }
 
   UserStatus _parseUserStatus(String? status) {
@@ -284,6 +136,127 @@ class AuthRepository {
     }
   }
 
+  User _buildUserFromAuthPayload(Map<String, dynamic> response) {
+    final userId = (response['user_id'] ?? response['id'] ?? '').toString();
+    final email = response['email'] as String?;
+    final displayName = response['display_name'] as String?;
+    final role = response['role'] as String? ?? response['scope'] as String?;
+
+    return User(
+      id: userId,
+      name: displayName ?? email ?? '',
+      email: email,
+      status: _parseUserStatus(response['status'] as String?),
+      scope: role,
+    );
+  }
+
+  Future<void> _applyMobileAuthPayload(Map<String, dynamic> response) async {
+    final now = DateTime.now().toUtc();
+    final session = AuthSession.fromLoginJson(response, issuedAt: now);
+
+    final refreshToken = response['refresh_token'] as String?;
+    if (refreshToken == null || refreshToken.isEmpty) {
+      throw const ApiException(
+        message: '로그인 응답에 refresh_token이 없습니다.',
+        statusCode: -1,
+      );
+    }
+
+    final user = _buildUserFromAuthPayload(response);
+
+    _apiService.setAuthToken(session.accessToken);
+    _setSession(session);
+
+    _refreshToken = refreshToken;
+    await _secureStorage.write(
+      key: _refreshTokenStorageKey,
+      value: refreshToken,
+    );
+
+    await _prefs.setString(_userKey, json.encode(user.toStorageJson()));
+    _setCurrentUser(user);
+  }
+
+  /// Google 소셜 로그인 → Firebase → 백엔드 모바일 세션 발급
+  Future<AuthResponse> signInWithGoogle() async {
+    try {
+      _log.info('[로그인 1/5] Google Sign-In 시작...');
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        throw const ApiException(
+          message: 'Google 로그인이 취소되었습니다.',
+          statusCode: -1,
+        );
+      }
+      _log.info('[로그인 2/5] Google 계정 선택 완료: ${googleUser.email}');
+
+      final googleAuth = await googleUser.authentication;
+      _log.info('[로그인 2/5] Google 인증 토큰 획득 완료');
+
+      _log.info('[로그인 3/5] Firebase 인증 시작...');
+      final credential = fb.GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential = await _firebaseAuth.signInWithCredential(
+        credential,
+      );
+      final fbUser = userCredential.user;
+      if (fbUser == null) {
+        throw const ApiException(
+          message: 'Firebase 인증에 실패했습니다.',
+          statusCode: -1,
+        );
+      }
+      _log.info('[로그인 3/5] Firebase 인증 성공: ${fbUser.uid}');
+
+      _log.info('[로그인 4/5] Firebase ID 토큰 획득 중...');
+      final idToken = await fbUser.getIdToken();
+      if (idToken == null) {
+        throw const ApiException(
+          message: 'Firebase ID 토큰을 가져올 수 없습니다.',
+          statusCode: -1,
+        );
+      }
+      _log.info('[로그인 4/5] Firebase ID 토큰 획득 완료');
+
+      final deviceId = await _getOrCreateDeviceId();
+
+      _log.info('[로그인 5/5] 백엔드 모바일 로그인 요청 중...');
+      final response = await _apiService.post(
+        '/auth/mobile/login',
+        body: {'id_token': idToken, 'device_id': deviceId},
+      );
+      _log.info('[로그인 5/5] 백엔드 모바일 로그인 성공');
+
+      await _applyMobileAuthPayload(response);
+
+      return AuthResponse(
+        message: response['is_new_user'] == true ? 'new_user' : 'existing_user',
+        user: _currentUser,
+        session: _currentSession,
+      );
+    } on fb.FirebaseAuthException catch (e) {
+      _log.severe('[로그인 실패] Firebase 오류: ${e.code} - ${e.message}');
+      throw ApiException(
+        message: '[단계3 Firebase] ${e.code}: ${e.message}',
+        statusCode: -1,
+      );
+    } on ApiException catch (e) {
+      _log.severe('[로그인 실패] API 오류: ${e.message}');
+      rethrow;
+    } catch (e, st) {
+      _log.severe(
+        '[로그인 실패] 예외: ${e.runtimeType}: $e',
+        error: e,
+        stackTrace: st,
+      );
+      throw ApiException(message: '[${e.runtimeType}] $e', statusCode: -1);
+    }
+  }
+
   Future<void> signOut() async {
     try {
       await _firebaseAuth.signOut();
@@ -295,6 +268,23 @@ class AuthRepository {
   }
 
   Future<void> logout() async {
+    if (!AppConfig.authBypassEnabled) {
+      try {
+        final refresh =
+            _refreshToken ??
+            await _secureStorage.read(key: _refreshTokenStorageKey);
+        if (refresh != null && refresh.isNotEmpty) {
+          final deviceId = await _getOrCreateDeviceId();
+          await _apiService.post(
+            '/auth/mobile/logout',
+            body: {'refresh_token': refresh, 'device_id': deviceId},
+          );
+        }
+      } catch (e) {
+        _log.warning('서버 로그아웃 요청 실패', error: e);
+      }
+    }
+
     await signOut();
   }
 
@@ -304,46 +294,47 @@ class AuthRepository {
       _setSession(null);
       return;
     }
-    _currentUser = null;
-    _userController.add(null);
+
+    _refreshToken = null;
+    _setCurrentUser(null);
     _setSession(null);
 
     await _prefs.remove(_userKey);
-    await _secureStorage.delete(key: _sessionStorageKey);
+    await _secureStorage.delete(key: _legacySessionStorageKey);
+    await _secureStorage.delete(key: _refreshTokenStorageKey);
 
     _apiService.clearAuthToken();
   }
 
-  /// Firebase 토큰을 강제 갱신하고 ApiService에 설정한다.
+  /// Refresh Token으로 Access Token을 재발급한다.
   /// 성공하면 true, 실패하면 false를 반환한다.
   Future<bool> refreshToken() async {
     if (AppConfig.authBypassEnabled) return true;
 
-    final fbUser = _firebaseAuth.currentUser;
-    if (fbUser == null) {
-      _log.warning('토큰 갱신 실패: Firebase 사용자 없음');
+    final refresh =
+        _refreshToken ??
+        await _secureStorage.read(key: _refreshTokenStorageKey);
+    if (refresh == null || refresh.isEmpty) {
+      _log.info('저장된 Refresh Token 없음');
       return false;
     }
 
-    try {
-      final idToken = await fbUser.getIdToken(true); // forceRefresh
-      if (idToken == null) return false;
+    _refreshToken = refresh;
+    final deviceId = await _getOrCreateDeviceId();
 
-      _apiService.setAuthToken(idToken);
-      final now = DateTime.now().toUtc();
-      final session = AuthSession(
-        accessToken: idToken,
-        tokenType: 'bearer',
-        issuedAt: now,
-        expiresAt: now.add(const Duration(hours: 48)),
-        username: fbUser.displayName ?? fbUser.email,
+    try {
+      final response = await _apiService.post(
+        '/auth/mobile/refresh',
+        body: {'refresh_token': refresh, 'device_id': deviceId},
       );
-      _setSession(session);
-      await _persistSession(session);
-      _log.info('토큰 강제 갱신 성공');
+      await _applyMobileAuthPayload(response);
+      _log.info('토큰 갱신 성공');
       return true;
     } catch (e) {
-      _log.warning('토큰 강제 갱신 실패', error: e);
+      _log.warning('토큰 갱신 실패', error: e);
+      if (e is ApiException && (e.isUnauthorized || e.isForbidden)) {
+        await clearAuth();
+      }
       return false;
     }
   }
@@ -380,14 +371,8 @@ class AuthRepository {
   }
 
   void dispose() {
-    _idTokenSubscription?.cancel();
     _userController.close();
     _apiService.dispose();
     _sessionController.close();
-  }
-
-  Future<void> _persistSession(AuthSession session) async {
-    final sessionJson = json.encode(session.toJson());
-    await _secureStorage.write(key: _sessionStorageKey, value: sessionJson);
   }
 }

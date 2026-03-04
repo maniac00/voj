@@ -78,6 +78,9 @@ class BaseAppSettings(BaseSettings):
 
     # JWT 시크릿 키 (프로덕션에서 반드시 변경 필요)
     SECRET_KEY: str = "INSECURE-local-dev-only-change-me"
+    MOBILE_ACCESS_TOKEN_EXPIRES_SECONDS: int = 7200  # 2h
+    MOBILE_REFRESH_TOKEN_EXPIRES_DAYS: int = 30
+    MOBILE_REFRESH_TOKEN_RANDOM_BYTES: int = 48
 
     # 간단한 인증 설정
     SIMPLE_AUTH_ENABLED: bool = True

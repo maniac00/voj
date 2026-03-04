@@ -12,6 +12,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from app.models.audio_chapter_sql import AudioChapterSQL
 from app.models.book_sql import BookSQL
 from app.models.database import Base
+from app.models.mobile_refresh_token_sql import MobileRefreshTokenSQL
+from app.models.user_sql import UserSQL
 
 # Alembic Config 객체
 config = context.config

@@ -1,7 +1,8 @@
 """
 통합 인증 시스템
 - HMAC 토큰: 관리자 웹 (payload_b64.signature, '.' 1개)
-- Firebase JWT: 모바일 앱 (header.payload.signature, '.' 2개)
+- 모바일 Access JWT: 앱 서버 발급 JWT (header.payload.signature, '.' 2개)
+- Firebase JWT: 모바일 로그인 직후/레거시 경로 (header.payload.signature, '.' 2개)
 """
 from __future__ import annotations
 
@@ -20,6 +21,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
 
 # 관리자/앱 계정 (설정에서 읽어옴)
 def get_admin_credentials() -> Dict[str, Optional[str]]:
@@ -95,14 +97,6 @@ def authenticate_user(username: str, password: str) -> bool:
     return admin_credentials.get(username) == password
 
 
-def _detect_token_type(token: str) -> str:
-    """토큰 형식으로 인증 타입을 판별한다. '.' 2개 = Firebase JWT, '.' 1개 = HMAC"""
-    dot_count = token.count(".")
-    if dot_count == 2:
-        return "firebase"
-    return "hmac"
-
-
 async def get_current_user_claims(
     request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
@@ -136,12 +130,17 @@ async def get_current_user_claims(
             detail="Missing authorization credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    token_type = _detect_token_type(token)
-
-    if token_type == "firebase":
-        return _verify_firebase_jwt(token)
-    else:
+    dot_count = token.count(".")
+    if dot_count == 1:
         return _verify_hmac_token(token)
+    if dot_count == 2:
+        mobile_claims = _try_verify_mobile_access_jwt(token)
+        if mobile_claims is not None:
+            return mobile_claims
+        return _verify_firebase_jwt(token)
+
+    # 명확한 형식이 아니면 HMAC 검증 경로에서 401 처리
+    return _verify_hmac_token(token)
 
 
 def _verify_hmac_token(token: str) -> Dict[str, Any]:
@@ -154,6 +153,30 @@ def _verify_hmac_token(token: str) -> Dict[str, Any]:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e),
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+def _try_verify_mobile_access_jwt(token: str) -> Optional[Dict[str, Any]]:
+    """모바일 Access JWT를 우선 검증한다.
+
+    - 모바일 JWT가 아닌 경우 None 반환 (Firebase 검증으로 fallback)
+    - 모바일 JWT 형식인데 유효하지 않으면 401 반환
+    """
+    from app.core.auth.mobile_tokens import (
+        InvalidMobileAccessTokenError,
+        NotMobileAccessTokenError,
+        decode_mobile_access_token,
+    )
+
+    try:
+        return decode_mobile_access_token(token)
+    except NotMobileAccessTokenError:
+        return None
+    except InvalidMobileAccessTokenError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid mobile access token: {e}",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -189,7 +212,7 @@ def _verify_firebase_jwt(token: str) -> Dict[str, Any]:
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found. Please login via /auth/firebase-login first.",
+                detail="User not found. Please login via /auth/mobile/login first.",
             )
 
         return {
@@ -226,7 +249,9 @@ def require_admin_scope() -> Callable[[Dict[str, Any]], Dict[str, Any]]:
     return _dep  # type: ignore[return-value]
 
 
-def require_any_scope(required_scopes: List[str]) -> Callable[[Dict[str, Any]], Dict[str, Any]]:
+def require_any_scope(
+    required_scopes: List[str],
+) -> Callable[[Dict[str, Any]], Dict[str, Any]]:
     """기존 스코프 체크 인터페이스 유지"""
 
     async def _dep(

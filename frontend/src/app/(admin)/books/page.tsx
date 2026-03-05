@@ -12,10 +12,7 @@ import {
   AccessibleTable,
   AccessibleTableHeader,
 } from "@/components/accessibility/accessible-table";
-import {
-  ScreenReaderAnnouncement,
-  LiveRegion,
-} from "@/components/accessibility/screen-reader-announcements";
+import { LiveRegion } from "@/components/accessibility/screen-reader-announcements";
 import { useAnnouncement } from "@/hooks/use-keyboard-navigation";
 
 type SortField = "title" | "author" | "publisher" | "status" | "created_at";
@@ -29,7 +26,9 @@ export default function BooksPage() {
   const { announce } = useAnnouncement();
 
   // total_chapters가 0으로 내려온 항목만 대상로 실제 챕터 수를 재확인하여 UI에 보정 표시
-  const [chapterCountOverrides, setChapterCountOverrides] = useState<Record<string, number>>({});
+  const [chapterCountOverrides, setChapterCountOverrides] = useState<
+    Record<string, number>
+  >({});
 
   // 필터링 및 정렬 상태
   const [searchTerm, setSearchTerm] = useState("");
@@ -64,7 +63,9 @@ export default function BooksPage() {
   // books 수신 후, total_chapters가 0인 일부 항목만 비동기로 재확인하여 UI에 덮어쓰기
   useEffect(() => {
     if (!books || books.length === 0) return;
-    const needsCheck = books.filter((b) => (b.total_chapters ?? 0) === 0).slice(0, 10);
+    const needsCheck = books
+      .filter((b) => (b.total_chapters ?? 0) === 0)
+      .slice(0, 10);
     if (needsCheck.length === 0) return;
 
     let cancelled = false;
@@ -81,7 +82,10 @@ export default function BooksPage() {
           }),
         );
         if (!cancelled) {
-          setChapterCountOverrides((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
+          setChapterCountOverrides((prev) => ({
+            ...prev,
+            ...Object.fromEntries(entries),
+          }));
         }
       } catch (err) {
         console.error("Failed to fetch chapter counts:", err);
@@ -104,6 +108,7 @@ export default function BooksPage() {
         (book) =>
           book.title.toLowerCase().includes(term) ||
           book.author.toLowerCase().includes(term) ||
+          (book.narrator || "").toLowerCase().includes(term) ||
           (book.publisher || "").toLowerCase().includes(term),
       );
     }
@@ -243,18 +248,6 @@ export default function BooksPage() {
     }
   };
 
-  // 정렬 아이콘 컴포넌트
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) {
-      return <span className="text-gray-400">↕</span>;
-    }
-    return sortDirection === "asc" ? (
-      <span className="text-gray-700">↑</span>
-    ) : (
-      <span className="text-gray-700">↓</span>
-    );
-  };
-
   if (loading) {
     return (
       <div className="p-6">
@@ -326,13 +319,13 @@ export default function BooksPage() {
                   announce(`검색어 "${e.target.value}"로 검색 중`);
                 }
               }}
-              placeholder="제목, 저자, 출판사 검색..."
+              placeholder="제목, 저자, 낭독자, 출판사 검색..."
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
               aria-describedby="search-help"
             />
             <div id="search-help" className="sr-only">
-              제목, 저자, 출판사에서 검색됩니다. 검색어를 입력하면 실시간으로
-              결과가 필터링됩니다.
+              제목, 저자, 낭독자, 출판사에서 검색됩니다. 검색어를 입력하면
+              실시간으로 결과가 필터링됩니다.
             </div>
           </div>
 
@@ -473,7 +466,7 @@ export default function BooksPage() {
                   sortDirection={sortField === "author" ? sortDirection : null}
                   onSort={() => handleSort("author")}
                 >
-                  저자
+                  저자/낭독
                 </AccessibleTableHeader>
 
                 <AccessibleTableHeader
@@ -518,7 +511,7 @@ export default function BooksPage() {
                   className="hover:bg-gray-50"
                   role="row"
                   aria-rowindex={index + 2}
-                  aria-label={`${book.title}, 저자: ${book.author}, 상태: ${book.status || "draft"}`}
+                  aria-label={`${book.title}, 저자: ${book.author}${book.narrator ? `, 낭독자: ${book.narrator}` : ""}, 상태: ${book.status || "draft"}`}
                 >
                   <td className="px-6 py-4 whitespace-nowrap" role="gridcell">
                     <div className="text-sm font-medium text-gray-900">
@@ -531,10 +524,13 @@ export default function BooksPage() {
                     )}
                   </td>
                   <td
-                    className="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
+                    className="px-6 py-4 text-sm text-gray-500"
                     role="gridcell"
                   >
-                    {book.author}
+                    <div>{book.author}</div>
+                    <div className="text-xs text-gray-400">
+                      낭독: {book.narrator || "-"}
+                    </div>
                   </td>
                   <td
                     className="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
@@ -560,8 +556,13 @@ export default function BooksPage() {
                     className="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
                     role="gridcell"
                   >
-                    <span aria-label={`총 ${book.total_chapters || 0}개 챕터`}>
-                      {book.total_chapters || 0}개
+                    <span
+                      aria-label={`총 ${chapterCountOverrides[book.book_id] ?? book.total_chapters ?? 0}개 챕터`}
+                    >
+                      {chapterCountOverrides[book.book_id] ??
+                        book.total_chapters ??
+                        0}
+                      개
                     </span>
                   </td>
                   <td

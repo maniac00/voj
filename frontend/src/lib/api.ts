@@ -6,6 +6,7 @@ export type BookDto = {
   user_id: string;
   title: string;
   author: string;
+  narrator?: string | null;
   publisher?: string | null;
   description?: string | null;
   genre?: string | null;
@@ -41,7 +42,9 @@ export async function fetchJson<T>(
     });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      throw new Error(`Request failed: ${res.status} ${res.statusText} ${text}`);
+      throw new Error(
+        `Request failed: ${res.status} ${res.statusText} ${text}`,
+      );
     }
     if (res.status === 204) {
       return undefined as T;
@@ -69,6 +72,7 @@ export async function getBook(bookId: string): Promise<BookDto> {
 export interface CreateBookPayload {
   title: string;
   author: string;
+  narrator?: string | null;
   publisher?: string;
   description?: string;
   genre?: string;

@@ -159,6 +159,7 @@ class BookService {
       'id': raw['book_id'] ?? raw['id'] ?? '',
       'title': raw['title'] ?? '',
       'author': raw['author'] ?? '',
+      'narrator': raw['narrator'],
       'publisher': raw['publisher'],
       'categoryId': raw['category_id'] ?? raw['categoryId'] ?? '',
       'description': raw['description'],

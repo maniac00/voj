@@ -19,6 +19,7 @@ from app.models.database import Base, engine, SessionLocal  # noqa: E402
 def _local_setup():
     settings.ENVIRONMENT = "local"
     settings.LOCAL_BYPASS_ENABLED = True
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     yield
 
@@ -27,7 +28,9 @@ def test_list_books_basic():
     client = TestClient(app)
     # Seed a book for the local bypass user
     with SessionLocal() as db:
-        b = BookService.create_book(db, user_id=settings.LOCAL_BYPASS_SUB, title="Alpha", author="Author A")
+        b = BookService.create_book(
+            db, user_id=settings.LOCAL_BYPASS_SUB, title="Alpha", author="Author A"
+        )
     resp = client.get("/api/v1/books/?size=5")
     assert resp.status_code == 200, resp.text
     data = resp.json()
@@ -39,9 +42,26 @@ def test_list_books_search_filters():
     client = TestClient(app)
     # Add another book
     with SessionLocal() as db:
-        _ = BookService.create_book(db, user_id=settings.LOCAL_BYPASS_SUB, title="Beta", author="Alice")
+        _ = BookService.create_book(
+            db, user_id=settings.LOCAL_BYPASS_SUB, title="Beta", author="Alice"
+        )
     resp = client.get("/api/v1/books/?size=10&search=beta")
     assert resp.status_code == 200
     data = resp.json()
     assert any("Beta" == it["title"] for it in data["books"])  # search by title
 
+
+def test_list_books_search_by_narrator():
+    client = TestClient(app)
+    with SessionLocal() as db:
+        _ = BookService.create_book(
+            db,
+            user_id=settings.LOCAL_BYPASS_SUB,
+            title="Gamma",
+            author="Writer",
+            narrator="Voice Actor",
+        )
+    resp = client.get("/api/v1/books/?size=10&search=voice")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert any("Gamma" == it["title"] for it in data["books"])

@@ -10,7 +10,11 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.auth.simple import get_current_user_claims, require_admin_scope, require_approved_user
+from app.core.auth.simple import (
+    get_current_user_claims,
+    require_admin_scope,
+    require_approved_user,
+)
 from app.models.database import get_db
 from app.services.books_sql import BookServiceSQL as BookService
 from app.models.book_sql import BookSQL
@@ -24,11 +28,19 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _normalize_optional_text(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    trimmed = value.strip()
+    return trimmed or None
+
+
 class BookBase(BaseModel):
     """책 기본 정보 모델"""
 
     title: str = Field(..., min_length=1, max_length=200, description="책 제목")
     author: str = Field(..., min_length=1, max_length=100, description="저자")
+    narrator: Optional[str] = Field(None, max_length=50, description="낭독자")
     description: Optional[str] = Field(None, max_length=1000, description="책 설명")
     genre: Optional[str] = Field(None, max_length=50, description="장르")
     language: str = Field(default="ko", description="언어 코드")
@@ -48,6 +60,7 @@ class BookUpdate(BaseModel):
 
     title: Optional[str] = Field(None, min_length=1, max_length=200)
     author: Optional[str] = Field(None, min_length=1, max_length=100)
+    narrator: Optional[str] = Field(None, max_length=50)
     description: Optional[str] = Field(None, max_length=1000)
     genre: Optional[str] = Field(None, max_length=50)
     language: Optional[str] = None
@@ -105,11 +118,13 @@ async def create_book(
         )
 
     try:
+        normalized_narrator = _normalize_optional_text(book_data.narrator)
         created = BookService.create_book(
             db,
             user_id=user_id,
             title=book_data.title,
             author=book_data.author,
+            narrator=normalized_narrator,
             description=book_data.description,
             genre=book_data.genre,
             language=book_data.language,
@@ -125,6 +140,7 @@ async def create_book(
             "user_id": created.user_id,
             "title": created.title,
             "author": created.author,
+            "narrator": created.narrator,
             "description": created.description,
             "genre": created.genre,
             "language": created.language,
@@ -183,7 +199,9 @@ async def get_books(
             items = [
                 b
                 for b in items
-                if s in (b.title or "").lower() or s in (b.author or "").lower()
+                if s in (b.title or "").lower()
+                or s in (b.author or "").lower()
+                or s in (b.narrator or "").lower()
             ]
             total = len(items)
 
@@ -206,6 +224,7 @@ async def get_books(
                     user_id=b.user_id,
                     title=b.title,
                     author=b.author,
+                    narrator=b.narrator,
                     description=b.description,
                     genre=b.genre,
                     language=b.language,
@@ -258,6 +277,7 @@ async def get_book(
             "user_id": found.user_id,
             "title": found.title,
             "author": found.author,
+            "narrator": found.narrator,
             "description": found.description,
             "genre": found.genre,
             "language": found.language,
@@ -300,12 +320,24 @@ async def update_book(
         raise HTTPException(status_code=404, detail="Book not found")
 
     try:
+        explicit_fields = (
+            book_data.model_fields_set
+            if hasattr(book_data, "model_fields_set")
+            else set()
+        )
+        normalized_narrator = (
+            _normalize_optional_text(book_data.narrator)
+            if "narrator" in explicit_fields
+            else None
+        )
+
         updated = BookService.update_book(
             db,
             user_id=user_id,
             book_id=book_id,
             title=book_data.title,
             author=book_data.author,
+            narrator=normalized_narrator,
             description=book_data.description,
             genre=book_data.genre,
             language=book_data.language,
@@ -319,12 +351,17 @@ async def update_book(
             raise HTTPException(status_code=500, detail="Failed to update book")
 
         # 커버 이미지 명시적 null 처리 (삭제 시)
-        explicit_fields = book_data.model_fields_set if hasattr(book_data, 'model_fields_set') else set()
+        should_commit = False
+        if "narrator" in explicit_fields and normalized_narrator is None:
+            found.narrator = None
+            should_commit = True
         if "cover_image_url" in explicit_fields and book_data.cover_image_url is None:
             found.cover_image_url = None
+            should_commit = True
         if "cover_image_key" in explicit_fields and book_data.cover_image_key is None:
             found.cover_image_key = None
-        if explicit_fields & {"cover_image_url", "cover_image_key"}:
+            should_commit = True
+        if should_commit:
             db.commit()
             db.refresh(found)
             updated = found
@@ -333,6 +370,7 @@ async def update_book(
             "user_id": updated.user_id,
             "title": updated.title,
             "author": updated.author,
+            "narrator": updated.narrator,
             "description": updated.description,
             "genre": updated.genre,
             "language": updated.language,
@@ -375,16 +413,16 @@ async def delete_book(
 
     # 연관 리소스 정리: 챕터별 오디오 파일 삭제
     chapters = (
-        db.query(AudioChapterSQL)
-        .filter(AudioChapterSQL.book_id == book_id)
-        .all()
+        db.query(AudioChapterSQL).filter(AudioChapterSQL.book_id == book_id).all()
     )
     for chapter in chapters:
         if chapter.audio_key:
             try:
                 await storage_service.delete_file(chapter.audio_key)
             except Exception as e:
-                logger.warning("Failed to delete storage file %s: %s", chapter.audio_key, e)
+                logger.warning(
+                    "Failed to delete storage file %s: %s", chapter.audio_key, e
+                )
 
     # 커버 이미지 삭제
     cover_key = getattr(book, "cover_image_key", None)

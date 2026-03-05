@@ -9,6 +9,7 @@ import { useNotification } from "@/contexts/notification-context";
 interface FormErrors {
   title?: string;
   author?: string;
+  narrator?: string;
   publisher?: string;
   general?: string;
 }
@@ -19,6 +20,7 @@ export default function NewBookPage() {
   const [formData, setFormData] = useState({
     title: "",
     author: "",
+    narrator: "",
     publisher: "",
     description: "",
     genre: "",
@@ -42,6 +44,11 @@ export default function NewBookPage() {
       newErrors.author = "저자를 입력해주세요.";
     } else if (formData.author.length > 100) {
       newErrors.author = "저자는 100자 이하로 입력해주세요.";
+    }
+
+    // 낭독자 검증 (선택적)
+    if (formData.narrator && formData.narrator.length > 50) {
+      newErrors.narrator = "낭독자는 50자 이하로 입력해주세요.";
     }
 
     // 출판사 검증 (선택적)
@@ -76,6 +83,7 @@ export default function NewBookPage() {
       const newBook = await createBook({
         title: formData.title.trim(),
         author: formData.author.trim(),
+        narrator: formData.narrator.trim() || undefined,
         publisher: formData.publisher.trim() || undefined,
         description: formData.description.trim() || undefined,
         genre: formData.genre || undefined,
@@ -83,7 +91,9 @@ export default function NewBookPage() {
       });
 
       // 성공 알림 후 편집 페이지로 이동 (커버 이미지 등 추가 설정 가능)
-      success(`"${newBook.title}" 책이 등록되었습니다. 커버 이미지를 설정할 수 있습니다.`);
+      success(
+        `"${newBook.title}" 책이 등록되었습니다. 커버 이미지를 설정할 수 있습니다.`,
+      );
 
       router.push(`/books/${newBook.book_id}`);
     } catch (error) {
@@ -204,6 +214,40 @@ export default function NewBookPage() {
             )}
             <p className="mt-1 text-xs text-gray-500">
               {formData.author.length}/100자
+            </p>
+          </div>
+
+          {/* 출판사 */}
+          <div>
+            <label
+              htmlFor="narrator"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              낭독자 <span className="text-gray-400 text-xs">(선택)</span>
+            </label>
+            <input
+              id="narrator"
+              type="text"
+              value={formData.narrator}
+              onChange={(e) => handleInputChange("narrator", e.target.value)}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${
+                errors.narrator ? "border-red-300 bg-red-50" : "border-gray-300"
+              }`}
+              placeholder="예: 김성욱"
+              maxLength={50}
+              aria-describedby={errors.narrator ? "narrator-error" : undefined}
+            />
+            {errors.narrator && (
+              <p
+                id="narrator-error"
+                className="mt-1 text-sm text-red-600"
+                role="alert"
+              >
+                {errors.narrator}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-gray-500">
+              {formData.narrator.length}/50자
             </p>
           </div>
 

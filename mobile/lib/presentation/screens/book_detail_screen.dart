@@ -11,10 +11,7 @@ import '../screens/audio_player_screen.dart';
 class BookDetailScreen extends ConsumerStatefulWidget {
   final Book book;
 
-  const BookDetailScreen({
-    super.key,
-    required this.book,
-  });
+  const BookDetailScreen({super.key, required this.book});
 
   @override
   ConsumerState<BookDetailScreen> createState() => _BookDetailScreenState();
@@ -56,9 +53,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
       body: bookDetailAsync.when(
         data: (detailBook) => _buildBookDetail(context, ref, detailBook),
         loading: () => const Center(
-          child: CircularProgressIndicator(
-            color: Color(0xFF5D4037),
-          ),
+          child: CircularProgressIndicator(color: Color(0xFF5D4037)),
         ),
         error: (error, stack) => _buildErrorWidget(context, error),
       ),
@@ -106,6 +101,8 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
 
   Widget _buildBookDetail(BuildContext context, WidgetRef ref, Book book) {
     final session = ref.watch(authRepositoryProvider).currentSession;
+    final narrator = book.narrator?.trim();
+    final hasNarrator = narrator != null && narrator.isNotEmpty;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
       child: Column(
@@ -131,10 +128,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
           Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: const Color(0xFF8B6914),
-                width: 8,
-              ),
+              border: Border.all(color: const Color(0xFF8B6914), width: 8),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.2),
@@ -168,7 +162,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
 
           // 저자 / 출판사 / 챕터 수
           Text(
-            '저자: ${book.author}',
+            '저자:${book.author}${hasNarrator ? '    낭독:$narrator' : ''}',
             style: const TextStyle(
               fontSize: 15,
               color: Color(0xFF5D4037),
@@ -282,10 +276,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
             Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: const Color(0xFFC9A97A),
-                  width: 1.5,
-                ),
+                border: Border.all(color: const Color(0xFFC9A97A), width: 1.5),
                 color: const Color(0xFFFFFDF8),
               ),
               child: Column(
@@ -387,14 +378,16 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
 
     chapter ??= book.chapters.isNotEmpty ? book.chapters.first : null;
 
-    _playAndNavigate(
-      context, ref, book, chapter,
-      startPosition: startPosition,
-    );
+    _playAndNavigate(context, ref, book, chapter, startPosition: startPosition);
   }
 
   /// 특정 오디오 파일 재생
-  void _playSpecificAudioFile(BuildContext context, WidgetRef ref, Book book, AudioChapter chapter) {
+  void _playSpecificAudioFile(
+    BuildContext context,
+    WidgetRef ref,
+    Book book,
+    AudioChapter chapter,
+  ) {
     _playAndNavigate(context, ref, book, chapter);
   }
 
@@ -439,9 +432,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircularProgressIndicator(
-                    color: Color(0xFF5D4037),
-                  ),
+                  CircularProgressIndicator(color: Color(0xFF5D4037)),
                   SizedBox(height: 20),
                   Text(
                     '재생을 준비하고 있습니다',
@@ -454,10 +445,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
                   SizedBox(height: 8),
                   Text(
                     '뒤로 가기를 누르면 취소합니다',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF8D6E63),
-                    ),
+                    style: TextStyle(fontSize: 12, color: Color(0xFF8D6E63)),
                   ),
                 ],
               ),
@@ -477,9 +465,9 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
 
         if (refreshed.chapters.isEmpty) {
           Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('재생할 오디오 챕터가 없습니다')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('재생할 오디오 챕터가 없습니다')));
           return;
         }
 

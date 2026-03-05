@@ -18,6 +18,7 @@ from app.models.database import Base, engine  # noqa: E402
 def _local_setup():
     settings.ENVIRONMENT = "local"
     settings.LOCAL_BYPASS_ENABLED = True
+    Base.metadata.drop_all(bind=engine)
     # Ensure SQL tables exist
     Base.metadata.create_all(bind=engine)
     yield
@@ -27,11 +28,16 @@ def test_create_book_endpoint_works_in_local_with_bypass():
     client = TestClient(app)
     resp = client.post(
         "/api/v1/books/",
-        json={"title": "My Book", "author": "Author", "description": "d"},
+        json={
+            "title": "My Book",
+            "author": "Author",
+            "narrator": "Narrator",
+            "description": "d",
+        },
     )
     assert resp.status_code == 201, resp.text
     data = resp.json()
     assert data["title"] == "My Book"
     assert data["author"] == "Author"
+    assert data["narrator"] == "Narrator"
     assert data["user_id"]
-

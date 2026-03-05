@@ -19,6 +19,7 @@ from app.models.database import Base, engine, SessionLocal  # noqa: E402
 def _local_setup():
     settings.ENVIRONMENT = "local"
     settings.LOCAL_BYPASS_ENABLED = True
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     yield
 
@@ -26,7 +27,9 @@ def _local_setup():
 def test_update_book_success():
     client = TestClient(app)
     with SessionLocal() as db:
-        created = BookService.create_book(db, user_id=settings.LOCAL_BYPASS_SUB, title="T1", author="A1")
+        created = BookService.create_book(
+            db, user_id=settings.LOCAL_BYPASS_SUB, title="T1", author="A1"
+        )
     resp = client.put(
         f"/api/v1/books/{created.book_id}",
         json={"title": "T2"},
@@ -38,9 +41,53 @@ def test_update_book_success():
 def test_update_book_not_owned_returns_404():
     client = TestClient(app)
     with SessionLocal() as db:
-        created = BookService.create_book(db, user_id="someone-else", title="T1", author="A1")
+        created = BookService.create_book(
+            db, user_id="someone-else", title="T1", author="A1"
+        )
     resp = client.put(
         f"/api/v1/books/{created.book_id}",
         json={"title": "T2"},
     )
     assert resp.status_code == 404
+
+
+def test_update_book_narrator_set_and_clear():
+    client = TestClient(app)
+    with SessionLocal() as db:
+        created = BookService.create_book(
+            db,
+            user_id=settings.LOCAL_BYPASS_SUB,
+            title="T1",
+            author="A1",
+        )
+
+    resp = client.put(
+        f"/api/v1/books/{created.book_id}",
+        json={"narrator": "N1"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["narrator"] == "N1"
+
+    resp = client.put(
+        f"/api/v1/books/{created.book_id}",
+        json={"narrator": None},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["narrator"] is None
+
+
+def test_update_book_narrator_validation_error():
+    client = TestClient(app)
+    with SessionLocal() as db:
+        created = BookService.create_book(
+            db,
+            user_id=settings.LOCAL_BYPASS_SUB,
+            title="T1",
+            author="A1",
+        )
+
+    resp = client.put(
+        f"/api/v1/books/{created.book_id}",
+        json={"narrator": "x" * 51},
+    )
+    assert resp.status_code == 422

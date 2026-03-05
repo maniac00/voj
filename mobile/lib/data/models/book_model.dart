@@ -15,7 +15,8 @@ class Category {
 
   factory Category.fromJson(Map<String, dynamic> json) {
     final createdAtRaw = json['createdAt'] ?? json['created_at'];
-    final countRaw = json['_count']?['books'] ?? json['bookCount'] ?? json['count'];
+    final countRaw =
+        json['_count']?['books'] ?? json['bookCount'] ?? json['count'];
     final id = json['id'] as String? ?? json['categoryId'] as String? ?? '';
 
     return Category(
@@ -82,6 +83,7 @@ class Book {
   final String id;
   final String title;
   final String author;
+  final String? narrator;
   final String? publisher;
   final String categoryId;
   final String? description;
@@ -102,6 +104,7 @@ class Book {
     required this.id,
     required this.title,
     required this.author,
+    this.narrator,
     this.publisher,
     required this.categoryId,
     this.description,
@@ -130,17 +133,27 @@ class Book {
 
     final statusValue = (json['status'] as String? ?? 'draft').toLowerCase();
     final totalDurationRaw = json['totalDuration'] ?? json['total_duration'];
-    final chapterCountRaw = json['_count']?['chapters'] ?? json['chapterCount'] ?? json['total_chapters'];
-    final statusLabel = json['statusLabel'] ?? json['status_label'] ?? json['status_display'] ?? json['statusDisplay'];
+    final chapterCountRaw =
+        json['_count']?['chapters'] ??
+        json['chapterCount'] ??
+        json['total_chapters'];
+    final statusLabel =
+        json['statusLabel'] ??
+        json['status_label'] ??
+        json['status_display'] ??
+        json['statusDisplay'];
 
     return Book(
       id: json['id'] as String? ?? json['book_id'] as String? ?? '',
       title: json['title'] as String? ?? '',
       author: json['author'] as String? ?? '',
+      narrator: json['narrator'] as String?,
       publisher: json['publisher'] as String?,
-      categoryId: json['categoryId'] as String? ?? json['category_id'] as String? ?? '',
+      categoryId:
+          json['categoryId'] as String? ?? json['category_id'] as String? ?? '',
       description: json['description'] as String?,
-      coverUrl: json['coverUrl'] as String? ?? json['cover_image_url'] as String?,
+      coverUrl:
+          json['coverUrl'] as String? ?? json['cover_image_url'] as String?,
       totalDuration: _parseInt(totalDurationRaw),
       status: BookStatus.values.firstWhere(
         (value) => value.name == statusValue,
@@ -153,13 +166,15 @@ class Book {
       updatedAt: updatedAt,
       publishedAt: publishedAt,
       category: json['category'] != null
-          ? Category.fromJson(Map<String, dynamic>.from(json['category'] as Map))
+          ? Category.fromJson(
+              Map<String, dynamic>.from(json['category'] as Map),
+            )
           : null,
       chapters: json['chapters'] != null
           ? (json['chapters'] as List)
-              .whereType<Map<String, dynamic>>()
-              .map(AudioChapter.fromJson)
-              .toList()
+                .whereType<Map<String, dynamic>>()
+                .map(AudioChapter.fromJson)
+                .toList()
           : const [],
       chapterCount: _parseInt(chapterCountRaw),
       userId: json['user_id'] as String?,
@@ -173,6 +188,7 @@ class Book {
       'id': id,
       'title': title,
       'author': author,
+      'narrator': narrator,
       'publisher': publisher,
       'categoryId': categoryId,
       'description': description,
@@ -193,6 +209,7 @@ class Book {
     String? id,
     String? title,
     String? author,
+    String? narrator,
     String? publisher,
     String? categoryId,
     String? description,
@@ -213,6 +230,7 @@ class Book {
       id: id ?? this.id,
       title: title ?? this.title,
       author: author ?? this.author,
+      narrator: narrator ?? this.narrator,
       publisher: publisher ?? this.publisher,
       categoryId: categoryId ?? this.categoryId,
       description: description ?? this.description,
@@ -234,7 +252,7 @@ class Book {
   String get durationText {
     final hours = totalDuration ~/ 3600;
     final minutes = (totalDuration % 3600) ~/ 60;
-    
+
     if (hours > 0) {
       return '$hours시간 $minutes분';
     } else {
@@ -282,19 +300,30 @@ class AudioChapter {
       id: json['chapter_id'] as String? ?? json['id'] as String? ?? '',
       bookId: json['book_id'] as String? ?? json['bookId'] as String? ?? '',
       title: json['title'] as String? ?? json['chapter_title'] as String? ?? '',
-      fileName: json['file_name'] as String? ?? json['fileName'] as String? ?? '',
+      fileName:
+          json['file_name'] as String? ?? json['fileName'] as String? ?? '',
       streamingUrl: json['streaming_url'] as String?,
       duration: json['duration'] as int? ?? json['duration_seconds'] as int?,
-      chapterNumber: json['chapter_number'] as int? ?? json['chapterNumber'] as int? ?? json['sequence'] as int? ?? 0,
+      chapterNumber:
+          json['chapter_number'] as int? ??
+          json['chapterNumber'] as int? ??
+          json['sequence'] as int? ??
+          0,
       status: AudioChapterStatus.values.firstWhere(
         (e) => e.name == (json['status'] as String? ?? '').toLowerCase(),
         orElse: () => AudioChapterStatus.processing,
       ),
-      createdAt: _parseDateTime(json['createdAt'] ?? json['created_at']) ?? DateTime.now(),
-      updatedAt: _parseDateTime(json['updatedAt'] ?? json['updated_at']) ?? DateTime.now(),
-      statusLabel: json['status_label'] as String? ?? json['statusDisplay'] as String?,
+      createdAt:
+          _parseDateTime(json['createdAt'] ?? json['created_at']) ??
+          DateTime.now(),
+      updatedAt:
+          _parseDateTime(json['updatedAt'] ?? json['updated_at']) ??
+          DateTime.now(),
+      statusLabel:
+          json['status_label'] as String? ?? json['statusDisplay'] as String?,
       fileSize: json['file_size'] as int? ?? json['fileSize'] as int?,
-      contentPath: json['content_path'] as String? ?? json['contentPath'] as String?,
+      contentPath:
+          json['content_path'] as String? ?? json['contentPath'] as String?,
     );
   }
 
@@ -375,10 +404,7 @@ class CategoriesResponse {
   final String message;
   final List<Category> categories;
 
-  const CategoriesResponse({
-    required this.message,
-    required this.categories,
-  });
+  const CategoriesResponse({required this.message, required this.categories});
 
   factory CategoriesResponse.fromJson(Map<String, dynamic> json) {
     return CategoriesResponse(
@@ -409,9 +435,10 @@ class PaginationInfo {
     final page = json['page'] as int? ?? 1;
     final limit = json['limit'] as int? ?? json['size'] as int? ?? 10;
     final total = json['total'] as int? ?? 0;
-    final totalPages = json['totalPages'] as int? ??
-        (limit <= 0 ? 1 : (total / limit).ceil());
-    final hasNext = json['hasNext'] as bool? ??
+    final totalPages =
+        json['totalPages'] as int? ?? (limit <= 0 ? 1 : (total / limit).ceil());
+    final hasNext =
+        json['hasNext'] as bool? ??
         json['has_next'] as bool? ??
         (json['nextPage'] != null && json['nextPage'] != page);
 

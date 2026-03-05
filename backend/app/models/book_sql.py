@@ -39,6 +39,7 @@ class BookSQL(Base):
     # 책 기본 정보
     title = Column(String(200), nullable=False, index=True)
     author = Column(String(100), nullable=False)
+    narrator = Column(String(50), nullable=True)
     description = Column(Text, nullable=True)
     genre = Column(String(50), nullable=True, index=True)
     language = Column(String(10), default="ko")
@@ -56,7 +57,9 @@ class BookSQL(Base):
     cover_image_key = Column(String(500), nullable=True)
 
     # Relationships
-    chapters = relationship("AudioChapterSQL", cascade="all, delete-orphan", passive_deletes=True)
+    chapters = relationship(
+        "AudioChapterSQL", cascade="all, delete-orphan", passive_deletes=True
+    )
 
     # 타임스탬프
     created_at = Column(DateTime, default=func.now(), nullable=False)
@@ -72,6 +75,7 @@ class BookSQL(Base):
             "book_id": self.book_id,
             "title": self.title,
             "author": self.author,
+            "narrator": self.narrator,
             "description": self.description,
             "genre": self.genre,
             "language": self.language,

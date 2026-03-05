@@ -20,6 +20,7 @@ import { useNotification } from "@/contexts/notification-context";
 interface FormErrors {
   title?: string;
   author?: string;
+  narrator?: string;
   publisher?: string;
   description?: string;
   general?: string;
@@ -35,6 +36,7 @@ export default function EditBookPage() {
   const [formData, setFormData] = useState({
     title: "",
     author: "",
+    narrator: "",
     publisher: "",
     description: "",
     genre: "",
@@ -89,6 +91,7 @@ export default function EditBookPage() {
         setFormData({
           title: bookData.title || "",
           author: bookData.author || "",
+          narrator: bookData.narrator || "",
           publisher: bookData.publisher || "",
           description: bookData.description || "",
           genre: bookData.genre || "",
@@ -126,6 +129,11 @@ export default function EditBookPage() {
       newErrors.author = "저자는 100자 이하로 입력해주세요.";
     }
 
+    // 낭독자 검증 (선택적)
+    if (formData.narrator && formData.narrator.length > 50) {
+      newErrors.narrator = "낭독자는 50자 이하로 입력해주세요.";
+    }
+
     // 출판사 검증 (선택적)
     if (formData.publisher && formData.publisher.length > 100) {
       newErrors.publisher = "출판사는 100자 이하로 입력해주세요.";
@@ -160,9 +168,11 @@ export default function EditBookPage() {
     setErrors({});
 
     try {
+      const trimmedNarrator = formData.narrator.trim();
       const updatePayload: UpdateBookPayload = {
         title: formData.title.trim(),
         author: formData.author.trim(),
+        narrator: trimmedNarrator.length > 0 ? trimmedNarrator : null,
         publisher: formData.publisher.trim() || undefined,
         description: formData.description.trim() || undefined,
         genre: formData.genre || undefined,
@@ -220,7 +230,9 @@ export default function EditBookPage() {
       success("커버 이미지가 업로드되었습니다.");
     } catch (err) {
       showError(
-        err instanceof Error ? err.message : "커버 이미지 업로드에 실패했습니다.",
+        err instanceof Error
+          ? err.message
+          : "커버 이미지 업로드에 실패했습니다.",
       );
     } finally {
       setCoverUploading(false);
@@ -411,6 +423,45 @@ export default function EditBookPage() {
                 )}
                 <p className="mt-1 text-xs text-gray-500">
                   {formData.author.length}/100자
+                </p>
+              </div>
+
+              {/* 출판사 */}
+              <div>
+                <label
+                  htmlFor="narrator"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  낭독자 <span className="text-gray-400 text-xs">(선택)</span>
+                </label>
+                <input
+                  id="narrator"
+                  type="text"
+                  value={formData.narrator}
+                  onChange={(e) =>
+                    handleInputChange("narrator", e.target.value)
+                  }
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${
+                    errors.narrator
+                      ? "border-red-300 bg-red-50"
+                      : "border-gray-300"
+                  }`}
+                  maxLength={50}
+                  aria-describedby={
+                    errors.narrator ? "narrator-error" : undefined
+                  }
+                />
+                {errors.narrator && (
+                  <p
+                    id="narrator-error"
+                    className="mt-1 text-sm text-red-600"
+                    role="alert"
+                  >
+                    {errors.narrator}
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  {formData.narrator.length}/50자
                 </p>
               </div>
 
@@ -634,9 +685,7 @@ export default function EditBookPage() {
                           d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z"
                         />
                       </svg>
-                      <p className="mt-2 text-sm text-gray-500">
-                        이미지 없음
-                      </p>
+                      <p className="mt-2 text-sm text-gray-500">이미지 없음</p>
                     </div>
                   </div>
                   <label className="cursor-pointer">

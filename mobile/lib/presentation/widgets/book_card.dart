@@ -8,22 +8,20 @@ class BookCard extends ConsumerWidget {
   final Book book;
   final VoidCallback? onTap;
 
-  const BookCard({
-    super.key,
-    required this.book,
-    this.onTap,
-  });
+  const BookCard({super.key, required this.book, this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // authSessionProvider(StreamProvider)는 broadcast stream이라 초기 값을 놓칠 수 있음
     // currentSession은 동기적으로 항상 최신 세션을 반환
     final session = ref.watch(authRepositoryProvider).currentSession;
+    final narrator = book.narrator?.trim();
+    final hasNarrator = narrator != null && narrator.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Semantics(
         label:
-            '도서: ${book.title}, 저자: ${book.author}, 상태: ${book.statusLabel ?? book.status.displayName}',
+            '도서: ${book.title}, 저자: ${book.author}${hasNarrator ? ', 낭독: $narrator' : ''}, 상태: ${book.statusLabel ?? book.status.displayName}',
         hint: '탭하여 도서 상세 정보 보기',
         button: true,
         child: Material(
@@ -35,10 +33,7 @@ class BookCard extends ConsumerWidget {
             child: Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: const Color(0xFFC9A97A),
-                  width: 1.5,
-                ),
+                border: Border.all(color: const Color(0xFFC9A97A), width: 1.5),
               ),
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -66,7 +61,8 @@ class BookCard extends ConsumerWidget {
                               fit: BoxFit.cover,
                               httpHeaders: {
                                 if (session != null)
-                                  'Authorization': 'Bearer ${session.accessToken}',
+                                  'Authorization':
+                                      'Bearer ${session.accessToken}',
                               },
                               errorWidget: (context, url, error) =>
                                   _buildDefaultCover(),
@@ -97,14 +93,29 @@ class BookCard extends ConsumerWidget {
 
                         const SizedBox(height: 6),
 
-                        // 저자
-                        Text(
-                          book.author,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF8D7B68),
-                            fontWeight: FontWeight.w500,
-                          ),
+                        // 저자 / 낭독자
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 4,
+                          children: [
+                            Text(
+                              '저자:${book.author}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Color(0xFF8D7B68),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            if (hasNarrator)
+                              Text(
+                                '낭독:$narrator',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF8D7B68),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                          ],
                         ),
 
                         const SizedBox(height: 10),

@@ -11,11 +11,7 @@ class AudioPlayerWidget extends ConsumerWidget {
   final bool isFullPlayer;
   final VoidCallback? onTap;
 
-  const AudioPlayerWidget({
-    super.key,
-    this.isFullPlayer = false,
-    this.onTap,
-  });
+  const AudioPlayerWidget({super.key, this.isFullPlayer = false, this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,10 +29,29 @@ class AudioPlayerWidget extends ConsumerWidget {
     }
 
     return isFullPlayer
-        ? _buildFullPlayer(context, ref, controller, currentBook, currentChapter,
-                          playerState, position, duration, speed, chapterStatus)
-        : _buildMiniPlayer(context, ref, controller, currentBook, currentChapter,
-                          playerState, position, duration, chapterStatus);
+        ? _buildFullPlayer(
+            context,
+            ref,
+            controller,
+            currentBook,
+            currentChapter,
+            playerState,
+            position,
+            duration,
+            speed,
+            chapterStatus,
+          )
+        : _buildMiniPlayer(
+            context,
+            ref,
+            controller,
+            currentBook,
+            currentChapter,
+            playerState,
+            position,
+            duration,
+            chapterStatus,
+          );
   }
 
   Widget _buildMiniPlayer(
@@ -83,14 +98,25 @@ class AudioPlayerWidget extends ConsumerWidget {
                           imageUrl: book.coverUrl!,
                           fit: BoxFit.cover,
                           httpHeaders: {
-                            if (ref.watch(authRepositoryProvider).currentSession != null)
-                              'Authorization': 'Bearer ${ref.watch(authRepositoryProvider).currentSession!.accessToken}',
+                            if (ref
+                                    .watch(authRepositoryProvider)
+                                    .currentSession !=
+                                null)
+                              'Authorization':
+                                  'Bearer ${ref.watch(authRepositoryProvider).currentSession!.accessToken}',
                           },
-                          errorWidget: (context, url, error) =>
-                              const Icon(Icons.book, size: 32, color: Color(0xFFD7CCC8)),
+                          errorWidget: (context, url, error) => const Icon(
+                            Icons.book,
+                            size: 32,
+                            color: Color(0xFFD7CCC8),
+                          ),
                         ),
                       )
-                    : const Icon(Icons.book, size: 32, color: Color(0xFFD7CCC8)),
+                    : const Icon(
+                        Icons.book,
+                        size: 32,
+                        color: Color(0xFFD7CCC8),
+                      ),
               ),
               const SizedBox(width: 12),
 
@@ -130,7 +156,10 @@ class AudioPlayerWidget extends ConsumerWidget {
                 children: [
                   IconButton(
                     onPressed: controller.skipToPrevious,
-                    icon: const Icon(Icons.skip_previous, color: Color(0xFF3E2723)),
+                    icon: const Icon(
+                      Icons.skip_previous,
+                      color: Color(0xFF3E2723),
+                    ),
                     iconSize: 28,
                     tooltip: '이전 챕터',
                   ),
@@ -143,19 +172,21 @@ class AudioPlayerWidget extends ConsumerWidget {
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
-                      onPressed: ref.watch(audioPlayerLoadingProvider) ? null : () {
-                        playerState.when(
-                          data: (state) {
-                            if (state.playing) {
-                              controller.pause();
-                            } else {
-                              controller.resume();
-                            }
-                          },
-                          loading: () {},
-                          error: (error, stack) {},
-                        );
-                      },
+                      onPressed: ref.watch(audioPlayerLoadingProvider)
+                          ? null
+                          : () {
+                              playerState.when(
+                                data: (state) {
+                                  if (state.playing) {
+                                    controller.pause();
+                                  } else {
+                                    controller.resume();
+                                  }
+                                },
+                                loading: () {},
+                                error: (error, stack) {},
+                              );
+                            },
                       tooltip: playerState.when(
                         data: (state) => state.playing ? '일시정지' : '재생',
                         loading: () => '로딩 중',
@@ -169,7 +200,9 @@ class AudioPlayerWidget extends ConsumerWidget {
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
                               ),
                             );
                           }
@@ -184,7 +217,9 @@ class AudioPlayerWidget extends ConsumerWidget {
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         ),
                         error: (error, stack) => const Icon(
@@ -223,12 +258,16 @@ class AudioPlayerWidget extends ConsumerWidget {
     AsyncValue<double> speed,
     String? chapterStatus,
   ) {
-    final isReady = playerState.whenOrNull(
-      data: (state) =>
-          state.processingState == ProcessingState.ready ||
-          state.processingState == ProcessingState.completed ||
-          state.processingState == ProcessingState.buffering,
-    ) ?? false;
+    final narrator = book.narrator?.trim();
+    final hasNarrator = narrator != null && narrator.isNotEmpty;
+    final isReady =
+        playerState.whenOrNull(
+          data: (state) =>
+              state.processingState == ProcessingState.ready ||
+              state.processingState == ProcessingState.completed ||
+              state.processingState == ProcessingState.buffering,
+        ) ??
+        false;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
@@ -256,8 +295,10 @@ class AudioPlayerWidget extends ConsumerWidget {
                       imageUrl: book.coverUrl!,
                       fit: BoxFit.cover,
                       httpHeaders: {
-                        if (ref.watch(authRepositoryProvider).currentSession != null)
-                          'Authorization': 'Bearer ${ref.watch(authRepositoryProvider).currentSession!.accessToken}',
+                        if (ref.watch(authRepositoryProvider).currentSession !=
+                            null)
+                          'Authorization':
+                              'Bearer ${ref.watch(authRepositoryProvider).currentSession!.accessToken}',
                       },
                       errorWidget: (context, url, error) =>
                           _buildDefaultCover(),
@@ -284,7 +325,7 @@ class AudioPlayerWidget extends ConsumerWidget {
 
           // 저자
           Text(
-            book.author,
+            '저자:${book.author}${hasNarrator ? '    낭독:$narrator' : ''}',
             style: const TextStyle(
               fontSize: 16,
               color: Color(0xFF5D4037),
@@ -297,10 +338,7 @@ class AudioPlayerWidget extends ConsumerWidget {
           // 챕터 제목
           Text(
             chapter.displayName,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF8D7B68),
-            ),
+            style: const TextStyle(fontSize: 14, color: Color(0xFF8D7B68)),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -325,16 +363,23 @@ class AudioPlayerWidget extends ConsumerWidget {
 
               // 10초 뒤로
               _buildControlButton(
-                onPressed: isReady ? () {
-                  position.when(
-                    data: (pos) {
-                      final newPosition = pos - const Duration(seconds: 10);
-                      controller.seek(newPosition < Duration.zero ? Duration.zero : newPosition);
-                    },
-                    loading: () {},
-                    error: (error, stack) {},
-                  );
-                } : null,
+                onPressed: isReady
+                    ? () {
+                        position.when(
+                          data: (pos) {
+                            final newPosition =
+                                pos - const Duration(seconds: 10);
+                            controller.seek(
+                              newPosition < Duration.zero
+                                  ? Duration.zero
+                                  : newPosition,
+                            );
+                          },
+                          loading: () {},
+                          error: (error, stack) {},
+                        );
+                      }
+                    : null,
                 icon: Icons.replay_10,
                 size: 48,
                 iconSize: 26,
@@ -345,24 +390,29 @@ class AudioPlayerWidget extends ConsumerWidget {
 
               // 10초 앞으로
               _buildControlButton(
-                onPressed: isReady ? () {
-                  position.when(
-                    data: (pos) {
-                      duration.when(
-                        data: (dur) {
-                          if (dur != null) {
-                            final newPosition = pos + const Duration(seconds: 10);
-                            controller.seek(newPosition > dur ? dur : newPosition);
-                          }
-                        },
-                        loading: () {},
-                        error: (error, stack) {},
-                      );
-                    },
-                    loading: () {},
-                    error: (error, stack) {},
-                  );
-                } : null,
+                onPressed: isReady
+                    ? () {
+                        position.when(
+                          data: (pos) {
+                            duration.when(
+                              data: (dur) {
+                                if (dur != null) {
+                                  final newPosition =
+                                      pos + const Duration(seconds: 10);
+                                  controller.seek(
+                                    newPosition > dur ? dur : newPosition,
+                                  );
+                                }
+                              },
+                              loading: () {},
+                              error: (error, stack) {},
+                            );
+                          },
+                          loading: () {},
+                          error: (error, stack) {},
+                        );
+                      }
+                    : null,
                 icon: Icons.forward_10,
                 size: 48,
                 iconSize: 26,
@@ -421,19 +471,21 @@ class AudioPlayerWidget extends ConsumerWidget {
     final hasData = playerState.hasValue;
     final isInitiating = ref.watch(audioPlayerLoadingProvider);
     return GestureDetector(
-      onTap: (hasData && !isInitiating) ? () {
-        playerState.when(
-          data: (state) {
-            if (state.playing) {
-              controller.pause();
-            } else {
-              controller.resume();
+      onTap: (hasData && !isInitiating)
+          ? () {
+              playerState.when(
+                data: (state) {
+                  if (state.playing) {
+                    controller.pause();
+                  } else {
+                    controller.resume();
+                  }
+                },
+                loading: () {},
+                error: (error, stack) {},
+              );
             }
-          },
-          loading: () {},
-          error: (error, stack) {},
-        );
-      } : null,
+          : null,
       child: Container(
         width: 76,
         height: 76,
@@ -452,7 +504,9 @@ class AudioPlayerWidget extends ConsumerWidget {
                   height: 32,
                   child: CircularProgressIndicator(
                     strokeWidth: 3,
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF5EDE0)),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Color(0xFFF5EDE0),
+                    ),
                   ),
                 ),
               );
@@ -473,11 +527,8 @@ class AudioPlayerWidget extends ConsumerWidget {
               ),
             ),
           ),
-          error: (error, stack) => const Icon(
-            Icons.error,
-            color: Color(0xFFF5EDE0),
-            size: 40,
-          ),
+          error: (error, stack) =>
+              const Icon(Icons.error, color: Color(0xFFF5EDE0), size: 40),
         ),
       ),
     );
@@ -528,8 +579,12 @@ class AudioPlayerWidget extends ConsumerWidget {
                   activeTrackColor: const Color(0xFF5D4037),
                   inactiveTrackColor: const Color(0xFFC9A97A),
                   thumbColor: const Color(0xFF5D4037),
-                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+                  thumbShape: const RoundSliderThumbShape(
+                    enabledThumbRadius: 8,
+                  ),
+                  overlayShape: const RoundSliderOverlayShape(
+                    overlayRadius: 16,
+                  ),
                   overlayColor: const Color(0x295D4037),
                 ),
                 child: Slider(
@@ -538,7 +593,9 @@ class AudioPlayerWidget extends ConsumerWidget {
                       : 0,
                   onChanged: (value) {
                     if (totalSeconds > 0) {
-                      final newPosition = Duration(seconds: (value * totalSeconds).round());
+                      final newPosition = Duration(
+                        seconds: (value * totalSeconds).round(),
+                      );
                       controller.seek(newPosition);
                     }
                   },
@@ -604,10 +661,7 @@ class AudioPlayerWidget extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: const Color(0xFFC9A97A),
-            width: 1.5,
-          ),
+          border: Border.all(color: const Color(0xFFC9A97A), width: 1.5),
           color: const Color(0xFFFFFDF8),
         ),
         child: DropdownButtonHideUnderline(
@@ -626,10 +680,7 @@ class AudioPlayerWidget extends ConsumerWidget {
             ),
             dropdownColor: const Color(0xFFFFFDF8),
             items: speeds.map((s) {
-              return DropdownMenuItem(
-                value: s,
-                child: Text('${s}x'),
-              );
+              return DropdownMenuItem(value: s, child: Text('${s}x'));
             }).toList(),
             onChanged: (newSpeed) {
               if (newSpeed != null) {
@@ -655,10 +706,7 @@ class AudioPlayerWidget extends ConsumerWidget {
 class MiniPlayerWidget extends ConsumerWidget {
   final VoidCallback? onTap;
 
-  const MiniPlayerWidget({
-    super.key,
-    this.onTap,
-  });
+  const MiniPlayerWidget({super.key, this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -668,9 +716,6 @@ class MiniPlayerWidget extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    return AudioPlayerWidget(
-      isFullPlayer: false,
-      onTap: onTap,
-    );
+    return AudioPlayerWidget(isFullPlayer: false, onTap: onTap);
   }
 }

@@ -18,6 +18,7 @@ from app.models.database import Base, engine  # noqa: E402
 def _local_setup():
     settings.ENVIRONMENT = "local"
     settings.LOCAL_BYPASS_ENABLED = True
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     yield
 
@@ -26,9 +27,13 @@ def test_books_e2e_flow():
     client = TestClient(app)
 
     # 1) Create
-    r = client.post("/api/v1/books/", json={"title": "Flow", "author": "Tester"})
+    r = client.post(
+        "/api/v1/books/",
+        json={"title": "Flow", "author": "Tester", "narrator": "Reader"},
+    )
     assert r.status_code == 201, r.text
     created = r.json()
+    assert created["narrator"] == "Reader"
 
     # 2) List
     r = client.get("/api/v1/books/?size=10")
@@ -39,6 +44,7 @@ def test_books_e2e_flow():
     r = client.get(f"/api/v1/books/{created['book_id']}")
     assert r.status_code == 200
     assert r.json()["title"] == "Flow"
+    assert r.json()["narrator"] == "Reader"
 
     # 4) Update
     r = client.put(f"/api/v1/books/{created['book_id']}", json={"title": "Flow2"})

@@ -12,11 +12,24 @@ from app.models.book_sql import BookSQL
 from app.models.database import get_db
 
 
-ALLOWED_UPDATE_FIELDS = frozenset({
-    "title", "author", "description", "genre", "language",
-    "isbn", "publisher", "published_date", "status",
-    "total_chapters", "total_duration", "cover_image_url", "cover_image_key",
-})
+ALLOWED_UPDATE_FIELDS = frozenset(
+    {
+        "title",
+        "author",
+        "narrator",
+        "description",
+        "genre",
+        "language",
+        "isbn",
+        "publisher",
+        "published_date",
+        "status",
+        "total_chapters",
+        "total_duration",
+        "cover_image_url",
+        "cover_image_key",
+    }
+)
 
 
 class BookServiceSQL:
@@ -29,6 +42,7 @@ class BookServiceSQL:
         user_id: str,
         title: str,
         author: str,
+        narrator: Optional[str] = None,
         description: Optional[str] = None,
         genre: Optional[str] = None,
         language: str = "ko",
@@ -41,6 +55,7 @@ class BookServiceSQL:
             book_id=str(uuid.uuid4()),
             title=title,
             author=author,
+            narrator=narrator,
             description=description,
             genre=genre,
             language=language,

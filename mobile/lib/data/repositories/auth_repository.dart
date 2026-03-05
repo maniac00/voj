@@ -35,6 +35,7 @@ class AuthRepository {
 
   final _userController = StreamController<User?>.broadcast();
   final _sessionController = StreamController<AuthSession?>.broadcast();
+  final Completer<void> _initializedCompleter = Completer<void>();
 
   AuthRepository({
     required ApiService apiService,
@@ -53,25 +54,38 @@ class AuthRepository {
   User? get currentUser => _currentUser;
   AuthSession? get currentSession => _currentSession;
   bool get isLoggedIn => _currentSession?.isValid ?? false;
+  Future<void> get initialized => _initializedCompleter.future;
+  bool get isInitialized => _initializedCompleter.isCompleted;
 
   Future<void> _initializeAuth() async {
-    if (AppConfig.authBypassEnabled) {
-      await _enableGuestMode();
-      return;
-    }
+    try {
+      if (AppConfig.authBypassEnabled) {
+        await _enableGuestMode();
+        return;
+      }
 
-    final autoLogin = _prefs.getBool('auto_login') ?? true;
-    if (!autoLogin) {
+      final autoLogin = _prefs.getBool('auto_login') ?? true;
+      if (!autoLogin) {
+        _setSession(null);
+        _setCurrentUser(null);
+        _apiService.clearAuthToken();
+        return;
+      }
+
+      final refreshed = await refreshToken();
+      if (!refreshed) {
+        _setSession(null);
+        _setCurrentUser(null);
+      }
+    } catch (e, st) {
+      _log.warning('인증 초기화 실패', error: e, stackTrace: st);
       _setSession(null);
       _setCurrentUser(null);
       _apiService.clearAuthToken();
-      return;
-    }
-
-    final refreshed = await refreshToken();
-    if (!refreshed) {
-      _setSession(null);
-      _setCurrentUser(null);
+    } finally {
+      if (!_initializedCompleter.isCompleted) {
+        _initializedCompleter.complete();
+      }
     }
   }
 

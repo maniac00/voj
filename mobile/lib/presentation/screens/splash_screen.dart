@@ -35,22 +35,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       return;
     }
 
-    // Stream이 아직 로딩 중일 수 있으므로 데이터가 올 때까지 대기
-    User? user;
-    final currentValue = ref.read(currentUserProvider);
-    if (currentValue.hasValue) {
-      user = currentValue.valueOrNull;
-    } else {
-      // stream이 아직 emit 전이면 첫 데이터를 최대 3초 대기
-      try {
-        final authRepo = ref.read(authRepositoryProvider);
-        user = await authRepo.userStream.first.timeout(
-          const Duration(seconds: 3),
-          onTimeout: () => null,
-        );
-      } catch (_) {
-        user = null;
-      }
+    final authRepo = ref.read(authRepositoryProvider);
+    // 인증 초기화(토큰 재발급 포함) 완료를 기다린 뒤 현재 상태를 확인한다.
+    try {
+      await authRepo.initialized.timeout(const Duration(seconds: 10));
+    } catch (_) {}
+    User? user = authRepo.currentUser;
+    final session = authRepo.currentSession;
+    if (session == null || !session.isValid) {
+      user = null;
     }
 
     if (!mounted) return;
@@ -91,15 +84,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         fit: StackFit.expand,
         children: [
           // 배경 이미지
-          Image.asset(
-            'assets/images/splash_background.png',
-            fit: BoxFit.cover,
-          ),
+          Image.asset('assets/images/splash_background.png', fit: BoxFit.cover),
 
           // 반투명 어두운 오버레이
-          Container(
-            color: Colors.black.withValues(alpha: 0.4),
-          ),
+          Container(color: Colors.black.withValues(alpha: 0.4)),
 
           // 콘텐츠
           Center(
@@ -124,10 +112,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 // 부제목
                 const Text(
                   '시각장애인을 위한 오디오북',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.white70,
-                  ),
+                  style: TextStyle(fontSize: 18, color: Colors.white70),
                 ),
 
                 const Spacer(flex: 2),

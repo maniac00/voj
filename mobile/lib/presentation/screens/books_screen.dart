@@ -1,12 +1,16 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/navigation/app_route_observer.dart';
+import '../../core/utils/logger.dart';
 import '../../data/models/book_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/book_provider.dart';
 import '../widgets/book_card.dart';
 import '../widgets/search_bar_widget.dart';
 import 'book_detail_screen.dart';
+
+const _log = AppLogger('BooksScreen');
 
 class BooksScreen extends ConsumerStatefulWidget {
   const BooksScreen({super.key});
@@ -15,8 +19,10 @@ class BooksScreen extends ConsumerStatefulWidget {
   ConsumerState<BooksScreen> createState() => _BooksScreenState();
 }
 
-class _BooksScreenState extends ConsumerState<BooksScreen> {
+class _BooksScreenState extends ConsumerState<BooksScreen> with RouteAware {
   final ScrollController _scrollController = ScrollController();
+  bool _isRouteObserverRegistered = false;
+  DateTime? _lastAutoRefreshAt;
 
   @override
   void initState() {
@@ -24,12 +30,35 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
     _scrollController.addListener(_onScroll);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(booksProvider.notifier).loadBooks();
+      _refreshBooks(trigger: 'init');
     });
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (!_isRouteObserverRegistered && route is PageRoute<dynamic>) {
+      appRouteObserver.subscribe(this, route);
+      _isRouteObserverRegistered = true;
+    }
+  }
+
+  @override
+  void didPush() {
+    _refreshBooks(trigger: 'didPush');
+  }
+
+  @override
+  void didPopNext() {
+    _refreshBooks(trigger: 'didPopNext');
+  }
+
+  @override
   void dispose() {
+    if (_isRouteObserverRegistered) {
+      appRouteObserver.unsubscribe(this);
+    }
     _scrollController.dispose();
     super.dispose();
   }
@@ -54,12 +83,14 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
         searchQuery = searchState.query;
       }
 
-      ref.read(booksProvider.notifier).loadMoreBooks(
-        nextPage: nextPage,
-        search: searchQuery,
-        status: null,
-        genre: null,
-      );
+      ref
+          .read(booksProvider.notifier)
+          .loadMoreBooks(
+            nextPage: nextPage,
+            search: searchQuery,
+            status: null,
+            genre: null,
+          );
     }
   }
 
@@ -76,7 +107,7 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
         elevation: 0,
         automaticallyImplyLeading: false,
         leading: IconButton(
-          onPressed: () => _refreshBooks(),
+          onPressed: () => _refreshBooks(trigger: 'manual'),
           icon: const Icon(Icons.refresh, color: Color(0xFF3E2723)),
           tooltip: '새로고침',
         ),
@@ -126,8 +157,11 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
                   ),
                   GestureDetector(
                     onTap: () => _clearSearch(),
-                    child: const Icon(Icons.close,
-                        color: Color(0xFF5D4037), size: 20),
+                    child: const Icon(
+                      Icons.close,
+                      color: Color(0xFF5D4037),
+                      size: 20,
+                    ),
                   ),
                 ],
               ),
@@ -141,9 +175,7 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
             child: booksState.when(
               data: (response) => _buildBookList(response),
               loading: () => const Center(
-                child: CircularProgressIndicator(
-                  color: Color(0xFF5D4037),
-                ),
+                child: CircularProgressIndicator(color: Color(0xFF5D4037)),
               ),
               error: (error, stack) => _buildErrorWidget(error),
             ),
@@ -163,19 +195,22 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
           _buildSortChip(
             label: '최근 재생순',
             selected: sortOrder == BookSortOrder.recentlyPlayed,
-            onTap: () => ref.read(bookSortOrderProvider.notifier).state = BookSortOrder.recentlyPlayed,
+            onTap: () => ref.read(bookSortOrderProvider.notifier).state =
+                BookSortOrder.recentlyPlayed,
           ),
           const SizedBox(width: 8),
           _buildSortChip(
             label: '최신순',
             selected: sortOrder == BookSortOrder.newest,
-            onTap: () => ref.read(bookSortOrderProvider.notifier).state = BookSortOrder.newest,
+            onTap: () => ref.read(bookSortOrderProvider.notifier).state =
+                BookSortOrder.newest,
           ),
           const SizedBox(width: 8),
           _buildSortChip(
             label: '가나다순',
             selected: sortOrder == BookSortOrder.alphabetical,
-            onTap: () => ref.read(bookSortOrderProvider.notifier).state = BookSortOrder.alphabetical,
+            onTap: () => ref.read(bookSortOrderProvider.notifier).state =
+                BookSortOrder.alphabetical,
           ),
         ],
       ),
@@ -223,9 +258,15 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
         sorted.sort((a, b) {
           final aTime = recentlyPlayedMap[a.id] ?? 0;
           final bTime = recentlyPlayedMap[b.id] ?? 0;
-          if (aTime == 0 && bTime == 0) return b.createdAt.compareTo(a.createdAt);
-          if (aTime == 0) return 1;
-          if (bTime == 0) return -1;
+          if (aTime == 0 && bTime == 0) {
+            return b.createdAt.compareTo(a.createdAt);
+          }
+          if (aTime == 0) {
+            return 1;
+          }
+          if (bTime == 0) {
+            return -1;
+          }
           return bTime.compareTo(aTime);
         });
       case BookSortOrder.newest:
@@ -266,12 +307,11 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
 
     return RefreshIndicator(
       color: const Color(0xFF5D4037),
-      onRefresh: () async => _refreshBooks(),
+      onRefresh: () async => _refreshBooks(trigger: 'pullToRefresh'),
       child: ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-        itemCount:
-            sortedBooks.length + (response.pagination.hasNext ? 1 : 0),
+        itemCount: sortedBooks.length + (response.pagination.hasNext ? 1 : 0),
         itemBuilder: (context, index) {
           if (index >= sortedBooks.length) {
             return const Padding(
@@ -283,10 +323,7 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
           }
 
           final book = sortedBooks[index];
-          return BookCard(
-            book: book,
-            onTap: () => _navigateToBookDetail(book),
-          );
+          return BookCard(book: book, onTap: () => _navigateToBookDetail(book));
         },
       ),
     );
@@ -317,7 +354,7 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: _refreshBooks,
+              onPressed: () => _refreshBooks(trigger: 'errorRetry'),
               icon: const Icon(Icons.refresh),
               label: const Text('다시 시도'),
               style: ElevatedButton.styleFrom(
@@ -344,30 +381,46 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
   }
 
   void _performSearch(String query) {
-    if (query.trim().isEmpty) {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) {
       _clearSearch();
       return;
     }
 
-    ref.read(searchProvider.notifier).setQuery(query);
-    ref.read(booksProvider.notifier).loadBooks(
-      search: query,
-      status: null,
-      genre: null,
-      forceRefresh: true,
-    );
+    if (trimmed.length > 50) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('검색어는 50자 이하로 입력해주세요.')));
+      return;
+    }
+
+    ref.read(searchProvider.notifier).setQuery(trimmed);
+    ref
+        .read(booksProvider.notifier)
+        .loadBooks(
+          search: trimmed,
+          status: null,
+          genre: null,
+          forceRefresh: true,
+        );
   }
 
   void _clearSearch() {
     ref.read(searchProvider.notifier).clearSearch();
-    ref.read(booksProvider.notifier).loadBooks(
-      status: null,
-      genre: null,
-      forceRefresh: true,
-    );
+    ref
+        .read(booksProvider.notifier)
+        .loadBooks(status: null, genre: null, forceRefresh: true);
   }
 
-  void _refreshBooks() {
+  void _refreshBooks({required String trigger}) {
+    final now = DateTime.now();
+    if (trigger != 'manual' &&
+        _lastAutoRefreshAt != null &&
+        now.difference(_lastAutoRefreshAt!) < const Duration(seconds: 2)) {
+      return;
+    }
+    _lastAutoRefreshAt = now;
+
     final searchState = ref.read(searchProvider);
     String? searchQuery;
 
@@ -375,19 +428,20 @@ class _BooksScreenState extends ConsumerState<BooksScreen> {
       searchQuery = searchState.query;
     }
 
-    ref.read(booksProvider.notifier).loadBooks(
-      search: searchQuery,
-      status: null,
-      genre: null,
-      forceRefresh: true,
-    );
+    _log.info('도서 목록 자동 갱신: $trigger');
+    ref
+        .read(booksProvider.notifier)
+        .loadBooks(
+          search: searchQuery,
+          status: null,
+          genre: null,
+          forceRefresh: true,
+        );
   }
 
   void _navigateToBookDetail(Book book) {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => BookDetailScreen(book: book),
-      ),
+      MaterialPageRoute(builder: (context) => BookDetailScreen(book: book)),
     );
   }
 

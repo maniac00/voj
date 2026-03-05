@@ -12,8 +12,8 @@ class BookService {
   final AudioService _audioService;
 
   BookService({ApiService? apiService, AudioService? audioService})
-      : _apiService = apiService ?? ApiService(),
-        _audioService = audioService ?? AudioService();
+    : _apiService = apiService ?? ApiService(),
+      _audioService = audioService ?? AudioService();
 
   void setAuthToken(String token) {
     _apiService.setAuthToken(token);
@@ -47,7 +47,10 @@ class BookService {
       };
 
       final response = await _apiService.get('/books', queryParameters: query);
-      final normalized = _normalizeBooksResponse(response, fallbackLimit: limit);
+      final normalized = _normalizeBooksResponse(
+        response,
+        fallbackLimit: limit,
+      );
       // 목록 조회에서는 네트워크 비용을 줄이기 위해 챕터 목록을 추가 호출하지 않는다.
       // 상세 조회 시(getBookById) 챕터를 합성한다.
       return BooksResponse.fromJson(normalized);
@@ -75,9 +78,7 @@ class BookService {
 
       final chapters = await _fetchChapters(bookId);
       normalized['chapters'] = chapters;
-      normalized['_count'] = {
-        'chapters': chapters.length,
-      };
+      normalized['_count'] = {'chapters': chapters.length};
 
       return Book.fromJson(normalized);
     } on ApiException catch (error) {
@@ -101,32 +102,36 @@ class BookService {
     _audioService.dispose();
   }
 
-  Map<String, dynamic> _normalizeCategory(Map<String, dynamic> raw) {
-    return {
-      'id': raw['category_id'] ?? raw['id'] ?? '',
-      'name': raw['name'] ?? '',
-      'description': raw['description'],
-      'createdAt': raw['created_at'] ?? raw['createdAt'] ?? DateTime.now().toIso8601String(),
-      '_count': {
-        'books': raw['book_count'] ?? raw['books'] ?? 0,
-      },
-    };
-  }
-
   Map<String, dynamic> _normalizeBooksResponse(
     Map<String, dynamic> raw, {
     required int fallbackLimit,
   }) {
-    final books = (raw['books'] as List<dynamic>? ?? [])
-        .map((item) => _normalizeBook(_ensureMap(item)))
-        .toList();
+    final normalizedBooks = <Map<String, dynamic>>[];
+    for (final item in (raw['books'] as List<dynamic>? ?? [])) {
+      try {
+        final normalized = _normalizeBook(_ensureMap(item));
+        final bookId = (normalized['id'] as String?)?.trim() ?? '';
+        final title = (normalized['title'] as String?)?.trim() ?? '';
+        final author = (normalized['author'] as String?)?.trim() ?? '';
+        if (bookId.isEmpty || title.isEmpty || author.isEmpty) {
+          _log.warning('유효하지 않은 도서 데이터 스킵: id/title/author 누락');
+          continue;
+        }
+        normalizedBooks.add(normalized);
+      } catch (e, st) {
+        _log.warning('도서 데이터 정규화 실패로 스킵', error: e, stackTrace: st);
+      }
+    }
+
+    final books = normalizedBooks;
     final page = raw['page'] as int? ?? 1;
     final size = raw['size'] as int? ?? fallbackLimit;
     final total = raw['total'] as int? ?? books.length;
     final hasNext = raw['has_next'] as bool? ?? (page * size < total);
     final totalPages = size <= 0
         ? 1
-        : (raw['total_pages'] as int?) ?? (hasNext ? page + 1 : (total / size).ceil());
+        : (raw['total_pages'] as int?) ??
+              (hasNext ? page + 1 : (total / size).ceil());
 
     return {
       'message': raw['message'] ?? '도서 목록을 불러왔습니다',
@@ -143,7 +148,8 @@ class BookService {
 
   Map<String, dynamic> _normalizeBook(Map<String, dynamic> raw) {
     // 커버 이미지 URL 처리: 상대 경로를 절대 URL로 변환
-    String? coverUrl = raw['cover_image_url'] as String? ?? raw['coverUrl'] as String?;
+    String? coverUrl =
+        raw['cover_image_url'] as String? ?? raw['coverUrl'] as String?;
     if (coverUrl != null && coverUrl.startsWith('/')) {
       final baseUri = Uri.parse(AppConfig.apiBaseUrl);
       coverUrl = '${baseUri.scheme}://${baseUri.authority}$coverUrl';
@@ -178,31 +184,47 @@ class BookService {
     if (value is Map) {
       return Map<String, dynamic>.from(value);
     }
-    throw const BookServiceException(
-      message: '잘못된 응답 형식입니다',
-      statusCode: -1,
-    );
+    throw const BookServiceException(message: '잘못된 응답 형식입니다', statusCode: -1);
   }
 
   Future<List<Map<String, dynamic>>> _fetchChapters(String bookId) async {
     try {
       final response = await _audioService.getChapters(bookId: bookId);
-      return response
+      final normalized = response
+          .where((chapter) => chapter.id.trim().isNotEmpty)
           .map((chapter) => chapter.toJson())
           .map((json) {
             final mutable = Map<String, dynamic>.from(json);
             if (!mutable.containsKey('chapter_id')) {
               mutable['chapter_id'] = mutable['id'];
             }
+            final chapterNumber =
+                mutable['chapter_number'] ?? mutable['chapterNumber'];
+            mutable['chapter_number'] = chapterNumber ?? 0;
             return mutable;
           })
           .toList();
+      normalized.sort(
+        (a, b) =>
+            _toInt(a['chapter_number']).compareTo(_toInt(b['chapter_number'])),
+      );
+      return normalized;
     } on AudioServiceException catch (error) {
       if (error.isUnauthorized || error.isForbidden) {
         rethrow;
       }
       return const [];
     }
+  }
+
+  int _toInt(dynamic value) {
+    if (value is int) {
+      return value;
+    }
+    if (value is String) {
+      return int.tryParse(value) ?? 0;
+    }
+    return 0;
   }
 }
 

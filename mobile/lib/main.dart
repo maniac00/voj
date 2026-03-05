@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'core/navigation/app_route_observer.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/logger.dart';
 import 'presentation/screens/splash_screen.dart';
@@ -112,6 +113,7 @@ class _VoiceOfJuanAppState extends ConsumerState<VoiceOfJuanApp>
 
     return MaterialApp(
       navigatorKey: _navigatorKey,
+      navigatorObservers: [appRouteObserver],
       title: '주안의 소리',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,

@@ -12,7 +12,7 @@ class _CacheEntry<T> {
   final DateTime expiresAt;
 
   _CacheEntry(this.value, {Duration ttl = const Duration(minutes: 5)})
-      : expiresAt = DateTime.now().add(ttl);
+    : expiresAt = DateTime.now().add(ttl);
 
   bool get isExpired => DateTime.now().isAfter(expiresAt);
 }
@@ -25,10 +25,12 @@ class BookRepository {
   _CacheEntry<List<Category>>? _cachedCategories;
   final Map<String, _CacheEntry<Book>> _cachedBooks = {};
   final Map<String, _CacheEntry<List<Book>>> _cachedBookLists = {};
-  
-  BookRepository({required BookService bookService, required AuthRepository authRepository})
-      : _bookService = bookService,
-        _authRepository = authRepository;
+
+  BookRepository({
+    required BookService bookService,
+    required AuthRepository authRepository,
+  }) : _bookService = bookService,
+       _authRepository = authRepository;
 
   void setAuthToken(String token) {
     _bookService.setAuthToken(token);
@@ -47,7 +49,9 @@ class BookRepository {
 
   // 카테고리 목록 조회 (현재 백엔드에서 미제공)
   Future<List<Category>> getCategories({bool forceRefresh = false}) async {
-    if (!forceRefresh && _cachedCategories != null && !_cachedCategories!.isExpired) {
+    if (!forceRefresh &&
+        _cachedCategories != null &&
+        !_cachedCategories!.isExpired) {
       return _cachedCategories!.value;
     }
 
@@ -65,19 +69,35 @@ class BookRepository {
     String? genre,
     bool forceRefresh = false,
   }) async {
-    final cacheKey = 'books_${page}_${limit}_${status ?? 'all'}_${genre ?? 'all'}_${search ?? ''}';
+    final safePage = page < 1 ? 1 : page;
+    final safeLimit = limit < 1 ? 1 : (limit > 100 ? 100 : limit);
+    final normalizedStatus = status?.trim();
+    final normalizedGenre = genre?.trim();
+    final normalizedSearch = search?.trim();
 
-    if (!forceRefresh && _cachedBookLists.containsKey(cacheKey) && !_cachedBookLists[cacheKey]!.isExpired) {
+    if (normalizedSearch != null && normalizedSearch.length > 50) {
+      throw const BookServiceException(
+        message: '검색어는 50자 이하로 입력해주세요.',
+        statusCode: 400,
+      );
+    }
+
+    final cacheKey =
+        'books_${safePage}_${safeLimit}_${normalizedStatus ?? 'all'}_${normalizedGenre ?? 'all'}_${normalizedSearch ?? ''}';
+
+    if (!forceRefresh &&
+        _cachedBookLists.containsKey(cacheKey) &&
+        !_cachedBookLists[cacheKey]!.isExpired) {
       // 캐시된 데이터가 있으면 반환
       final books = _cachedBookLists[cacheKey]!.value;
       return BooksResponse(
         message: '캐시된 도서 목록',
         books: books,
         pagination: PaginationInfo(
-          page: page,
-          limit: limit,
+          page: safePage,
+          limit: safeLimit,
           total: books.length,
-          totalPages: (books.length / limit).ceil(),
+          totalPages: (books.length / safeLimit).ceil(),
           hasNext: false,
         ),
       );
@@ -85,11 +105,11 @@ class BookRepository {
 
     Future<BooksResponse> fetchBooks() async {
       final response = await _bookService.getBooks(
-        page: page,
-        limit: limit,
-        search: search,
-        status: status,
-        genre: genre,
+        page: safePage,
+        limit: safeLimit,
+        search: normalizedSearch,
+        status: normalizedStatus,
+        genre: normalizedGenre,
       );
 
       // 캐시 업데이트
@@ -115,8 +135,18 @@ class BookRepository {
 
   // 도서 상세 조회
   Future<Book> getBookById(String bookId, {bool forceRefresh = false}) async {
-    if (!forceRefresh && _cachedBooks.containsKey(bookId) && !_cachedBooks[bookId]!.isExpired) {
-      final cached = _cachedBooks[bookId]!.value;
+    final normalizedBookId = bookId.trim();
+    if (normalizedBookId.isEmpty) {
+      throw const BookServiceException(
+        message: '유효하지 않은 도서 ID입니다.',
+        statusCode: 400,
+      );
+    }
+
+    if (!forceRefresh &&
+        _cachedBooks.containsKey(normalizedBookId) &&
+        !_cachedBooks[normalizedBookId]!.isExpired) {
+      final cached = _cachedBooks[normalizedBookId]!.value;
       // 목록 캐시에는 챕터 정보가 비어 있을 수 있으므로, 비어 있으면 강제 새로고침
       if (cached.chapters.isNotEmpty) {
         return cached;
@@ -125,8 +155,8 @@ class BookRepository {
     }
 
     Future<Book> fetchBook() async {
-      final book = await _bookService.getBookById(bookId);
-      _cachedBooks[bookId] = _CacheEntry(book);
+      final book = await _bookService.getBookById(normalizedBookId);
+      _cachedBooks[normalizedBookId] = _CacheEntry(book);
       return book;
     }
 

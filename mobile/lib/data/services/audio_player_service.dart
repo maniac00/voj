@@ -188,12 +188,21 @@ class AudioPlayerService {
     final chapter = _currentChapter;
     final book = _currentBook;
 
+    // 외부 URL(R2 Worker 등)은 HMAC 쿼리 파라미터로 인증하므로 Bearer 헤더 불필요.
+    // iOS에서 커스텀 헤더가 있으면 AVAssetResourceLoaderDelegate를 거치면서
+    // -1004 연결 오류가 발생할 수 있어, 외부 URL에는 헤더를 보내지 않는다.
+    final uri = Uri.parse(url);
+    final isExternalUrl = uri.host.isNotEmpty &&
+        !uri.host.contains('localhost') &&
+        !uri.host.contains('railway.app');
+    final headers = (_headerToken != null && !isExternalUrl)
+        ? {'Authorization': 'Bearer $_headerToken'}
+        : null;
+
     await _player.setAudioSource(
       AudioSource.uri(
-        Uri.parse(url),
-        headers: _headerToken != null
-            ? {'Authorization': 'Bearer $_headerToken'}
-            : null,
+        uri,
+        headers: headers,
         tag: MediaItem(
           id: chapter?.id ?? '',
           title: chapter?.displayName ?? '오디오',

@@ -463,7 +463,7 @@ async def get_streaming_url(
     )
     duration = int(chapter.duration or 0)
 
-    if settings.ENVIRONMENT == "production":
+    if settings.ENVIRONMENT in ("production", "railway"):
         # R2 Worker HMAC 서명 URL 반환 (이그레스 무료)
         if settings.R2_WORKER_URL and settings.R2_AUTH_SECRET:
             import hashlib

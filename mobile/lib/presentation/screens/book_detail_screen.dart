@@ -35,6 +35,29 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
     });
   }
 
+  /// 최신 챕터 목록에서 저장된 상태의 resume 라벨을 계산.
+  /// 챕터가 추가/삭제/재정렬되어 chapterNumber가 변경된 경우에도
+  /// chapterId로 실제 챕터를 찾아 최신 번호를 표시한다.
+  String _getResumeLabel(Book book) {
+    if (_savedState == null) return '처음부터 재생 시작';
+
+    final match = book.chapters.where((c) => c.id == _savedState!.chapterId);
+    if (match.isEmpty) return '처음부터 재생 시작';
+
+    final chapter = match.first;
+    final minutes = _savedState!.positionSeconds ~/ 60;
+    final seconds = _savedState!.positionSeconds % 60;
+    final mm = minutes.toString().padLeft(2, '0');
+    final ss = seconds.toString().padLeft(2, '0');
+    return '챕터${chapter.chapterNumber} $mm분 $ss초부터 다시 시작';
+  }
+
+  /// 저장된 chapterId가 현재 챕터 목록에 존재하는지 확인
+  bool _hasSavedChapter(Book book) {
+    if (_savedState == null) return false;
+    return book.chapters.any((c) => c.id == _savedState!.chapterId);
+  }
+
   @override
   Widget build(BuildContext context) {
     final bookDetailAsync = ref.watch(bookDetailProvider(widget.book.id));
@@ -218,8 +241,8 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
                 ),
               ),
               child: Text(
-                _savedState != null
-                    ? '\u25B6  ${_savedState!.resumeLabel}'
+                _hasSavedChapter(book)
+                    ? '\u25B6  ${_getResumeLabel(book)}'
                     : '\u25B6  처음부터 재생 시작',
                 style: const TextStyle(
                   fontSize: 16,
@@ -373,6 +396,11 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
       if (savedChapter.isNotEmpty) {
         chapter = savedChapter.first;
         startPosition = _savedState!.positionSeconds;
+      } else {
+        // 저장된 챕터가 삭제되었으면 stale 상태 정리
+        final prefs = ref.read(sharedPreferencesProvider);
+        LocalPlaybackState.clear(prefs, book.id);
+        setState(() { _savedState = null; });
       }
     }
 

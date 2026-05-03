@@ -514,8 +514,19 @@ export default function BooksPage() {
                   aria-label={`${book.title}, 저자: ${book.author}${book.narrator ? `, 낭독자: ${book.narrator}` : ""}, 상태: ${book.status || "draft"}`}
                 >
                   <td className="px-6 py-4 whitespace-nowrap" role="gridcell">
-                    <div className="text-sm font-medium text-gray-900">
-                      {book.title}
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm font-medium text-gray-900">
+                        {book.title}
+                      </div>
+                      {book.is_copyrighted && (
+                        <span
+                          className="inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded bg-amber-100 text-amber-800 border border-amber-200"
+                          aria-label="저작권 보호 콘텐츠 — 화이트리스트 사용자만 접근 가능"
+                          title="저작권 보호 콘텐츠"
+                        >
+                          저작권
+                        </span>
+                      )}
                     </div>
                     {book.description && (
                       <div className="text-sm text-gray-500 truncate max-w-xs">

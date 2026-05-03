@@ -162,6 +162,8 @@ async def get_audio_chapters(
     book = BookService.get_book_any_user(db, book_id=book_id)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
+    if not BookService.is_book_visible(book, claims, db):
+        raise HTTPException(status_code=404, detail="Book not found")
 
     try:
         query = (
@@ -389,6 +391,8 @@ async def get_audio_chapter(
     book = BookService.get_book_any_user(db, book_id=book_id)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
+    if not BookService.is_book_visible(book, claims, db):
+        raise HTTPException(status_code=404, detail="Book not found")
 
     # 챕터 조회 및 검증
     chapter = (
@@ -434,9 +438,12 @@ async def get_streaming_url(
     """
     오디오 챕터 스트리밍 URL 생성
     - 승인된 사용자만 접근 가능 (공개 라이브러리 — 소유권 제한 없음)
+    - 저작권 보호 콘텐츠는 화이트리스트 사용자/관리자만 접근 가능
     """
     book = BookService.get_book_any_user(db, book_id=book_id)
     if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+    if not BookService.is_book_visible(book, claims, db):
         raise HTTPException(status_code=404, detail="Book not found")
 
     # 챕터 조회 및 상태 확인
@@ -521,6 +528,8 @@ async def update_playback_progress(
     book = BookService.get_book_any_user(db, book_id=book_id)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
+    if not BookService.is_book_visible(book, claims, db):
+        raise HTTPException(status_code=404, detail="Book not found")
 
     chapter = (
         db.query(AudioChapterSQL)
@@ -589,6 +598,8 @@ async def get_playback_position(
     """
     book = BookService.get_book_any_user(db, book_id=book_id)
     if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+    if not BookService.is_book_visible(book, claims, db):
         raise HTTPException(status_code=404, detail="Book not found")
 
     chapter_exists = (

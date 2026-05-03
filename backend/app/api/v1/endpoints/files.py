@@ -681,12 +681,14 @@ async def download_file(
     file_key: str = PathParam(..., description="파일 키"),
     request: Request = None,
     claims=Depends(get_current_user_claims),
+    db: Session = Depends(get_db),
 ):
     """
     파일 다운로드
     - 인증 필요
     - 로컬 환경: 직접 파일 스트리밍
     - 프로덕션 환경: Pre-signed URL로 리다이렉트
+    - 저작권 보호 책의 오디오/커버는 화이트리스트 사용자/관리자만 접근 가능
     """
     try:
         # 파일 존재 확인
@@ -695,6 +697,23 @@ async def download_file(
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid file key")
         if not exists:
+            raise HTTPException(status_code=404, detail="File not found")
+
+        # 저작권 가시성 검증 — 오디오 키 또는 커버 이미지 키로 책을 찾아 visibility check
+        from app.models.book_sql import BookSQL
+        protected_book = None
+        chapter = (
+            db.query(AudioChapterSQL)
+            .filter(AudioChapterSQL.audio_key == file_key)
+            .first()
+        )
+        if chapter:
+            protected_book = BookService.get_book_any_user(db, book_id=chapter.book_id)
+        else:
+            protected_book = (
+                db.query(BookSQL).filter(BookSQL.cover_image_key == file_key).first()
+            )
+        if protected_book and not BookService.is_book_visible(protected_book, claims, db):
             raise HTTPException(status_code=404, detail="File not found")
 
         # 프로덕션 환경에서도 직접 스트리밍 (CDN 프록시 전제)

@@ -105,3 +105,18 @@ class UserService:
         db.commit()
         db.refresh(user)
         return user
+
+    @staticmethod
+    def update_user_copyright_access(
+        db: Session,
+        user_id: int,
+        can_access: bool,
+    ) -> Optional[UserSQL]:
+        """저작권 보호 콘텐츠 접근 권한 토글."""
+        user = db.query(UserSQL).filter(UserSQL.id == user_id).first()
+        if not user:
+            return None
+        user.can_access_copyrighted = bool(can_access)
+        db.commit()
+        db.refresh(user)
+        return user

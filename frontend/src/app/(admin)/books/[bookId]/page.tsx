@@ -50,6 +50,7 @@ export default function EditBookPage() {
   const [coverUploading, setCoverUploading] = useState(false);
   const [coverProgress, setCoverProgress] = useState(0);
   const [coverBlobUrl, setCoverBlobUrl] = useState<string | null>(null);
+  const [copyrightSaving, setCopyrightSaving] = useState(false);
 
   // 인증된 이미지 로드 (img 태그는 Authorization 헤더를 전송하지 않으므로 fetch로 blob URL 생성)
   useEffect(() => {
@@ -239,6 +240,27 @@ export default function EditBookPage() {
       setCoverProgress(0);
       // input 초기화
       e.target.value = "";
+    }
+  };
+
+  const handleCopyrightToggle = async (next: boolean) => {
+    setCopyrightSaving(true);
+    try {
+      const updated = await updateBook(bookId, { is_copyrighted: next });
+      setBook(updated);
+      success(
+        next
+          ? "저작권 보호 콘텐츠로 표시되었습니다. 화이트리스트 사용자에게만 노출됩니다."
+          : "저작권 보호가 해제되었습니다. 모든 사용자에게 노출됩니다.",
+      );
+    } catch (err) {
+      showError(
+        err instanceof Error
+          ? err.message
+          : "저작권 설정 변경에 실패했습니다.",
+      );
+    } finally {
+      setCopyrightSaving(false);
     }
   };
 
@@ -772,6 +794,39 @@ export default function EditBookPage() {
                     : "-"}
                 </span>
               </div>
+            </div>
+          </div>
+
+          {/* 저작권 보호 */}
+          <div className="bg-white shadow-sm rounded-lg border border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">
+                저작권 보호 콘텐츠
+              </h3>
+            </div>
+            <div className="p-6 space-y-3">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
+                  checked={Boolean(b.is_copyrighted)}
+                  disabled={copyrightSaving}
+                  onChange={(e) => handleCopyrightToggle(e.target.checked)}
+                  aria-describedby="copyright-help"
+                />
+                <span className="text-sm text-gray-900">
+                  저작권 보호 콘텐츠로 표시
+                </span>
+              </label>
+              <p id="copyright-help" className="text-xs text-gray-500">
+                체크하면 이 책은 일반 사용자에게 노출되지 않고, "저작권 콘텐츠
+                접근" 권한을 부여받은 사용자와 관리자에게만 보입니다.
+              </p>
+              {Boolean(b.is_copyrighted) && (
+                <div className="px-3 py-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+                  현재 이 책은 화이트리스트 사용자에게만 노출됩니다.
+                </div>
+              )}
             </div>
           </div>
 

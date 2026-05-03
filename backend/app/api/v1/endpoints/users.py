@@ -23,12 +23,17 @@ class UserResponse(BaseModel):
     photo_url: Optional[str] = None
     status: str
     role: str
+    can_access_copyrighted: bool = False
     created_at: str
     updated_at: str
 
 
 class UserStatusUpdate(BaseModel):
     status: str  # "approved" | "suspended" | "pending"
+
+
+class UserCopyrightAccessUpdate(BaseModel):
+    can_access_copyrighted: bool
 
 
 @router.get("", response_model=List[UserResponse])
@@ -48,6 +53,7 @@ async def list_users(
             photo_url=u.photo_url,
             status=u.status.value,
             role=u.role.value,
+            can_access_copyrighted=bool(u.can_access_copyrighted),
             created_at=u.created_at.isoformat() if u.created_at else "",
             updated_at=u.updated_at.isoformat() if u.updated_at else "",
         )
@@ -86,6 +92,34 @@ async def update_user_status(
         photo_url=user.photo_url,
         status=user.status.value,
         role=user.role.value,
+        can_access_copyrighted=bool(user.can_access_copyrighted),
+        created_at=user.created_at.isoformat() if user.created_at else "",
+        updated_at=user.updated_at.isoformat() if user.updated_at else "",
+    )
+
+
+@router.patch("/{user_id}/copyright-access", response_model=UserResponse)
+async def update_user_copyright_access(
+    body: UserCopyrightAccessUpdate,
+    user_id: int = Path(..., description="사용자 ID"),
+    claims: Dict[str, Any] = Depends(require_admin_scope()),
+    db: Session = Depends(get_db),
+) -> UserResponse:
+    """저작권 보호 콘텐츠 접근 권한 토글 (관리자 전용)"""
+    user = UserService.update_user_copyright_access(
+        db, user_id, body.can_access_copyrighted
+    )
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return UserResponse(
+        id=user.id,
+        email=user.email,
+        display_name=user.display_name,
+        photo_url=user.photo_url,
+        status=user.status.value,
+        role=user.role.value,
+        can_access_copyrighted=bool(user.can_access_copyrighted),
         created_at=user.created_at.isoformat() if user.created_at else "",
         updated_at=user.updated_at.isoformat() if user.updated_at else "",
     )

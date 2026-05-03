@@ -6,7 +6,7 @@ import enum
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import Column, DateTime
+from sqlalchemy import Boolean, Column, DateTime
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import Integer, String, Text
 from sqlalchemy.orm import relationship
@@ -56,6 +56,9 @@ class BookSQL(Base):
     cover_image_url = Column(Text, nullable=True)
     cover_image_key = Column(String(500), nullable=True)
 
+    # 저작권 보호 콘텐츠 여부 — true면 화이트리스트(can_access_copyrighted) 사용자/관리자에게만 노출
+    is_copyrighted = Column(Boolean, nullable=False, default=False)
+
     # Relationships
     chapters = relationship(
         "AudioChapterSQL", cascade="all, delete-orphan", passive_deletes=True
@@ -91,6 +94,7 @@ class BookSQL(Base):
             "total_duration": self.total_duration,
             "cover_image_url": self.cover_image_url,
             "cover_image_key": self.cover_image_key,
+            "is_copyrighted": bool(self.is_copyrighted),
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

@@ -1,7 +1,13 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { deleteUser, fetchUsers, updateUserStatus, type UserDto } from "@/lib/users";
+import {
+  deleteUser,
+  fetchUsers,
+  updateUserCopyrightAccess,
+  updateUserStatus,
+  type UserDto,
+} from "@/lib/users";
 
 type StatusFilter = "" | "pending" | "approved" | "suspended";
 
@@ -24,6 +30,9 @@ export default function UsersPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
   const [updating, setUpdating] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [copyrightUpdating, setCopyrightUpdating] = useState<number | null>(
+    null,
+  );
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -73,6 +82,21 @@ export default function UsersPage() {
       alert(`상태 변경 실패: ${e.message}`);
     } finally {
       setUpdating(null);
+    }
+  };
+
+  const handleCopyrightAccessChange = async (
+    userId: number,
+    canAccess: boolean,
+  ) => {
+    setCopyrightUpdating(userId);
+    try {
+      const updated = await updateUserCopyrightAccess(userId, canAccess);
+      setUsers((prev) => prev.map((u) => (u.id === userId ? updated : u)));
+    } catch (e: any) {
+      alert(`저작권 접근 권한 변경 실패: ${e.message}`);
+    } finally {
+      setCopyrightUpdating(null);
     }
   };
 
@@ -133,6 +157,12 @@ export default function UsersPage() {
                 <th className="py-3 px-4">이름</th>
                 <th className="py-3 px-4">상태</th>
                 <th className="py-3 px-4">역할</th>
+                <th
+                  className="py-3 px-4"
+                  title="체크 시 저작권 보호 콘텐츠에 접근 가능"
+                >
+                  저작권 접근
+                </th>
                 <th className="py-3 px-4">가입일</th>
                 <th className="py-3 px-4">작업</th>
               </tr>
@@ -159,6 +189,33 @@ export default function UsersPage() {
                   </td>
                   <td className="py-3 px-4 text-sm">
                     {user.role === "admin" ? "관리자" : "사용자"}
+                  </td>
+                  <td className="py-3 px-4 text-sm">
+                    <label
+                      className="inline-flex items-center gap-2 cursor-pointer"
+                      title="체크 시 저작권 보호 콘텐츠에 접근 가능"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
+                        checked={Boolean(user.can_access_copyrighted)}
+                        disabled={copyrightUpdating === user.id}
+                        onChange={(e) =>
+                          handleCopyrightAccessChange(
+                            user.id,
+                            e.target.checked,
+                          )
+                        }
+                        aria-label={`${user.email} 저작권 접근 권한`}
+                      />
+                      {user.can_access_copyrighted ? (
+                        <span className="text-xs text-amber-700 font-medium">
+                          허용
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400">차단</span>
+                      )}
+                    </label>
                   </td>
                   <td className="py-3 px-4 text-sm text-gray-500">
                     {user.created_at

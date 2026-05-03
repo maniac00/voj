@@ -17,6 +17,7 @@ export type BookDto = {
   total_chapters?: number;
   total_duration?: number;
   cover_image_url?: string | null;
+  is_copyrighted?: boolean;
 };
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -89,6 +90,7 @@ export async function createBook(payload: CreateBookPayload): Promise<BookDto> {
 export type UpdateBookPayload = Partial<CreateBookPayload> & {
   cover_image_url?: string | null;
   cover_image_key?: string | null;
+  is_copyrighted?: boolean;
 };
 
 export async function updateBook(

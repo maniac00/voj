@@ -69,6 +69,7 @@ class BookUpdate(BaseModel):
     published_date: Optional[datetime] = None
     cover_image_url: Optional[str] = Field(None, description="커버 이미지 URL")
     cover_image_key: Optional[str] = Field(None, description="커버 이미지 스토리지 키")
+    is_copyrighted: Optional[bool] = Field(None, description="저작권 보호 콘텐츠 여부 (관리자 전용)")
 
 
 class Book(BookBase):
@@ -84,6 +85,7 @@ class Book(BookBase):
     total_chapters: int = Field(default=0, description="총 챕터 수")
     total_duration: int = Field(default=0, description="총 재생 시간(초)")
     cover_image_url: Optional[str] = None
+    is_copyrighted: bool = Field(default=False, description="저작권 보호 콘텐츠 여부")
 
     class Config:
         json_encoders = {datetime: lambda v: v.isoformat()}
@@ -153,6 +155,7 @@ async def create_book(
             "total_chapters": created.total_chapters,
             "total_duration": created.total_duration,
             "cover_image_url": created.cover_image_url,
+            "is_copyrighted": bool(getattr(created, "is_copyrighted", False)),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create book: {str(e)}")
@@ -177,20 +180,14 @@ async def get_books(
     """
 
     try:
-        # Filtered listings
-        items: list = []
-        total = 0
-        if status_filter:
-            # 상태 필터는 전체에서 필터링
-            items = BookService.list_books_by_status_any_user(
-                db, status=status_filter, limit=size
-            )
-        elif genre:
-            items = BookService.list_books_by_genre_any_user(
-                db, genre=genre, limit=size
-            )
-        else:
-            items = BookService.list_all_books_any_user(db)
+        # 가시성 필터 적용 — 저작권 보호 책은 화이트리스트 사용자/admin만 볼 수 있음
+        items = BookService.list_books_for_claims(
+            db,
+            claims=claims,
+            status=status_filter,
+            genre=genre,
+            limit=size if (status_filter or genre) else None,
+        )
         total = len(items)
 
         # simple in-memory search filter (title/author)
@@ -237,6 +234,7 @@ async def get_books(
                     total_chapters=counts_map.get(b.book_id, b.total_chapters or 0),
                     total_duration=b.total_duration,
                     cover_image_url=b.cover_image_url,
+                    is_copyrighted=bool(b.is_copyrighted),
                 )
                 for b in items
             ],
@@ -265,6 +263,9 @@ async def get_book(
         if not found:
             # 소유권 노출 방지를 위해 404 반환
             raise HTTPException(status_code=404, detail="Book not found")
+        # 저작권 보호 콘텐츠 가시성 검증 — 권한 없으면 존재 자체를 숨김
+        if not BookService.is_book_visible(found, claims, db):
+            raise HTTPException(status_code=404, detail="Book not found")
         # 상세 카운트 보정
         chapter_count = (
             db.query(func.count(AudioChapterSQL.id))
@@ -290,6 +291,7 @@ async def get_book(
             "total_chapters": int(chapter_count),
             "total_duration": found.total_duration,
             "cover_image_url": found.cover_image_url,
+            "is_copyrighted": bool(found.is_copyrighted),
         }
     except HTTPException:
         raise
@@ -331,6 +333,19 @@ async def update_book(
             else None
         )
 
+        # is_copyrighted 토글은 관리자만 허용
+        is_admin = str(claims.get("scope", "")).lower() == "admin"
+        copyright_update = (
+            book_data.is_copyrighted
+            if ("is_copyrighted" in explicit_fields and is_admin)
+            else None
+        )
+        if "is_copyrighted" in explicit_fields and not is_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only admins can change copyright protection",
+            )
+
         updated = BookService.update_book(
             db,
             user_id=user_id,
@@ -346,6 +361,7 @@ async def update_book(
             published_date=book_data.published_date,
             cover_image_url=book_data.cover_image_url,
             cover_image_key=book_data.cover_image_key,
+            is_copyrighted=copyright_update,
         )
         if updated is None:
             raise HTTPException(status_code=500, detail="Failed to update book")
@@ -383,7 +399,10 @@ async def update_book(
             "total_chapters": updated.total_chapters,
             "total_duration": updated.total_duration,
             "cover_image_url": updated.cover_image_url,
+            "is_copyrighted": bool(getattr(updated, "is_copyrighted", False)),
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update book: {str(e)}")
 

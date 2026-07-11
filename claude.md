@@ -192,7 +192,7 @@ npm create cloudflare@latest
 | 서비스 | URL |
 |--------|-----|
 | 백엔드 (Railway) | `https://voj-production.up.railway.app` |
-| 프론트엔드 (Vercel) | `https://voj-admin.vercel.app` |
+| 프론트엔드 (Vercel) | `https://voj-frontend.vercel.app` |
 | 다운로드 페이지 (Workers) | `https://voj-download.7wario.workers.dev` |
 | R2 파일 서빙 (Workers) | `https://voj-releases.7wario.workers.dev` |
 

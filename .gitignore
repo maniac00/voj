@@ -157,3 +157,6 @@ voj_dev.db
 
 # Security keys
 keys/
+
+# Vercel CLI
+.vercel/

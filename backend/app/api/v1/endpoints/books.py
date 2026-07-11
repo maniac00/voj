@@ -52,7 +52,9 @@ class BookBase(BaseModel):
 class BookCreate(BookBase):
     """책 생성 요청 모델"""
 
-    pass
+    is_copyrighted: bool = Field(
+        default=True, description="저작권 보호 콘텐츠 여부 (기본값: 보호)"
+    )
 
 
 class BookUpdate(BaseModel):
@@ -85,7 +87,7 @@ class Book(BookBase):
     total_chapters: int = Field(default=0, description="총 챕터 수")
     total_duration: int = Field(default=0, description="총 재생 시간(초)")
     cover_image_url: Optional[str] = None
-    is_copyrighted: bool = Field(default=False, description="저작권 보호 콘텐츠 여부")
+    is_copyrighted: bool = Field(default=True, description="저작권 보호 콘텐츠 여부")
 
     class Config:
         json_encoders = {datetime: lambda v: v.isoformat()}
@@ -133,6 +135,7 @@ async def create_book(
             isbn=book_data.isbn,
             publisher=book_data.publisher,
             published_date=book_data.published_date,
+            is_copyrighted=book_data.is_copyrighted,
         )
 
         log_book_created(user_id, created.book_id, created.title)
@@ -155,7 +158,7 @@ async def create_book(
             "total_chapters": created.total_chapters,
             "total_duration": created.total_duration,
             "cover_image_url": created.cover_image_url,
-            "is_copyrighted": bool(getattr(created, "is_copyrighted", False)),
+            "is_copyrighted": bool(getattr(created, "is_copyrighted", True)),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create book: {str(e)}")

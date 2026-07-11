@@ -78,6 +78,7 @@ export interface CreateBookPayload {
   description?: string;
   genre?: string;
   language?: string;
+  is_copyrighted?: boolean;
 }
 
 export async function createBook(payload: CreateBookPayload): Promise<BookDto> {

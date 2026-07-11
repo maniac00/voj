@@ -121,6 +121,7 @@ class BookServiceSQL:
         isbn: Optional[str] = None,
         publisher: Optional[str] = None,
         published_date: Optional[datetime] = None,
+        is_copyrighted: bool = True,
     ) -> BookSQL:
         book = BookSQL(
             user_id=user_id,
@@ -137,6 +138,7 @@ class BookServiceSQL:
             status="draft",
             total_chapters=0,
             total_duration=0,
+            is_copyrighted=is_copyrighted,
         )
         db.add(book)
         db.commit()

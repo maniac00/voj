@@ -57,7 +57,7 @@ class BookSQL(Base):
     cover_image_key = Column(String(500), nullable=True)
 
     # 저작권 보호 콘텐츠 여부 — true면 화이트리스트(can_access_copyrighted) 사용자/관리자에게만 노출
-    is_copyrighted = Column(Boolean, nullable=False, default=False)
+    is_copyrighted = Column(Boolean, nullable=False, default=True, server_default="true")
 
     # Relationships
     chapters = relationship(

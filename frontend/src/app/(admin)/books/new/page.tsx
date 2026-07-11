@@ -26,6 +26,7 @@ export default function NewBookPage() {
     genre: "",
     language: "ko",
   });
+  const [isCopyrighted, setIsCopyrighted] = useState(true);
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -88,6 +89,7 @@ export default function NewBookPage() {
         description: formData.description.trim() || undefined,
         genre: formData.genre || undefined,
         language: formData.language,
+        is_copyrighted: isCopyrighted,
       });
 
       // 성공 알림 후 편집 페이지로 이동 (커버 이미지 등 추가 설정 가능)
@@ -357,6 +359,27 @@ export default function NewBookPage() {
               <option value="ja">일본어</option>
               <option value="zh">중국어</option>
             </select>
+          </div>
+
+          {/* 저작권 보호 */}
+          <div>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
+                checked={isCopyrighted}
+                onChange={(e) => setIsCopyrighted(e.target.checked)}
+                aria-describedby="copyright-help"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                저작권 보호 콘텐츠로 표시
+              </span>
+            </label>
+            <p id="copyright-help" className="mt-1 text-xs text-gray-500">
+              체크하면 이 책은 일반 사용자에게 노출되지 않고, "저작권 콘텐츠
+              접근" 권한을 부여받은 사용자와 관리자에게만 보입니다. (기본값:
+              보호)
+            </p>
           </div>
 
           {/* 버튼 */}

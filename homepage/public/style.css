@@ -1,0 +1,277 @@
+/* Voice of Juan - 다운로드 페이지 스타일 */
+/* 접근성 최우선: 고대비, 큰 글씨, 큰 터치 영역 */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  background-color: #1a1a1a;
+  color: #f5f5f5;
+  line-height: 1.8;
+  font-size: 18px;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* 스킵 링크 */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 0;
+  background: #ffffff;
+  color: #000000;
+  padding: 12px 24px;
+  font-size: 18px;
+  font-weight: bold;
+  z-index: 1000;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+.container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 48px 24px;
+}
+
+/* 앱 헤더 */
+.app-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.app-title {
+  font-size: 40px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.app-subtitle {
+  font-size: 20px;
+  color: #b0b0b0;
+}
+
+/* 앱 설명 */
+.app-description {
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.app-description p {
+  font-size: 20px;
+  color: #d0d0d0;
+  line-height: 1.8;
+}
+
+/* 플랫폼 탭 */
+.platform-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 36px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid #444444;
+}
+
+.tab-button {
+  flex: 1;
+  background-color: #2a2a2a;
+  color: #909090;
+  border: none;
+  padding: 16px 0;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+  min-height: 56px;
+}
+
+.tab-button:focus {
+  outline: 3px solid #4da6ff;
+  outline-offset: -3px;
+  z-index: 1;
+}
+
+.tab-button.active {
+  background-color: #ffffff;
+  color: #000000;
+}
+
+.tab-button:not(.active):hover {
+  background-color: #3a3a3a;
+  color: #d0d0d0;
+}
+
+/* 탭 패널 */
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: block;
+}
+
+/* 다운로드 섹션 */
+.download-section {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.download-button {
+  display: inline-block;
+  background-color: #ffffff;
+  color: #000000;
+  font-size: 22px;
+  font-weight: 700;
+  padding: 20px 48px;
+  border-radius: 12px;
+  text-decoration: none;
+  min-height: 60px;
+  min-width: 280px;
+  transition: background-color 0.2s, transform 0.1s;
+  /* 44px+ 터치 영역 보장 */
+  line-height: 1.4;
+}
+
+.download-button:hover {
+  background-color: #e0e0e0;
+}
+
+.download-button:focus {
+  outline: 3px solid #4da6ff;
+  outline-offset: 4px;
+}
+
+.download-button:active {
+  transform: scale(0.98);
+}
+
+.version-info {
+  margin-top: 16px;
+  font-size: 16px;
+  color: #909090;
+}
+
+/* iOS 안내 텍스트 */
+.ios-notice {
+  font-size: 20px;
+  color: #d0d0d0;
+  line-height: 1.8;
+  margin-bottom: 8px;
+}
+
+/* 설치 안내 */
+.install-guide {
+  background-color: #2a2a2a;
+  border-radius: 12px;
+  padding: 32px;
+  margin-bottom: 40px;
+}
+
+.install-guide h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 20px;
+}
+
+.install-guide ol {
+  padding-left: 24px;
+}
+
+.install-guide li {
+  font-size: 18px;
+  color: #d0d0d0;
+  margin-bottom: 16px;
+  line-height: 1.7;
+}
+
+.install-guide ul {
+  margin-top: 8px;
+  padding-left: 24px;
+  list-style-type: disc;
+}
+
+.install-guide ul li {
+  margin-bottom: 8px;
+  font-size: 16px;
+}
+
+.install-guide strong {
+  color: #ffffff;
+}
+
+/* 가이드 내 링크 */
+.guide-link {
+  color: #6db3f2;
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.guide-link:hover {
+  color: #9dcbf7;
+}
+
+.guide-link:focus {
+  outline: 2px solid #4da6ff;
+  outline-offset: 2px;
+}
+
+/* 푸터 */
+.app-footer {
+  text-align: center;
+  padding-top: 24px;
+  border-top: 1px solid #333333;
+}
+
+.app-footer p {
+  font-size: 16px;
+  color: #808080;
+}
+
+/* 고대비 모드 */
+@media (prefers-contrast: high) {
+  body {
+    background-color: #000000;
+    color: #ffffff;
+  }
+
+  .download-button {
+    border: 3px solid #ffffff;
+  }
+
+  .install-guide {
+    border: 2px solid #ffffff;
+  }
+
+  .platform-tabs {
+    border-color: #ffffff;
+  }
+
+  .tab-button.active {
+    border: 2px solid #ffffff;
+  }
+
+  .guide-link {
+    color: #99ccff;
+  }
+}
+
+/* 큰 글씨 선호 */
+@media (prefers-reduced-motion: reduce) {
+  .download-button,
+  .tab-button {
+    transition: none;
+  }
+}

@@ -194,6 +194,7 @@ npm create cloudflare@latest
 | 백엔드 (Railway) | `https://voj-production.up.railway.app` |
 | 프론트엔드 (Vercel) | `https://voj-frontend.vercel.app` |
 | 다운로드 페이지 (Workers) | `https://voj-download.7wario.workers.dev` |
+| 홈페이지·지원 페이지 (Workers) | `https://voice-of-juan.7wario.workers.dev` |
 | R2 파일 서빙 (Workers) | `https://voj-releases.7wario.workers.dev` |
 
 - 모바일 APK 빌드 시 반드시 위 백엔드 주소를 사용할 것:

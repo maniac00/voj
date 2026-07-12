@@ -1,3 +1,6 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -13,6 +16,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
+  static final bool _supportsAppleSignIn = !kIsWeb && Platform.isIOS;
+
   String _appVersion = '';
 
   @override
@@ -146,7 +151,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 16),
                     _buildGuideStep(
                       number: '1',
-                      text: 'Google 계정으로 로그인하면 자동으로 회원가입이 완료됩니다.',
+                      text: _supportsAppleSignIn
+                          ? 'Google 또는 Apple 계정으로 로그인하면 자동으로 회원가입이 완료됩니다.'
+                          : 'Google 계정으로 로그인하면 자동으로 회원가입이 완료됩니다.',
                     ),
                     const SizedBox(height: 12),
                     _buildGuideStep(
@@ -231,6 +238,51 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
               ),
+
+              // Apple 로그인 버튼 (iOS 전용 — App Store 가이드라인 4.8)
+              if (_supportsAppleSignIn) ...[
+                const SizedBox(height: 16),
+                Semantics(
+                  label: 'Apple 계정으로 로그인. 탭하면 Apple 로그인 화면으로 이동합니다.',
+                  button: true,
+                  child: SizedBox(
+                    height: 64,
+                    child: ElevatedButton(
+                      onPressed: authState is AuthLoading
+                          ? null
+                          : () {
+                              ref
+                                  .read(authControllerProvider.notifier)
+                                  .signInWithApple();
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: Colors.grey[400],
+                        elevation: 2,
+                        shadowColor: Colors.black.withValues(alpha: 0.15),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.apple, size: 28, color: Colors.white),
+                          SizedBox(width: 12),
+                          Text(
+                            'Apple로 로그인',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
 
               const SizedBox(height: 12),
 

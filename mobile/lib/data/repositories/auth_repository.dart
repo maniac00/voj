@@ -217,41 +217,8 @@ class AuthRepository {
       final userCredential = await _firebaseAuth.signInWithCredential(
         credential,
       );
-      final fbUser = userCredential.user;
-      if (fbUser == null) {
-        throw const ApiException(
-          message: 'Firebase 인증에 실패했습니다.',
-          statusCode: -1,
-        );
-      }
-      _log.info('[로그인 3/5] Firebase 인증 성공: ${fbUser.uid}');
 
-      _log.info('[로그인 4/5] Firebase ID 토큰 획득 중...');
-      final idToken = await fbUser.getIdToken();
-      if (idToken == null) {
-        throw const ApiException(
-          message: 'Firebase ID 토큰을 가져올 수 없습니다.',
-          statusCode: -1,
-        );
-      }
-      _log.info('[로그인 4/5] Firebase ID 토큰 획득 완료');
-
-      final deviceId = await _getOrCreateDeviceId();
-
-      _log.info('[로그인 5/5] 백엔드 모바일 로그인 요청 중...');
-      final response = await _apiService.post(
-        '/auth/mobile/login',
-        body: {'id_token': idToken, 'device_id': deviceId},
-      );
-      _log.info('[로그인 5/5] 백엔드 모바일 로그인 성공');
-
-      await _applyMobileAuthPayload(response);
-
-      return AuthResponse(
-        message: response['is_new_user'] == true ? 'new_user' : 'existing_user',
-        user: _currentUser,
-        session: _currentSession,
-      );
+      return await _completeFirebaseLogin(userCredential.user);
     } on fb.FirebaseAuthException catch (e) {
       _log.severe('[로그인 실패] Firebase 오류: ${e.code} - ${e.message}');
       throw ApiException(
@@ -269,6 +236,83 @@ class AuthRepository {
       );
       throw ApiException(message: '[${e.runtimeType}] $e', statusCode: -1);
     }
+  }
+
+  /// Apple 소셜 로그인 → Firebase → 백엔드 모바일 세션 발급 (iOS 전용)
+  Future<AuthResponse> signInWithApple() async {
+    try {
+      _log.info('[로그인 1/5] Apple Sign-In 시작...');
+      final appleProvider = fb.AppleAuthProvider()
+        ..addScope('email')
+        ..addScope('name');
+
+      _log.info('[로그인 3/5] Firebase 인증 시작...');
+      final userCredential = await _firebaseAuth.signInWithProvider(
+        appleProvider,
+      );
+
+      return await _completeFirebaseLogin(userCredential.user);
+    } on fb.FirebaseAuthException catch (e) {
+      if (e.code == 'canceled' || e.code == 'web-context-canceled') {
+        throw const ApiException(
+          message: 'Apple 로그인이 취소되었습니다.',
+          statusCode: -1,
+        );
+      }
+      _log.severe('[로그인 실패] Firebase 오류: ${e.code} - ${e.message}');
+      throw ApiException(
+        message: '[단계3 Firebase] ${e.code}: ${e.message}',
+        statusCode: -1,
+      );
+    } on ApiException catch (e) {
+      _log.severe('[로그인 실패] API 오류: ${e.message}');
+      rethrow;
+    } catch (e, st) {
+      _log.severe(
+        '[로그인 실패] 예외: ${e.runtimeType}: $e',
+        error: e,
+        stackTrace: st,
+      );
+      throw ApiException(message: '[${e.runtimeType}] $e', statusCode: -1);
+    }
+  }
+
+  /// Firebase 인증 완료 후 공통 처리: ID 토큰 → 백엔드 모바일 세션 발급
+  Future<AuthResponse> _completeFirebaseLogin(fb.User? fbUser) async {
+    if (fbUser == null) {
+      throw const ApiException(
+        message: 'Firebase 인증에 실패했습니다.',
+        statusCode: -1,
+      );
+    }
+    _log.info('[로그인 3/5] Firebase 인증 성공: ${fbUser.uid}');
+
+    _log.info('[로그인 4/5] Firebase ID 토큰 획득 중...');
+    final idToken = await fbUser.getIdToken();
+    if (idToken == null) {
+      throw const ApiException(
+        message: 'Firebase ID 토큰을 가져올 수 없습니다.',
+        statusCode: -1,
+      );
+    }
+    _log.info('[로그인 4/5] Firebase ID 토큰 획득 완료');
+
+    final deviceId = await _getOrCreateDeviceId();
+
+    _log.info('[로그인 5/5] 백엔드 모바일 로그인 요청 중...');
+    final response = await _apiService.post(
+      '/auth/mobile/login',
+      body: {'id_token': idToken, 'device_id': deviceId},
+    );
+    _log.info('[로그인 5/5] 백엔드 모바일 로그인 성공');
+
+    await _applyMobileAuthPayload(response);
+
+    return AuthResponse(
+      message: response['is_new_user'] == true ? 'new_user' : 'existing_user',
+      user: _currentUser,
+      session: _currentSession,
+    );
   }
 
   Future<void> signOut() async {

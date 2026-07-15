@@ -43,12 +43,14 @@ class UserService:
         admin_emails = settings.admin_emails_list
         is_admin = email.lower() in [e.lower() for e in admin_emails]
 
+        # 신규 가입은 즉시 승인 — 저작권 보호 콘텐츠는 can_access_copyrighted
+        # 화이트리스트로 별도 통제되므로 가입 승인 절차가 필요 없음
         user = UserSQL(
             firebase_uid=firebase_uid,
             email=email,
             display_name=display_name,
             photo_url=photo_url,
-            status=UserStatus.APPROVED if is_admin else UserStatus.PENDING,
+            status=UserStatus.APPROVED,
             role=UserRole.ADMIN if is_admin else UserRole.USER,
         )
         db.add(user)

@@ -177,10 +177,8 @@ def _resolve_user_from_firebase_token(
     return user, is_new, firebase_uid
 
 
-def _notify_new_pending_user(user: UserSQL, is_new_user: bool) -> None:
+def _notify_new_user(user: UserSQL, is_new_user: bool) -> None:
     if not is_new_user:
-        return
-    if user.status.value != "pending":
         return
 
     from app.core import telegram as tg
@@ -200,15 +198,15 @@ async def firebase_login(
     """
     모바일 앱 Firebase 로그인 (레거시 호환)
     - Firebase ID 토큰 검증
-    - 신규 사용자 자동 생성 (pending 상태)
-    - ADMIN_EMAILS에 해당하면 자동 승인
+    - 신규 사용자 자동 생성 (즉시 승인)
+    - ADMIN_EMAILS에 해당하면 관리자 권한 부여
     """
     user, is_new, firebase_uid = _resolve_user_from_firebase_token(
         db,
         id_token=body.id_token,
     )
     log_firebase_login(user.email, firebase_uid, is_new)
-    _notify_new_pending_user(user, is_new)
+    _notify_new_user(user, is_new)
 
     return FirebaseLoginResponse(
         user_id=user.id,
@@ -232,7 +230,7 @@ async def mobile_login(
         id_token=body.id_token,
     )
     log_firebase_login(user.email, firebase_uid, is_new)
-    _notify_new_pending_user(user, is_new)
+    _notify_new_user(user, is_new)
 
     tokens = issue_mobile_tokens(
         db,

@@ -48,23 +48,22 @@ def send_new_user_notification(
     email: str,
     display_name: Optional[str] = None,
 ) -> None:
-    """신규 사용자 가입 알림을 관리자 전원에게 전송한다."""
+    """신규 사용자 가입 알림을 관리자 전원에게 전송한다. (가입은 자동 승인됨)"""
     if not settings.TELEGRAM_BOT_TOKEN or not settings.telegram_admin_chat_ids:
         logger.debug("Telegram 설정이 없어 알림을 전송하지 않습니다.")
         return
 
     name_part = f"\n이름: {display_name}" if display_name else ""
     text = (
-        f"🔔 <b>신규 사용자 가입 요청</b>\n\n"
+        f"🔔 <b>신규 사용자 가입</b>\n\n"
         f"ID: {user_id}\n"
         f"이메일: {email}"
         f"{name_part}\n\n"
-        f"승인 또는 거부를 선택해주세요."
+        f"자동 승인되었습니다. 저작권 콘텐츠 접근은 관리자 대시보드에서 부여할 수 있습니다."
     )
-    keyboard = make_user_keyboard(user_id)
 
     for chat_id in settings.telegram_admin_chat_ids:
-        _send_message(chat_id, text, keyboard)
+        _send_message(chat_id, text)
 
 
 def _send_message(

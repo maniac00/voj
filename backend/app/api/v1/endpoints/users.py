@@ -8,8 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.core.auth.simple import get_current_user_claims, require_admin_scope
 from app.core.audit import log_user_delete, log_user_status_change
+from app.core.auth.simple import get_current_user_claims, require_admin_scope
 from app.models.database import get_db
 from app.services.user_service import UserService
 
@@ -131,15 +131,15 @@ async def delete_user(
     claims: Dict[str, Any] = Depends(require_admin_scope()),
     db: Session = Depends(get_db),
 ) -> None:
-    """사용자 삭제 (관리자 전용) — suspended 상태인 경우에만 허용"""
+    """사용자 삭제 (관리자 전용) — 관리자 계정은 삭제 불가"""
     user = UserService.get_user_by_id(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if user.status.value != "suspended":
+    if user.role.value == "admin":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="정지된 사용자만 삭제할 수 있습니다.",
+            detail="관리자 계정은 삭제할 수 없습니다.",
         )
 
     email = user.email

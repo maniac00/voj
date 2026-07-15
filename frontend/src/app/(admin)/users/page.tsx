@@ -247,24 +247,24 @@ export default function UsersPage() {
                         </button>
                       )}
                       {user.status === "suspended" && (
-                        <>
-                          <button
-                            onClick={() =>
-                              handleStatusChange(user.id, "pending")
-                            }
-                            disabled={updating === user.id}
-                            className="px-3 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50"
-                          >
-                            대기로
-                          </button>
-                          <button
-                            onClick={() => handleDelete(user)}
-                            disabled={deleting === user.id}
-                            className="px-3 py-1 text-xs bg-red-800 text-white rounded hover:bg-red-900 disabled:opacity-50"
-                          >
-                            {deleting === user.id ? "삭제 중..." : "삭제"}
-                          </button>
-                        </>
+                        <button
+                          onClick={() =>
+                            handleStatusChange(user.id, "pending")
+                          }
+                          disabled={updating === user.id}
+                          className="px-3 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50"
+                        >
+                          대기로
+                        </button>
+                      )}
+                      {user.role !== "admin" && (
+                        <button
+                          onClick={() => handleDelete(user)}
+                          disabled={deleting === user.id}
+                          className="px-3 py-1 text-xs bg-red-800 text-white rounded hover:bg-red-900 disabled:opacity-50"
+                        >
+                          {deleting === user.id ? "삭제 중..." : "삭제"}
+                        </button>
                       )}
                     </div>
                   </td>

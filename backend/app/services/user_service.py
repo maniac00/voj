@@ -8,6 +8,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.models.mobile_refresh_token_sql import MobileRefreshTokenSQL
 from app.models.user_sql import UserRole, UserSQL, UserStatus
 
 logger = logging.getLogger(__name__)
@@ -86,10 +87,14 @@ class UserService:
 
     @staticmethod
     def delete_user(db: Session, user_id: int) -> Optional[UserSQL]:
-        """사용자를 삭제한다. suspended 상태인 경우에만 허용."""
+        """사용자를 삭제한다. 모바일 리프레시 토큰도 함께 정리한다."""
         user = db.query(UserSQL).filter(UserSQL.id == user_id).first()
         if not user:
             return None
+        # mobile_refresh_tokens.user_id FK에 ondelete가 없어 먼저 삭제해야 함
+        db.query(MobileRefreshTokenSQL).filter(
+            MobileRefreshTokenSQL.user_id == user_id
+        ).delete(synchronize_session=False)
         db.delete(user)
         db.commit()
         return user

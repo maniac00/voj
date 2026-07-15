@@ -49,8 +49,17 @@ class AuthRepository {
     _initializeAuth();
   }
 
-  Stream<User?> get userStream => _userController.stream;
-  Stream<AuthSession?> get sessionStream => _sessionController.stream;
+  // broadcast 스트림은 구독 이전 방출값을 재전달하지 않으므로
+  // 새 구독자에게 현재 값을 먼저 방출한다
+  Stream<User?> get userStream async* {
+    yield _currentUser;
+    yield* _userController.stream;
+  }
+
+  Stream<AuthSession?> get sessionStream async* {
+    yield _currentSession;
+    yield* _sessionController.stream;
+  }
   User? get currentUser => _currentUser;
   AuthSession? get currentSession => _currentSession;
   bool get isLoggedIn => _currentSession?.isValid ?? false;

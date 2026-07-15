@@ -315,6 +315,13 @@ class AuthRepository {
     );
   }
 
+  /// 본인 계정 삭제 (App Store 가이드라인 5.1.1(v))
+  /// 서버가 계정·연관 데이터·Firebase 계정을 삭제하면 로컬 세션을 정리한다.
+  Future<void> deleteAccount() async {
+    await _apiService.delete('/users/me');
+    await signOut();
+  }
+
   Future<void> signOut() async {
     try {
       await _firebaseAuth.signOut();

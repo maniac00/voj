@@ -25,7 +25,9 @@ def init_firebase() -> bool:
 
     sa_json = settings.FIREBASE_SERVICE_ACCOUNT_JSON
     if not sa_json:
-        logger.warning("FIREBASE_SERVICE_ACCOUNT_JSON is not set; Firebase auth disabled")
+        logger.warning(
+            "FIREBASE_SERVICE_ACCOUNT_JSON is not set; Firebase auth disabled"
+        )
         return False
 
     try:
@@ -54,3 +56,17 @@ def verify_firebase_token(id_token: str) -> dict:
 
     decoded = firebase_auth.verify_id_token(id_token)
     return decoded
+
+
+def delete_firebase_user(firebase_uid: str) -> bool:
+    """Firebase Auth 계정을 삭제한다. 실패해도 예외를 올리지 않는다 (best-effort)."""
+    if not is_firebase_initialized():
+        logger.warning("Firebase 미초기화 상태 — 계정 삭제 생략: %s", firebase_uid)
+        return False
+
+    try:
+        firebase_auth.delete_user(firebase_uid)
+        return True
+    except Exception as e:
+        logger.error("Firebase 계정 삭제 실패 (uid=%s): %s", firebase_uid, e)
+        return False

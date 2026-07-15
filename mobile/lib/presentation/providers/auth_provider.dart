@@ -123,6 +123,17 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
+  Future<void> deleteAccount() async {
+    state = const AuthState.loading();
+
+    try {
+      await _authRepository.deleteAccount();
+      state = const AuthState.loggedOut();
+    } catch (e) {
+      state = AuthState.error(_getErrorMessage(e));
+    }
+  }
+
   Future<User?> refreshProfile() async {
     try {
       return await _authRepository.refreshUserProfile();

@@ -144,6 +144,10 @@ class ApiService {
     final body = utf8.decode(response.bodyBytes);
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
+      // 204 No Content 등 빈 본문 응답 처리
+      if (body.isEmpty) {
+        return <String, dynamic>{};
+      }
       return json.decode(body) as Map<String, dynamic>;
     }
 

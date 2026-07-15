@@ -125,6 +125,44 @@ async def update_user_copyright_access(
     )
 
 
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_my_account(
+    claims: Dict[str, Any] = Depends(get_current_user_claims),
+    db: Session = Depends(get_db),
+) -> None:
+    """본인 계정 삭제 (모바일 사용자용) — App Store 가이드라인 5.1.1(v)
+
+    계정과 연관 데이터(리프레시 토큰, 세션 기록)를 삭제하고
+    Firebase Auth 계정도 함께 제거한다.
+    """
+    user_id = claims.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="본인 계정 인증 정보가 없습니다.",
+        )
+
+    user = UserService.get_user_by_id(db, int(user_id))
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.role.value == "admin":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="관리자 계정은 삭제할 수 없습니다.",
+        )
+
+    email = user.email
+    firebase_uid = user.firebase_uid
+    UserService.delete_user(db, user.id)
+
+    from app.core.auth.firebase import delete_firebase_user
+
+    delete_firebase_user(firebase_uid)
+
+    log_user_delete(email, int(user_id), email)
+
+
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: int = Path(..., description="사용자 ID"),

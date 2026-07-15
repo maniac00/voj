@@ -9,6 +9,7 @@ import '../providers/book_provider.dart';
 import '../widgets/book_card.dart';
 import '../widgets/search_bar_widget.dart';
 import 'book_detail_screen.dart';
+import 'profile_screen.dart';
 
 const _log = AppLogger('BooksScreen');
 
@@ -126,15 +127,21 @@ class _BooksScreenState extends ConsumerState<BooksScreen> with RouteAware {
             icon: const Icon(Icons.search, color: Color(0xFF3E2723)),
             tooltip: '검색',
           ),
-          IconButton(
-            onPressed: () => _showLogoutDialog(),
-            icon: const Icon(Icons.logout, color: Color(0xFF3E2723)),
-            tooltip: '로그아웃',
-          ),
-          IconButton(
-            onPressed: () => _showDeleteAccountDialog(),
-            icon: const Icon(Icons.person_remove, color: Color(0xFF3E2723)),
-            tooltip: '계정 삭제',
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.person, color: Color(0xFF3E2723)),
+            tooltip: '프로필',
+            onSelected: (value) {
+              switch (value) {
+                case 'profile':
+                  _navigateToProfile();
+                case 'logout':
+                  _showLogoutDialog();
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'profile', child: Text('프로필')),
+              PopupMenuItem(value: 'logout', child: Text('로그아웃')),
+            ],
           ),
         ],
       ),
@@ -476,48 +483,9 @@ class _BooksScreenState extends ConsumerState<BooksScreen> with RouteAware {
     );
   }
 
-  void _showDeleteAccountDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('계정 삭제'),
-          content: const Text(
-            '계정과 모든 이용 기록이 영구적으로 삭제되며 복구할 수 없습니다.\n\n정말로 계정을 삭제하시겠습니까?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('취소'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _deleteAccount();
-              },
-              child: const Text(
-                '계정 삭제',
-                style: TextStyle(color: Colors.red),
-              ),
-            ),
-          ],
-        );
-      },
+  void _navigateToProfile() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => const ProfileScreen()),
     );
-  }
-
-  Future<void> _deleteAccount() async {
-    await ref.read(authControllerProvider.notifier).deleteAccount();
-    if (!mounted) return;
-
-    final authState = ref.read(authControllerProvider);
-    if (authState is AuthError) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('계정 삭제에 실패했습니다: ${authState.message}')),
-      );
-      return;
-    }
-
-    Navigator.of(context).pushReplacementNamed('/login');
   }
 }

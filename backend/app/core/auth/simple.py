@@ -267,25 +267,54 @@ def require_any_scope(
     return _dep  # type: ignore[return-value]
 
 
+def _check_approved(claims: Dict[str, Any]) -> Dict[str, Any]:
+    """approved 상태 검증 (HMAC 관리자/로컬 바이패스는 항상 통과)."""
+    auth_type = claims.get("auth_type", "hmac")
+
+    if auth_type in ("hmac", "bypass"):
+        return claims
+
+    user_status = claims.get("status", "")
+    if user_status != "approved":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Account not approved. Current status: {user_status}",
+        )
+    return claims
+
+
 def require_approved_user() -> Callable[[Dict[str, Any]], Dict[str, Any]]:
     """승인된 사용자만 허용하는 디펜던시. HMAC(관리자)는 항상 통과."""
 
     async def _dep(
         claims: Dict[str, Any] = Depends(get_current_user_claims),
     ) -> Dict[str, Any]:
-        auth_type = claims.get("auth_type", "hmac")
-
-        # HMAC 사용자(관리자 웹)와 로컬 바이패스는 항상 통과
-        if auth_type in ("hmac", "bypass"):
-            return claims
-
-        # Firebase 사용자는 approved 상태인지 확인
-        user_status = claims.get("status", "")
-        if user_status != "approved":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Account not approved. Current status: {user_status}",
-            )
-        return claims
+        return _check_approved(claims)
 
     return _dep  # type: ignore[return-value]
+
+
+def optional_approved_user() -> Callable[..., Any]:
+    """게스트 허용 디펜던시 — 토큰이 없으면 None(게스트) 반환.
+
+    게스트는 비저작권 공개 콘텐츠만 볼 수 있다 (가시성 필터가 claims=None 처리).
+    토큰이 있으면 require_approved_user와 동일하게 검증한다.
+    """
+
+    async def _dep(
+        request: Request,
+        credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    ) -> Optional[Dict[str, Any]]:
+        has_bypass = settings.ENVIRONMENT == "local" and settings.LOCAL_BYPASS_ENABLED
+        token = (
+            credentials.credentials
+            if credentials
+            else request.cookies.get("voj_access_token")
+        )
+        if not token and not has_bypass:
+            return None
+
+        claims = await get_current_user_claims(request, credentials)
+        return _check_approved(claims)
+
+    return _dep

@@ -18,8 +18,8 @@ from fastapi import (
     File,
     HTTPException,
     Path,
-    Request,
     Query,
+    Request,
     UploadFile,
     status,
 )
@@ -27,14 +27,18 @@ from pydantic import BaseModel, Field
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
-from app.core.auth.simple import get_current_user_claims, require_any_scope, require_approved_user
+from app.core.audit import log_audio_deleted
+from app.core.auth.simple import (
+    get_current_user_claims,
+    optional_approved_user,
+    require_any_scope,
+)
 from app.core.config import settings
 from app.models.analytics_sql import PlaybackProgressSQL
 from app.models.audio_chapter_sql import AudioChapterSQL
 from app.models.database import get_db
 from app.models.user_sql import UserSQL
 from app.services.books_sql import BookServiceSQL as BookService
-from app.core.audit import log_audio_deleted
 from app.services.storage.factory import storage_service
 from app.utils.audio_convert import get_audio_duration
 
@@ -85,7 +89,9 @@ class AudioChapter(AudioChapterBase):
 class AudioChapterUpdate(BaseModel):
     """오디오 챕터 수정 요청 모델"""
 
-    title: Optional[str] = Field(None, min_length=1, max_length=200, description="챕터 제목")
+    title: Optional[str] = Field(
+        None, min_length=1, max_length=200, description="챕터 제목"
+    )
 
 
 class AudioUploadResponse(BaseModel):
@@ -150,7 +156,7 @@ async def upload_audio_chapter(
 async def get_audio_chapters(
     book_id: str = Path(..., description="책 ID"),
     status: Optional[str] = Query(None, description="챕터 상태 필터"),
-    claims=Depends(require_approved_user()),
+    claims=Depends(optional_approved_user()),
     db: Session = Depends(get_db),
 ):
     """
@@ -381,7 +387,7 @@ async def update_chapter_order(
 async def get_audio_chapter(
     book_id: str = Path(..., description="책 ID"),
     chapter_id: str = Path(..., description="챕터 ID"),
-    claims=Depends(get_current_user_claims),
+    claims=Depends(optional_approved_user()),
     db: Session = Depends(get_db),
 ):
     """
@@ -431,7 +437,7 @@ async def get_audio_chapter(
 async def get_streaming_url(
     book_id: str = Path(..., description="책 ID"),
     chapter_id: str = Path(..., description="챕터 ID"),
-    claims=Depends(require_approved_user()),
+    claims=Depends(optional_approved_user()),
     db: Session = Depends(get_db),
     request: Request = None,
 ):
@@ -488,14 +494,18 @@ async def get_streaming_url(
             encoded_key = quote(storage_file_key, safe="/")
             signed_url = f"{worker_url}/{encoded_key}?token={token}&exp={exp}"
             logger.info("R2 Worker URL 반환: %s", storage_file_key)
-            return StreamingUrlResponse(streaming_url=signed_url, expires_at=expires, duration=duration)
+            return StreamingUrlResponse(
+                streaming_url=signed_url, expires_at=expires, duration=duration
+            )
 
         # R2 미설정 시 Railway 직접 스트리밍 fallback
         base = os.getenv("BACKEND_ORIGIN") or os.getenv("RAILWAY_PUBLIC_DOMAIN")
         if not base and request is not None:
             # request.base_url은 리버스 프록시 뒤에서 내부 주소(0.0.0.0)를 반환할 수 있음
             # X-Forwarded-Host / Host 헤더로 공개 주소를 구성
-            forwarded_host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+            forwarded_host = request.headers.get(
+                "x-forwarded-host"
+            ) or request.headers.get("host")
             forwarded_proto = request.headers.get("x-forwarded-proto", "https")
             if forwarded_host:
                 base = f"{forwarded_proto}://{forwarded_host}"
@@ -505,13 +515,19 @@ async def get_streaming_url(
             base = base.strip()
             if not (base.startswith("http://") or base.startswith("https://")):
                 base = f"https://{base}"
-            absolute_url = f"{base.rstrip('/')}{settings.API_V1_STR}/files/{storage_file_key}"
-            return StreamingUrlResponse(streaming_url=absolute_url, expires_at=expires, duration=duration)
+            absolute_url = (
+                f"{base.rstrip('/')}{settings.API_V1_STR}/files/{storage_file_key}"
+            )
+            return StreamingUrlResponse(
+                streaming_url=absolute_url, expires_at=expires, duration=duration
+            )
 
     streaming_path = f"{settings.API_V1_STR}/files/{storage_file_key}"
     if not streaming_path.startswith("/"):
         streaming_path = f"/{streaming_path.lstrip('/')}"
-    return StreamingUrlResponse(streaming_url=streaming_path, expires_at=expires, duration=duration)
+    return StreamingUrlResponse(
+        streaming_url=streaming_path, expires_at=expires, duration=duration
+    )
 
 
 @router.post("/{book_id}/chapters/{chapter_id}/progress")
@@ -519,7 +535,7 @@ async def update_playback_progress(
     book_id: str = Path(..., description="책 ID"),
     chapter_id: str = Path(..., description="챕터 ID"),
     payload: dict = None,
-    claims=Depends(get_current_user_claims),
+    claims=Depends(optional_approved_user()),
     db: Session = Depends(get_db),
 ):
     """
@@ -557,13 +573,17 @@ async def update_playback_progress(
         return {"ok": True}
 
     try:
-        progress = db.query(PlaybackProgressSQL).filter(
-            and_(
-                PlaybackProgressSQL.user_id == user_id,
-                PlaybackProgressSQL.book_id == book_id,
-                PlaybackProgressSQL.chapter_id == chapter_id,
+        progress = (
+            db.query(PlaybackProgressSQL)
+            .filter(
+                and_(
+                    PlaybackProgressSQL.user_id == user_id,
+                    PlaybackProgressSQL.book_id == book_id,
+                    PlaybackProgressSQL.chapter_id == chapter_id,
+                )
             )
-        ).first()
+            .first()
+        )
 
         if progress:
             progress.position_seconds = position
@@ -590,7 +610,7 @@ async def update_playback_progress(
 async def get_playback_position(
     book_id: str = Path(..., description="책 ID"),
     chapter_id: str = Path(..., description="챕터 ID"),
-    claims=Depends(get_current_user_claims),
+    claims=Depends(optional_approved_user()),
     db: Session = Depends(get_db),
 ):
     """
@@ -620,13 +640,17 @@ async def get_playback_position(
     if not user_id:
         return {}
 
-    progress = db.query(PlaybackProgressSQL).filter(
-        and_(
-            PlaybackProgressSQL.user_id == user_id,
-            PlaybackProgressSQL.book_id == book_id,
-            PlaybackProgressSQL.chapter_id == chapter_id,
+    progress = (
+        db.query(PlaybackProgressSQL)
+        .filter(
+            and_(
+                PlaybackProgressSQL.user_id == user_id,
+                PlaybackProgressSQL.book_id == book_id,
+                PlaybackProgressSQL.chapter_id == chapter_id,
+            )
         )
-    ).first()
+        .first()
+    )
 
     if not progress:
         return {}
@@ -634,8 +658,11 @@ async def get_playback_position(
     return {
         "position": progress.position_seconds,
         "duration": progress.duration_seconds,
-        "last_played_at": progress.last_played_at.isoformat() if progress.last_played_at else None,
+        "last_played_at": progress.last_played_at.isoformat()
+        if progress.last_played_at
+        else None,
     }
+
 
 @router.delete("/{book_id}/chapters/{chapter_id}")
 async def delete_audio_chapter(
@@ -696,11 +723,15 @@ async def delete_audio_chapter(
         )
 
 
-def _resolve_user_id_from_claims(claims: dict, db: Session):
-    """claims에서 DB user.id를 찾는다."""
+def _resolve_user_id_from_claims(claims: Optional[dict], db: Session):
+    """claims에서 DB user.id를 찾는다. 게스트(claims=None)는 None 반환."""
+    if claims is None:
+        return None
     firebase_uid = claims.get("uid") or claims.get("sub") or ""
     if firebase_uid:
-        user = db.query(UserSQL).filter(UserSQL.firebase_uid == str(firebase_uid)).first()
+        user = (
+            db.query(UserSQL).filter(UserSQL.firebase_uid == str(firebase_uid)).first()
+        )
         if user:
             return user.id
     username = claims.get("username") or ""
@@ -775,7 +806,13 @@ async def backfill_durations(
             file_data = await storage_service.download_file(audio_key)
             if file_data is None:
                 logger.warning("backfill: file not found in storage: %s", audio_key)
-                results.append({"chapter_id": ch.chapter_id, "audio_key": audio_key, "status": "not_found"})
+                results.append(
+                    {
+                        "chapter_id": ch.chapter_id,
+                        "audio_key": audio_key,
+                        "status": "not_found",
+                    }
+                )
                 skipped += 1
                 continue
 
@@ -799,17 +836,37 @@ async def backfill_durations(
                 ch.duration = duration
                 db.commit()
                 updated += 1
-                results.append({"chapter_id": ch.chapter_id, "audio_key": audio_key, "status": "ok", "duration": duration})
+                results.append(
+                    {
+                        "chapter_id": ch.chapter_id,
+                        "audio_key": audio_key,
+                        "status": "ok",
+                        "duration": duration,
+                    }
+                )
                 logger.info("backfill: %s → %d s", audio_key, duration)
             else:
                 skipped += 1
-                results.append({"chapter_id": ch.chapter_id, "audio_key": audio_key, "status": "duration_zero"})
+                results.append(
+                    {
+                        "chapter_id": ch.chapter_id,
+                        "audio_key": audio_key,
+                        "status": "duration_zero",
+                    }
+                )
                 logger.warning("backfill: could not extract duration for %s", audio_key)
 
         except Exception as e:
             db.rollback()
             logger.error("backfill error for %s: %s", audio_key, e)
-            results.append({"chapter_id": ch.chapter_id, "audio_key": audio_key, "status": "error", "detail": str(e)})
+            results.append(
+                {
+                    "chapter_id": ch.chapter_id,
+                    "audio_key": audio_key,
+                    "status": "error",
+                    "detail": str(e),
+                }
+            )
             failed += 1
 
     return {

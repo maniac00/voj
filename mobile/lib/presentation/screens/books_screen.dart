@@ -136,12 +136,22 @@ class _BooksScreenState extends ConsumerState<BooksScreen> with RouteAware {
                   _navigateToProfile();
                 case 'logout':
                   _showLogoutDialog();
+                case 'login':
+                  Navigator.of(context).pushReplacementNamed('/login');
               }
             },
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'profile', child: Text('프로필')),
-              PopupMenuItem(value: 'logout', child: Text('로그아웃')),
-            ],
+            itemBuilder: (context) {
+              final isGuest = ref.read(authRepositoryProvider).isGuest;
+              if (isGuest) {
+                return const [
+                  PopupMenuItem(value: 'login', child: Text('로그인')),
+                ];
+              }
+              return const [
+                PopupMenuItem(value: 'profile', child: Text('프로필')),
+                PopupMenuItem(value: 'logout', child: Text('로그아웃')),
+              ];
+            },
           ),
         ],
       ),

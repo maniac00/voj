@@ -32,6 +32,7 @@ class AuthRepository {
   User? _currentUser;
   AuthSession? _currentSession;
   String? _refreshToken;
+  bool _isGuest = false;
 
   final _userController = StreamController<User?>.broadcast();
   final _sessionController = StreamController<AuthSession?>.broadcast();
@@ -63,6 +64,7 @@ class AuthRepository {
   User? get currentUser => _currentUser;
   AuthSession? get currentSession => _currentSession;
   bool get isLoggedIn => _currentSession?.isValid ?? false;
+  bool get isGuest => _isGuest;
   Future<void> get initialized => _initializedCompleter.future;
   bool get isInitialized => _initializedCompleter.isCompleted;
 
@@ -175,6 +177,7 @@ class AuthRepository {
   }
 
   Future<void> _applyMobileAuthPayload(Map<String, dynamic> response) async {
+    _isGuest = false;
     final now = DateTime.now().toUtc();
     final session = AuthSession.fromLoginJson(response, issuedAt: now);
 
@@ -324,6 +327,23 @@ class AuthRepository {
     );
   }
 
+  /// 게스트 모드 시작 — 로그인 없이 공개(비저작권) 콘텐츠 열람
+  /// (App Store 가이드라인 5.1.1(v): 비계정 기능은 로그인 없이 접근 가능해야 함)
+  Future<void> enterGuestMode() async {
+    _isGuest = true;
+    _refreshToken = null;
+    _apiService.clearAuthToken();
+    _setSession(null);
+    _setCurrentUser(
+      const User(
+        id: 'guest',
+        name: '게스트',
+        status: UserStatus.approved,
+        scope: 'guest',
+      ),
+    );
+  }
+
   /// 본인 계정 삭제 (App Store 가이드라인 5.1.1(v))
   /// 서버가 계정·연관 데이터·Firebase 계정을 삭제하면 로컬 세션을 정리한다.
   Future<void> deleteAccount() async {
@@ -369,6 +389,7 @@ class AuthRepository {
       return;
     }
 
+    _isGuest = false;
     _refreshToken = null;
     _setCurrentUser(null);
     _setSession(null);

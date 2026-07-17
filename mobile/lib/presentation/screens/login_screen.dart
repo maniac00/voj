@@ -116,61 +116,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               const SizedBox(height: 48),
 
-              // 안내 카드
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFFDF8),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: const Color(0xFFC9A97A),
-                    width: 1.5,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          color: Color(0xFF5D4037),
-                          size: 22,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          '서비스 이용 안내',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF3E2723),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _buildGuideStep(
-                      number: '1',
-                      text: _supportsAppleSignIn
-                          ? 'Google 또는 Apple 계정으로 로그인하면 자동으로 회원가입이 완료됩니다.'
-                          : 'Google 계정으로 로그인하면 자동으로 회원가입이 완료됩니다.',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildGuideStep(
-                      number: '2',
-                      text: '관리자가 회원 정보를 확인한 후 승인해드립니다.',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildGuideStep(
-                      number: '3',
-                      text: '승인 완료 후 모든 오디오북을 자유롭게 이용하실 수 있습니다.',
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 36),
-
               // Google 로그인 버튼
               Semantics(
                 label: 'Google 계정으로 로그인. 탭하면 Google 로그인 화면으로 이동합니다.',
@@ -284,6 +229,46 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ],
 
+              const SizedBox(height: 16),
+
+              // 로그인 없이 둘러보기 (App Store 5.1.1(v) — 비계정 기능 접근)
+              Semantics(
+                label: '로그인 없이 둘러보기. 로그인하지 않고 공개 오디오북을 들을 수 있습니다.',
+                button: true,
+                child: SizedBox(
+                  height: 56,
+                  child: OutlinedButton(
+                    onPressed: authState is AuthLoading
+                        ? null
+                        : () async {
+                            await ref
+                                .read(authRepositoryProvider)
+                                .enterGuestMode();
+                            if (!context.mounted) return;
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(
+                                builder: (context) => const BooksScreen(),
+                              ),
+                            );
+                          },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF5D4037),
+                      side: const BorderSide(color: Color(0xFF5D4037)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text(
+                      '로그인 없이 둘러보기',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
               const SizedBox(height: 12),
 
               // 자동 로그인 체크박스
@@ -330,43 +315,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildGuideStep({required String number, required String text}) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 24,
-          height: 24,
-          decoration: const BoxDecoration(
-            color: Color(0xFF5D4037),
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: Text(
-              number,
-              style: const TextStyle(
-                color: Color(0xFFF5EDE0),
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF5D4037),
-              height: 1.5,
-            ),
-          ),
-        ),
-      ],
     );
   }
 

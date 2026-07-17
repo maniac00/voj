@@ -8,20 +8,20 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from pydantic import BaseModel, Field
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.audit import log_book_created, log_book_deleted
 from app.core.auth.simple import (
     get_current_user_claims,
+    optional_approved_user,
     require_admin_scope,
-    require_approved_user,
 )
+from app.models.audio_chapter_sql import AudioChapterSQL
+from app.models.book_sql import BookSQL
 from app.models.database import get_db
 from app.services.books_sql import BookServiceSQL as BookService
-from app.models.book_sql import BookSQL
-from app.models.audio_chapter_sql import AudioChapterSQL
-from app.core.audit import log_book_created, log_book_deleted
 from app.services.storage.factory import storage_service
-from sqlalchemy import func
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +52,7 @@ class BookBase(BaseModel):
 class BookCreate(BookBase):
     """책 생성 요청 모델"""
 
-    is_copyrighted: bool = Field(
-        default=True, description="저작권 보호 콘텐츠 여부 (기본값: 보호)"
-    )
+    is_copyrighted: bool = Field(default=True, description="저작권 보호 콘텐츠 여부 (기본값: 보호)")
 
 
 class BookUpdate(BaseModel):
@@ -172,7 +170,7 @@ async def get_books(
     status_filter: Optional[str] = Query(None, alias="status", description="책 상태 필터"),
     genre: Optional[str] = Query(None, description="장르 필터"),
     search: Optional[str] = Query(None, description="제목/저자 검색"),
-    claims=Depends(require_approved_user()),
+    claims=Depends(optional_approved_user()),
     db: Session = Depends(get_db),
 ):
     """
@@ -253,7 +251,7 @@ async def get_books(
 @router.get("/{book_id}", response_model=Book)
 async def get_book(
     book_id: str = Path(..., description="책 ID"),
-    claims=Depends(require_approved_user()),
+    claims=Depends(optional_approved_user()),
     db: Session = Depends(get_db),
 ):
     """

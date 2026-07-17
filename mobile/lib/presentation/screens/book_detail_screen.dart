@@ -18,6 +18,9 @@ class BookDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
+  /// 게스트가 무료 체험 재생을 이미 사용했는지 여부 (앱 재시작 후에도 유지)
+  static const _guestPlayUsedKey = 'guest_play_used';
+
   SavedPlaybackState? _savedState;
   bool _isLoadingPlayback = false;
   bool _isCancelled = false;
@@ -419,6 +422,37 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
     _playAndNavigate(context, ref, book, chapter);
   }
 
+  /// 게스트 무료 체험 소진 시 회원가입 안내 팝업
+  void _showGuestSignupDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('회원가입 안내'),
+          content: const Text(
+            '로그인 없이 둘러보기에서는 한 번만 들을 수 있습니다.\n'
+            '계속 들으시려면 회원가입 후 로그인해 주세요.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil('/login', (route) => false);
+              },
+              child: const Text('초기화면 이동'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   /// 모달 로딩 취소
   void _cancelLoading(BuildContext dialogContext) {
     _isCancelled = true;
@@ -434,6 +468,16 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
     int? startPosition,
   }) async {
     if (_isLoadingPlayback) return;
+
+    // 게스트는 1회만 재생 가능 — 2번째 시도부터 회원가입 안내
+    if (ref.read(authRepositoryProvider).isGuest) {
+      final prefs = ref.read(sharedPreferencesProvider);
+      if (prefs.getBool(_guestPlayUsedKey) ?? false) {
+        _showGuestSignupDialog(context);
+        return;
+      }
+    }
+
     _isLoadingPlayback = true;
     _isCancelled = false;
 
@@ -520,6 +564,14 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
         controller.stop();
         return;
       }
+
+      // 재생이 실제로 시작된 시점에 게스트 체험 1회 사용 처리
+      if (ref.read(authRepositoryProvider).isGuest) {
+        await ref
+            .read(sharedPreferencesProvider)
+            .setBool(_guestPlayUsedKey, true);
+      }
+      if (!context.mounted) return;
 
       Navigator.pop(context); // 모달 닫기
 

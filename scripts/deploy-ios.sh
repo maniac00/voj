@@ -48,15 +48,22 @@ echo ""
 
 # --- 2. IPA 빌드 ---
 echo "[2/5] IPA 빌드 중..."
+# 이전 빌드의 IPA가 남아 있으면 빌드 실패 시 낡은 IPA를 업로드하게 되므로 먼저 제거
+IPA_DIR="$PROJECT_ROOT/mobile/build/ios/ipa"
+rm -rf "$IPA_DIR"
+
+# flutter build ipa는 export 단계 실패(서명 오류 등)에도 exit 0을 반환하므로
+# 종료 코드 대신 IPA 파일 존재 여부로 성공을 판정한다
 flutter build ipa --release \
   --dart-define=VOJ_API_BASE_URL="https://voj-production.up.railway.app/api/v1" \
   --export-options-plist="$IOS_DIR/ExportOptions.plist"
 
-IPA_DIR="$PROJECT_ROOT/mobile/build/ios/ipa"
-IPA_PATH=$(find "$IPA_DIR" -name "*.ipa" | head -1)
+IPA_PATH=$(find "$IPA_DIR" -name "*.ipa" 2>/dev/null | head -1)
 
 if [[ -z "$IPA_PATH" ]]; then
-  echo "ERROR: IPA 파일을 찾을 수 없습니다."
+  echo "ERROR: IPA 빌드에 실패했습니다 (IPA 파일 없음)."
+  echo "       서명 오류(No Accounts 등)라면 Xcode > Settings > Accounts에서"
+  echo "       Apple ID 로그인 상태를 확인한 뒤 다시 실행하세요."
   exit 1
 fi
 
@@ -67,12 +74,21 @@ echo ""
 
 # --- 3. TestFlight 업로드 ---
 echo "[3/5] TestFlight 업로드 중..."
+# altool은 업로드 실패 시에도 exit 0을 반환할 수 있으므로 출력에서 실패 여부를 판정
+UPLOAD_LOG=$(mktemp)
 xcrun altool \
   --upload-app \
   --type ios \
   --file "$IPA_PATH" \
   --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
-  --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+  --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" 2>&1 | tee "$UPLOAD_LOG"
+
+if grep -qE "UPLOAD FAILED|Failed to upload|ERROR:" "$UPLOAD_LOG"; then
+  rm -f "$UPLOAD_LOG"
+  echo "ERROR: TestFlight 업로드에 실패했습니다. 위 로그를 확인하세요."
+  exit 1
+fi
+rm -f "$UPLOAD_LOG"
 
 echo "TestFlight 업로드 완료"
 echo ""

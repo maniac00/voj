@@ -332,7 +332,14 @@ class _BooksScreenState extends ConsumerState<BooksScreen> with RouteAware {
       onRefresh: () async => _refreshBooks(trigger: 'pullToRefresh'),
       child: ListView.builder(
         controller: _scrollController,
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        // edge-to-edge(Android 15+)에서 마지막 도서가 내비게이션 바에
+        // 가리지 않도록 하단 inset을 더한다.
+        padding: EdgeInsets.fromLTRB(
+          16,
+          8,
+          16,
+          24 + MediaQuery.viewPaddingOf(context).bottom,
+        ),
         itemCount: sortedBooks.length + (response.pagination.hasNext ? 1 : 0),
         itemBuilder: (context, index) {
           if (index >= sortedBooks.length) {
@@ -494,8 +501,8 @@ class _BooksScreenState extends ConsumerState<BooksScreen> with RouteAware {
   }
 
   void _navigateToProfile() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => const ProfileScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const ProfileScreen()));
   }
 }

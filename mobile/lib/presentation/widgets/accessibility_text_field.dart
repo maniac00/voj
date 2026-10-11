@@ -40,14 +40,14 @@ class AccessibilityTextField extends StatelessWidget {
             labelText,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
-              color: enabled 
-                  ? Theme.of(context).colorScheme.onSurface 
+              color: enabled
+                  ? Theme.of(context).colorScheme.onSurface
                   : Theme.of(context).disabledColor,
             ),
             semanticsLabel: '$labelText 입력 필드',
           ),
         ),
-        
+
         // 입력 필드
         TextFormField(
           controller: controller,
@@ -62,13 +62,15 @@ class AccessibilityTextField extends StatelessWidget {
           decoration: InputDecoration(
             hintText: hintText,
             hintStyle: TextStyle(
-              color: Theme.of(context).hintColor,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontSize: Theme.of(context).textTheme.bodyLarge?.fontSize,
             ),
             suffixIcon: suffixIcon,
             filled: true,
-            fillColor: enabled 
-                ? Theme.of(context).colorScheme.surface
+            // 다이얼로그 표면(surface)과 같은 색을 쓰면 입력창이 배경에 묻힌다.
+            // surfaceContainerHighest는 다이얼로그보다 한 단계 진한 베이지.
+            fillColor: enabled
+                ? Theme.of(context).colorScheme.surfaceContainerHighest
                 : Theme.of(context).disabledColor.withValues(alpha: 0.1),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),

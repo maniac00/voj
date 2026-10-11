@@ -130,7 +130,14 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
     final narrator = book.narrator?.trim();
     final hasNarrator = narrator != null && narrator.isNotEmpty;
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+      // edge-to-edge(Android 15+)에서 하단 버튼이 내비게이션 바에
+      // 가리지 않도록 하단 inset을 더한다.
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        32 + MediaQuery.viewPaddingOf(context).bottom,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -403,7 +410,9 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
         // 저장된 챕터가 삭제되었으면 stale 상태 정리
         final prefs = ref.read(sharedPreferencesProvider);
         LocalPlaybackState.clear(prefs, book.id);
-        setState(() { _savedState = null; });
+        setState(() {
+          _savedState = null;
+        });
       }
     }
 

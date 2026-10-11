@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -35,6 +36,22 @@ void main() async {
     _log.severe('Platform error', error: error, stackTrace: stack);
     return true;
   };
+
+  // Android 15+(API 35)부터 edge-to-edge가 강제되므로 명시적으로 선언하고,
+  // 시스템 바를 투명하게 만들어 앱의 크림 배경이 끝까지 이어지도록 한다.
+  // 각 화면은 SafeArea / viewPadding으로 시스템 바 영역을 피한다.
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark, // 밝은 크림 배경 → 어두운 아이콘
+      statusBarBrightness: Brightness.light, // iOS
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.dark,
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemNavigationBarContrastEnforced: false,
+    ),
+  );
 
   // 오디오 백그라운드 서비스 초기화 (foreground service + 알림바 미디어 컨트롤)
   await JustAudioBackground.init(
@@ -116,9 +133,11 @@ class _VoiceOfJuanAppState extends ConsumerState<VoiceOfJuanApp>
       navigatorObservers: [appRouteObserver],
       title: '주안의 소리',
       debugShowCheckedModeBanner: false,
+      // 모든 화면이 크림/브라운 팔레트를 전제로 하므로 라이트 테마로 고정한다.
+      // ThemeMode.system으로 두면 시스템 다크모드에서 다이얼로그·팝업만
+      // 어두워져 본문과 어긋난다.
       theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.light,
       initialRoute: '/',
       routes: {
         '/': (context) => const SplashScreen(),

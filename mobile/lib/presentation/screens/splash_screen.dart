@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_config.dart';
 import '../../data/models/user_model.dart';
@@ -79,55 +80,70 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // 배경 이미지
-          Image.asset('assets/images/splash_background.png', fit: BoxFit.cover),
-
-          // 반투명 어두운 오버레이
-          Container(color: Colors.black.withValues(alpha: 0.4)),
-
-          // 콘텐츠
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Spacer(flex: 3),
-
-                // 앱 이름
-                const Text(
-                  '주안의 소리',
-                  style: TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                // 부제목
-                const Text(
-                  '시각장애인을 위한 오디오북',
-                  style: TextStyle(fontSize: 18, color: Colors.white70),
-                ),
-
-                const Spacer(flex: 2),
-
-                // 로딩 인디케이터
-                const CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  strokeWidth: 2.5,
-                ),
-
-                const SizedBox(height: 60),
-              ],
+    // 스플래시는 AppBar가 없고 배경이 어두우므로, 상태바·내비바 아이콘을
+    // 흰색으로 지정해야 시스템 바가 배경에 묻히지 않는다.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark, // iOS
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.light,
+        systemNavigationBarContrastEnforced: false,
+      ),
+      child: Scaffold(
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            // 배경 이미지
+            Image.asset(
+              'assets/images/splash_background.png',
+              fit: BoxFit.cover,
             ),
-          ),
-        ],
+
+            // 반투명 어두운 오버레이
+            Container(color: Colors.black.withValues(alpha: 0.4)),
+
+            // 콘텐츠
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Spacer(flex: 3),
+
+                  // 앱 이름
+                  const Text(
+                    '주안의 소리',
+                    style: TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // 부제목
+                  const Text(
+                    '시각장애인을 위한 오디오북',
+                    style: TextStyle(fontSize: 18, color: Colors.white70),
+                  ),
+
+                  const Spacer(flex: 2),
+
+                  // 로딩 인디케이터
+                  const CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    strokeWidth: 2.5,
+                  ),
+
+                  const SizedBox(height: 60),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

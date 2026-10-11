@@ -239,7 +239,6 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
           // 재생 버튼
           SizedBox(
             width: double.infinity,
-            height: 54,
             child: ElevatedButton(
               onPressed: () => _playFromSavedOrFirst(context, ref, book),
               style: ElevatedButton.styleFrom(
@@ -248,6 +247,13 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
+                ),
+                // 높이를 고정하지 않고 최소치만 보장 — 글자 배율을 키워도
+                // 라벨이 잘리지 않고 버튼이 늘어난다
+                minimumSize: const Size(0, 54),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
                 ),
               ),
               child: Text(

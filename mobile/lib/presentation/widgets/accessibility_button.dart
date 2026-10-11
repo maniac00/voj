@@ -24,13 +24,16 @@ class AccessibilityButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final minHeight = height ?? 60;
+    // 높이를 고정하지 않는다. 시스템 글자 크기를 키운 사용자(저시력 사용자)에게는
+    // 라벨이 잘리는 대신 버튼이 세로로 늘어나야 한다.
     return SizedBox(
       width: width ?? double.infinity,
-      height: height,
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor ?? Theme.of(context).colorScheme.primary,
+          backgroundColor:
+              backgroundColor ?? Theme.of(context).colorScheme.primary,
           foregroundColor: textColor ?? Colors.white,
           disabledBackgroundColor: Theme.of(context).disabledColor,
           disabledForegroundColor: Colors.white,
@@ -38,8 +41,9 @@ class AccessibilityButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          minimumSize: Size(width ?? double.infinity, height ?? 60),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          // 최소 높이만 지정 — 내용이 커지면 그만큼 커진다
+          minimumSize: Size(0, minHeight),
         ),
         child: isLoading
             ? SizedBox(
@@ -57,11 +61,7 @@ class AccessibilityButton extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   if (icon != null) ...[
-                    Icon(
-                      icon,
-                      size: 24,
-                      semanticLabel: text,
-                    ),
+                    Icon(icon, size: 24, semanticLabel: text),
                     const SizedBox(width: 8),
                   ],
                   Flexible(
@@ -73,7 +73,6 @@ class AccessibilityButton extends StatelessWidget {
                         fontSize: 18,
                       ),
                       textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -115,7 +114,8 @@ class AccessibilityIconButton extends StatelessWidget {
           semanticLabel: semanticLabel,
         ),
         style: IconButton.styleFrom(
-          backgroundColor: backgroundColor ?? 
+          backgroundColor:
+              backgroundColor ??
               Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),

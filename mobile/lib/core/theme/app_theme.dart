@@ -114,11 +114,14 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
       ),
 
-      // 다이얼로그 액션 버튼 — 크림 배경에서 읽히는 색으로 고정
+      // 다이얼로그 액션 버튼 — 크림 배경에서 읽히는 색으로 고정하고,
+      // M3 기본 최소 높이(40dp)를 Android 접근성 기준인 48dp로 올린다.
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.primary,
           textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          minimumSize: const Size(64, 48),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
       ),
 

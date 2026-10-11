@@ -78,7 +78,11 @@ class BookService {
 
       final chapters = await _fetchChapters(bookId);
       normalized['chapters'] = chapters;
-      normalized['_count'] = {'chapters': chapters.length};
+      // 챕터 조회가 실패하거나 빈 목록이면 서버가 준 total_chapters를 유지한다.
+      // 무조건 덮어쓰면 챕터 API 오류 시 상세 화면 챕터 수가 0으로 표시된다.
+      if (chapters.isNotEmpty) {
+        normalized['_count'] = {'chapters': chapters.length};
+      }
 
       return Book.fromJson(normalized);
     } on ApiException catch (error) {

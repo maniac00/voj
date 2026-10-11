@@ -5,10 +5,7 @@ import 'accessibility_button.dart';
 class SearchBarWidget extends StatefulWidget {
   final void Function(String query) onSearch;
 
-  const SearchBarWidget({
-    super.key,
-    required this.onSearch,
-  });
+  const SearchBarWidget({super.key, required this.onSearch});
 
   @override
   State<SearchBarWidget> createState() => _SearchBarWidgetState();
@@ -60,8 +57,9 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
               AccessibilityButton(
                 onPressed: _performSearch,
                 text: '검색',
-                width: 100,
-                height: 45,
+                width: 110,
+                // 45dp는 Android 권장 최소 터치 타깃(48dp) 미달
+                height: 52,
               ),
             ],
           ),

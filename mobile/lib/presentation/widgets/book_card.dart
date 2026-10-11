@@ -102,7 +102,7 @@ class BookCard extends ConsumerWidget {
                               '저자:${book.author}',
                               style: const TextStyle(
                                 fontSize: 14,
-                                color: Color(0xFF8D7B68),
+                                color: Color(0xFF6D4C41),
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -111,7 +111,7 @@ class BookCard extends ConsumerWidget {
                                 '낭독:$narrator',
                                 style: const TextStyle(
                                   fontSize: 14,
-                                  color: Color(0xFF8D7B68),
+                                  color: Color(0xFF6D4C41),
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -126,14 +126,14 @@ class BookCard extends ConsumerWidget {
                             const Icon(
                               Icons.music_note_rounded,
                               size: 16,
-                              color: Color(0xFF8D7B68),
+                              color: Color(0xFF6D4C41),
                             ),
                             const SizedBox(width: 4),
                             Text(
                               '${book.chapterCount}개 챕터',
                               style: const TextStyle(
                                 fontSize: 13,
-                                color: Color(0xFF8D7B68),
+                                color: Color(0xFF6D4C41),
                               ),
                             ),
                           ],

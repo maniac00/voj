@@ -10,6 +10,7 @@ import '../widgets/book_card.dart';
 import '../widgets/search_bar_widget.dart';
 import 'book_detail_screen.dart';
 import 'profile_screen.dart';
+import '../../core/theme/app_theme.dart';
 
 const _log = AppLogger('BooksScreen');
 
@@ -177,13 +178,21 @@ class _BooksScreenState extends ConsumerState<BooksScreen> with RouteAware {
                       ),
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () => _clearSearch(),
-                    child: const Icon(
+                  // 터치 영역이 아이콘 크기(20dp)와 같아 누르기 어려웠던 것을
+                  // IconButton의 48dp 타깃으로 교체
+                  IconButton(
+                    onPressed: () => _clearSearch(),
+                    icon: const Icon(
                       Icons.close,
                       color: Color(0xFF5D4037),
-                      size: 20,
+                      size: 24,
                     ),
+                    tooltip: '검색 해제',
+                    constraints: const BoxConstraints(
+                      minWidth: 48,
+                      minHeight: 48,
+                    ),
+                    padding: EdgeInsets.zero,
                   ),
                 ],
               ),
@@ -212,29 +221,34 @@ class _BooksScreenState extends ConsumerState<BooksScreen> with RouteAware {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          _buildSortChip(
-            label: '최근 재생순',
-            selected: sortOrder == BookSortOrder.recentlyPlayed,
-            onTap: () => ref.read(bookSortOrderProvider.notifier).state =
-                BookSortOrder.recentlyPlayed,
-          ),
-          const SizedBox(width: 8),
-          _buildSortChip(
-            label: '최신순',
-            selected: sortOrder == BookSortOrder.newest,
-            onTap: () => ref.read(bookSortOrderProvider.notifier).state =
-                BookSortOrder.newest,
-          ),
-          const SizedBox(width: 8),
-          _buildSortChip(
-            label: '가나다순',
-            selected: sortOrder == BookSortOrder.alphabetical,
-            onTap: () => ref.read(bookSortOrderProvider.notifier).state =
-                BookSortOrder.alphabetical,
-          ),
-        ],
+      // 칩이 48dp로 커지고 글자 배율까지 적용되면 좁은 화면에서 넘치므로
+      // 가로 스크롤을 허용한다.
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildSortChip(
+              label: '최근 재생순',
+              selected: sortOrder == BookSortOrder.recentlyPlayed,
+              onTap: () => ref.read(bookSortOrderProvider.notifier).state =
+                  BookSortOrder.recentlyPlayed,
+            ),
+            const SizedBox(width: 8),
+            _buildSortChip(
+              label: '최신순',
+              selected: sortOrder == BookSortOrder.newest,
+              onTap: () => ref.read(bookSortOrderProvider.notifier).state =
+                  BookSortOrder.newest,
+            ),
+            const SizedBox(width: 8),
+            _buildSortChip(
+              label: '가나다순',
+              selected: sortOrder == BookSortOrder.alphabetical,
+              onTap: () => ref.read(bookSortOrderProvider.notifier).state =
+                  BookSortOrder.alphabetical,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -244,23 +258,36 @@ class _BooksScreenState extends ConsumerState<BooksScreen> with RouteAware {
     required bool selected,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFF5D4037) : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selected ? const Color(0xFF5D4037) : const Color(0xFFBCAAA4),
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : const Color(0xFF5D4037),
+    // 터치 타깃을 Android 권장 최소치인 48dp로 보장하고, 미선택 상태의
+    // 테두리 색을 대비 2.2:1 → 4.6:1로 올린다.
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: selected ? AppColors.primary : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(24),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 48),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: selected ? AppColors.primary : AppColors.outline,
+                width: 1.5,
+              ),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: selected ? Colors.white : AppColors.primary,
+              ),
+            ),
           ),
         ),
       ),

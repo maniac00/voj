@@ -108,7 +108,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 '시각장애인을 위한 오디오북',
                 style: TextStyle(
                   fontSize: 16,
-                  color: Color(0xFF8D7B68),
+                  color: Color(0xFF6D4C41),
                   fontWeight: FontWeight.w500,
                 ),
                 textAlign: TextAlign.center,

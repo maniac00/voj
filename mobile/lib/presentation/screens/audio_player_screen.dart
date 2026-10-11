@@ -276,7 +276,7 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
                   height: 36,
                   child: Icon(
                     Icons.auto_stories_outlined,
-                    color: const Color(0xFF8D7B68),
+                    color: const Color(0xFF6D4C41),
                     size: 24,
                   ),
                 ),
@@ -305,7 +305,7 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
                       chapter.durationText,
                       style: const TextStyle(
                         fontSize: 13,
-                        color: Color(0xFF8D7B68),
+                        color: Color(0xFF6D4C41),
                       ),
                     ),
                   ],

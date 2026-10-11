@@ -141,7 +141,7 @@ class AudioPlayerWidget extends ConsumerWidget {
                       chapter.displayName,
                       style: const TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF8D7B68),
+                        color: Color(0xFF6D4C41),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -338,7 +338,8 @@ class AudioPlayerWidget extends ConsumerWidget {
           // 챕터 제목
           Text(
             chapter.displayName,
-            style: const TextStyle(fontSize: 14, color: Color(0xFF8D7B68)),
+            // 크림 배경 대비 3.50:1(AA 미달) → 6.55:1
+            style: const TextStyle(fontSize: 14, color: Color(0xFF6D4C41)),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

@@ -7,7 +7,11 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.v1.api import api_router
 from app.core.config import settings
+from app.core.logging_config import setup_logging
 from app.services.websocket.log_streamer import setup_websocket_logging
+
+# 앱 생성 전에 stdout 로깅을 켠다 — 이후의 모든 app.*/audit 로그가 플랫폼 로그로 나간다
+setup_logging(getattr(settings, "LOG_LEVEL", None))
 
 # FastAPI 애플리케이션 인스턴스 생성
 docs_enabled = bool(getattr(settings, "ENABLE_API_DOCS", False))
@@ -54,10 +58,13 @@ async def startup_event():
     # Firebase Admin SDK 초기화
     try:
         from app.core.auth.firebase import init_firebase
+
         if init_firebase():
             print("Firebase Admin SDK initialized successfully")
         else:
-            print("Firebase Admin SDK not configured (FIREBASE_SERVICE_ACCOUNT_JSON not set)")
+            print(
+                "Firebase Admin SDK not configured (FIREBASE_SERVICE_ACCOUNT_JSON not set)"
+            )
     except Exception as e:
         print(f"Warning: Failed to initialize Firebase: {e}")
 

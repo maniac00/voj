@@ -1,10 +1,10 @@
 {
   "android": {
-    "latestVersion": "1.4.3",
-    "latestBuildNumber": 42,
-    "downloadUrl": "https://voj-releases.7wario.workers.dev/android/voice-of-juan-v1.4.3.apk",
+    "latestVersion": "1.4.4",
+    "latestBuildNumber": 43,
+    "downloadUrl": "https://voj-releases.7wario.workers.dev/android/voice-of-juan-v1.4.4.apk",
     "fileSize": 79152765,
-    "releaseDate": "2026-10-11",
-    "changelog": "v1.4.3 릴리스"
+    "releaseDate": "2026-10-18",
+    "changelog": "v1.4.4 릴리스"
   }
 }

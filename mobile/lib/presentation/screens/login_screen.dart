@@ -75,10 +75,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         backgroundColor: const Color(0xFFF5EDE0),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF3E2723)),
-        ),
+        // 뒤로가기를 하드코딩하면 로그아웃 직후처럼 이 화면이 스택의 유일한
+        // 라우트일 때도 화살표가 보이고, 누르면 마지막 라우트까지 pop되어
+        // 빈 화면만 남는다. 돌아갈 라우트가 있을 때만 표시한다.
+        automaticallyImplyLeading: true,
+        leading: Navigator.of(context).canPop()
+            ? IconButton(
+                onPressed: () => Navigator.of(context).maybePop(),
+                icon: const Icon(Icons.arrow_back, color: Color(0xFF3E2723)),
+                tooltip: '뒤로',
+              )
+            : null,
       ),
       body: SafeArea(
         child: SingleChildScrollView(

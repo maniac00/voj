@@ -138,7 +138,9 @@ class _BooksScreenState extends ConsumerState<BooksScreen> with RouteAware {
                 case 'logout':
                   _showLogoutDialog();
                 case 'login':
-                  Navigator.of(context).pushReplacementNamed('/login');
+                  Navigator.of(
+                    context,
+                  ).pushNamedAndRemoveUntil('/login', (route) => false);
               }
             },
             itemBuilder: (context) {
@@ -517,7 +519,11 @@ class _BooksScreenState extends ConsumerState<BooksScreen> with RouteAware {
               onPressed: () {
                 Navigator.of(context).pop();
                 ref.read(authControllerProvider.notifier).logout();
-                Navigator.of(this.context).pushReplacementNamed('/login');
+                // main.dart의 세션 리스너도 /login 으로 보내므로, 여기서도
+                // 스택을 비워 로그인 라우트가 겹쳐 쌓이지 않게 한다.
+                Navigator.of(
+                  this.context,
+                ).pushNamedAndRemoveUntil('/login', (route) => false);
               },
               child: const Text('로그아웃'),
             ),

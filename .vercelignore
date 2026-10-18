@@ -1,0 +1,13 @@
+# Vercel 프로젝트(voj-frontend)의 rootDirectory는 frontend/ 이므로
+# 모노레포의 나머지는 업로드할 필요가 없다. 특히 mobile/build 는 수 GB에
+# 달하고 빌드 중 파일이 생겼다 사라져 아카이브 단계에서 ENOENT를 일으킨다.
+mobile/
+backend/
+r2-worker/
+download-page/
+appstore/
+tmp_test_media/
+docs/
+scripts/
+*.db
+*.mp3

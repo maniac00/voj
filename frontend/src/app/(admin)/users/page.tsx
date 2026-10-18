@@ -52,10 +52,22 @@ export default function UsersPage() {
   }, [loadUsers]);
 
   const handleDelete = async (user: UserDto) => {
-    const confirmed = window.confirm(
-      `정말 삭제하시겠습니까?\n\n이메일: ${user.email}\n이름: ${user.display_name || "-"}\n\n삭제 후 복구할 수 없습니다.`,
+    // 운영자가 "권한 삭제" 의도로 계정을 영구 삭제한 사고가 있었음.
+    // 어떤 작업인지 분명히 알리고, 이메일을 직접 입력해야만 진행되게 한다.
+    const typed = window.prompt(
+      `⚠️ 계정 영구 삭제\n\n` +
+        `이 작업은 권한 변경이 아니라 계정 자체를 삭제합니다.\n` +
+        `• 저작권 콘텐츠 접근만 막으려면 → '저작권 접근' 체크 해제\n` +
+        `• 이용을 중단시키려면 → '정지'\n\n` +
+        `삭제하면 재생 기록이 함께 삭제되고 복구할 수 없습니다. ` +
+        `사용자가 다시 로그인하면 저작권 접근이 차단된 새 계정으로 다시 생성됩니다.\n\n` +
+        `계속하려면 이메일을 똑같이 입력하세요:\n${user.email}`,
     );
-    if (!confirmed) return;
+    if (typed === null) return;
+    if (typed.trim().toLowerCase() !== user.email.toLowerCase()) {
+      alert("입력한 이메일이 일치하지 않아 삭제를 취소했습니다.");
+      return;
+    }
 
     setDeleting(user.id);
     try {
@@ -261,9 +273,10 @@ export default function UsersPage() {
                         <button
                           onClick={() => handleDelete(user)}
                           disabled={deleting === user.id}
-                          className="px-3 py-1 text-xs bg-red-800 text-white rounded hover:bg-red-900 disabled:opacity-50"
+                          title="계정과 재생 기록을 영구 삭제합니다 (권한 변경이 아님)"
+                          className="ml-3 pl-3 border-l border-gray-300 px-3 py-1 text-xs text-red-800 border border-red-300 rounded hover:bg-red-50 disabled:opacity-50"
                         >
-                          {deleting === user.id ? "삭제 중..." : "삭제"}
+                          {deleting === user.id ? "삭제 중..." : "계정 영구 삭제"}
                         </button>
                       )}
                     </div>
